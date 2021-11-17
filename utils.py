@@ -845,6 +845,7 @@ def get_datasets_dir_dict(Dataset: str):
             dir_dict['TCGA'] = TCGA_omer_path
             dir_dict['HEROHE'] = HEROHE_omer_path
 
+
         else:
             raise Exception('Unrecognized platform')
 
@@ -1069,7 +1070,9 @@ def save_code_files(args: argsNamespace, train_DataSet):
 
     # Add Grid Data:
     data_dict = args_dict
-    # grid_meta_data_file = os.path.join(train_DataSet.ROOT_PATH, train_DataSet.DataSet, 'Grids', 'production_meta_data.xlsx')
+    if type(train_DataSet) == dict:
+        train_DataSet = train_DataSet['Censored']
+
     if train_DataSet.train_type != 'Features':
         for _, key in enumerate(train_DataSet.dir_dict):
             grid_meta_data_file = os.path.join(train_DataSet.dir_dict[key], 'Grids_' + str(train_DataSet.desired_magnification), 'production_meta_data.xlsx')
@@ -1560,7 +1563,12 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str, test_fo
                                                          'TrainSet Location': r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20063-PR-TestFold_2/Inference/train_w_features',
                                                          'TestSet Location': r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20063-PR-TestFold_2/Inference/test_w_features',
                                                          'REG Model Location': r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20063-PR-TestFold_2/Model_CheckPoints/model_data_Epoch_1000.pt'
-                                                         }
+                                                         },
+                                                  'Her2': {'DataSet Name': r'FEATURES: Exp_412-Her2-TestFold_1',
+                                                           'TrainSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_412-Her2-TestFold_2/Inference/train_w_features',
+                                                           'TestSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_412-Her2-TestFold_2/Inference/test_w_features',
+                                                           'REG Model Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_412-Her2-TestFold_2/Model_CheckPoints/model_data_Epoch_1000.pt'
+                                                           }
                                                   }
                                        },
 

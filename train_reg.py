@@ -1,11 +1,11 @@
 import utils
 import datasets
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import torch
 import torch.optim as optim
-from tqdm import tqdm
 import time
 from torch.utils.tensorboard import SummaryWriter
 import argparse
@@ -19,6 +19,7 @@ import smtplib, ssl
 import psutil
 import nets, PreActResNets, resnet_v2
 from Cox_Loss import Cox_loss
+from sksurv.metrics import concordance_index_censored
 
 parser = argparse.ArgumentParser(description='WSI_REG Training of PathNet Project')
 parser.add_argument('-tf', '--test_fold', default=1, type=int, help='fold to be as TEST FOLD')
@@ -28,7 +29,7 @@ parser.add_argument('-fe', '--from_epoch', type=int, default=0, help='Continue t
 parser.add_argument('-d', dest='dx', action='store_true', help='Use ONLY DX cut slides')
 parser.add_argument('-ds', '--dataset', type=str, default='ABCTB', help='DataSet to use')
 parser.add_argument('-time', dest='time', action='store_true', help='save train timing data ?')
-parser.add_argument('-tar', '--target', default='Survival_Time', type=str, help='label: Her2/ER/PR/EGFR/PDL1')
+parser.add_argument('-tar', '--target', default='Survival_Binary', type=str, help='label: Her2/ER/PR/EGFR/PDL1')
 parser.add_argument('--n_patches_test', default=1, type=int, help='# of patches at test time')
 parser.add_argument('--n_patches_train', default=10, type=int, help='# of patches at train time')
 parser.add_argument('--lr', default=1e-5, type=float, help='learning rate')
@@ -69,11 +70,12 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
         all_writer.add_text('Experiment No.', str(experiment))
         all_writer.add_text('Train type', 'Regular')
         all_writer.add_text('Model type', str(type(model)))
-        all_writer.add_text('Data type', dloader_train.dataset.DataSet)
-        all_writer.add_text('Train Folds', str(dloader_train.dataset.folds).strip('[]'))
-        all_writer.add_text('Test Folds', str(dloader_test.dataset.folds).strip('[]'))
-        all_writer.add_text('Transformations', str(dloader_train.dataset.transform))
-        all_writer.add_text('Receptor Type', str(dloader_train.dataset.target_kind))
+        if type(dloader_train) != zip:
+            all_writer.add_text('Data type', dloader_train.dataset.DataSet)
+            all_writer.add_text('Train Folds', str(dloader_train.dataset.folds).strip('[]'))
+            all_writer.add_text('Test Folds', str(dloader_test.dataset.folds).strip('[]'))
+            all_writer.add_text('Transformations', str(dloader_train.dataset.transform))
+            all_writer.add_text('Receptor Type', str(dloader_train.dataset.target_kind))
 
     if print_timing:
         time_writer = SummaryWriter(os.path.join(writer_folder, 'time'))
@@ -84,15 +86,20 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
     for e in range(from_epoch, epoch):
         time_epoch_start = time.time()
         if args.target == 'Survival_Time':
-            all_targets, all_outputs, all_censored, all_cont_targets = [], [], [], []
+            all_targets, all_outputs, all_censored, all_cont_targets, all_binary_targets = [], [], [], [], []
 
-        total, correct_pos, correct_neg = 0, 0, 0
-        total_pos_train, total_neg_train = 0, 0
-        true_targets_train, scores_train = np.zeros(0), np.zeros(0)
-        correct_labeling, train_loss = 0, 0
+        else:
+            if args.target == 'Survival_Binary':
+                all_targets, all_outputs, all_censored, all_cont_targets, all_binary_targets = [], [], [], [], []
 
+            total, correct_pos, correct_neg = 0, 0, 0
+            total_pos_train, total_neg_train = 0, 0
+            true_targets_train, scores_train = np.zeros(0), np.zeros(0)
+            correct_labeling = 0
 
         slide_names = []
+        train_loss = 0
+
         print('Epoch {}:'.format(e))
 
         # RanS 11.7.21
@@ -103,17 +110,30 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
         model.to(DEVICE)
         #for batch_idx, (data, target, time_list, f_names, _) in enumerate(tqdm(dloader_train)):
         for batch_idx, minibatch in enumerate(tqdm(dloader_train)):  # Omer 7 Nov 2021
+            if type(dloader_train) == zip:
+                new_minibatch = {}
+                for key in minibatch[0].keys():
+                    if type(minibatch[0][key]) == torch.Tensor:
+                        new_minibatch[key] = torch.cat([minibatch[0][key], minibatch[1][key]], dim=0)
+                    elif type(minibatch[0][key]) == list:
+                        new_minibatch[key] = minibatch[0][key] + minibatch[1][key]
+
+                minibatch = new_minibatch
+
             data = minibatch['Data']
             target = minibatch['Target']
             time_list = minibatch['Time List']
             f_names = minibatch['File Names']
 
-            if args.target == 'Survival_Time':
+            if args.target in ['Survival_Time', 'Survival_Binary']:
                 censored = minibatch['Censored']
                 target_binary = minibatch['Target Binary']
-            elif args.target == 'Survival_Binary':
-                censored = minibatch['Censored']
                 target_cont = minibatch['Survival Time']
+
+            all_targets.extend(target.numpy()[:, 0])
+            all_cont_targets.extend(target_cont.numpy())
+            all_binary_targets.extend(target_binary.numpy())
+            all_censored.extend(censored.numpy())
 
             train_start = time.time()
             data, target = data.to(DEVICE), target.to(DEVICE).squeeze(1)
@@ -142,13 +162,9 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                 correct_pos += predicted[target.eq(1)].eq(1).sum().item()
                 correct_neg += predicted[target.eq(0)].eq(0).sum().item()
 
-            print('Censor', censored)
-            print(loss)
-            if loss != 0:
-                loss.backward()
-                optimizer.step()
-                train_loss += loss.item()
-
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item()
 
             slide_names_batch = [os.path.basename(f_name) for f_name in f_names]
             slide_names.extend(slide_names_batch)
@@ -179,27 +195,55 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
         if print_timing:
             time_writer.add_scalar('Time/Full Epoch [min]', time_epoch, e)
 
+        # Compute C index
+        if args.target in ['Survival_Time', 'Survival_Binary']:
+            c_index, num_concordant_pairs, num_discordant_pairs, _, _ = concordance_index_censored(np.invert(all_censored), all_cont_targets, all_outputs)
 
-        train_acc = 100 * correct_labeling / total
-        #balanced_acc_train = 100 * (correct_pos / total_pos_train + correct_neg / total_neg_train) / 2
-        balanced_acc_train = 100. * ((correct_pos + EPS) / (total_pos_train + EPS) + (correct_neg + EPS) / (total_neg_train + EPS)) / 2
-        roc_auc_train = np.nan
-        if not all(true_targets_train == true_targets_train[0]):  #more than one label
-            fpr_train, tpr_train, _ = roc_curve(true_targets_train, scores_train)
+        # Compute AUC:
+        if args.target == 'Survival_Time':
+            # Sorting out all the Censored data
+            not_censored_indices = np.where(np.array(all_censored) == False)
+            relevant_binary_targets = np.array(all_binary_targets)[not_censored_indices]
+            relevant_outputs = np.array(all_outputs)[not_censored_indices]
+            # Sorting out all the non valid binary data:
+            relevant_binary_targets = np.reshape(relevant_binary_targets, (relevant_binary_targets.shape[0]))
+            valid_binary_target_indices = np.where(relevant_binary_targets != -1)
+            relevant_binary_targets = relevant_binary_targets[valid_binary_target_indices]
+            relevant_outputs = relevant_outputs[valid_binary_target_indices]
+            fpr_train, tpr_train, _ = roc_curve(relevant_binary_targets, - relevant_outputs)
             roc_auc_train = auc(fpr_train, tpr_train)
-        all_writer.add_scalar('Train/Balanced Accuracy', balanced_acc_train, e)
+
+            # The following line is declared to avoid errors when "perform slide inference" later on
+            scores_train, true_targets_train = np.zeros(len(slide_names)), np.zeros(len(slide_names))
+
+        else:
+            '''fpr_train, tpr_train, _ = roc_curve(true_targets_train, scores_train)
+            roc_auc_train = auc(fpr_train, tpr_train)'''
+
+            train_acc = 100 * correct_labeling / total
+            balanced_acc_train = 100. * ((correct_pos + EPS) / (total_pos_train + EPS) + (correct_neg + EPS) / (total_neg_train + EPS)) / 2
+            roc_auc_train = np.nan
+            if not all(true_targets_train == true_targets_train[0]):  #more than one label
+                fpr_train, tpr_train, _ = roc_curve(true_targets_train, scores_train)
+                roc_auc_train = auc(fpr_train, tpr_train)
+            all_writer.add_scalar('Train/Balanced Accuracy', balanced_acc_train, e)
+            all_writer.add_scalar('Train/Accuracy', train_acc, e)
+
+        if 'c_index' not in locals():
+            c_index = -1
+
+        all_writer.add_scalar('Train/C index', c_index, e)
         all_writer.add_scalar('Train/Roc-Auc', roc_auc_train, e)
         all_writer.add_scalar('Train/Loss Per Epoch', train_loss, e)
-        all_writer.add_scalar('Train/Accuracy', train_acc, e)
-        #print('Finished Epoch: {}, Loss: {:.2f}, Loss Delta: {:.3f}, Train Accuracy: {:.2f}% ({} / {}), Time: {:.0f} m'
-        print('Finished Epoch: {}, Loss: {:.2f}, Loss Delta: {:.3f}, Train AUC per patch: {:.2f} , Time: {:.0f} m'
+
+
+
+        print('Finished Epoch: {}, Loss: {:.2f}, Loss Delta: {:.3f}, Train AUC per patch: {:.2f} , C Index: {:.2f}, Time: {:.0f} m'
               .format(e,
                       train_loss,
                       previous_epoch_loss - train_loss,
-                      # train_acc,
                       roc_auc_train,
-                      # int(correct_labeling),
-                      # len(train_loader),
+                      c_index,
                       time_epoch))
         previous_epoch_loss = train_loss
 
@@ -227,6 +271,7 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             if not all(slide_mean_score_df['labels'] == slide_mean_score_df['labels'][0]):  #more than one label
                 roc_auc_slide = roc_auc_score(slide_mean_score_df['labels'], slide_mean_score_df['scores'])
             all_writer.add_scalar('Train/slide AUC', roc_auc_slide, e)
+
             acc_test, bacc_test, roc_auc_test = check_accuracy(model, dloader_test, all_writer, DEVICE, e)
             test_auc_list.append(roc_auc_test)
             if len(test_auc_list) == 5:
@@ -258,110 +303,185 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
 
 def check_accuracy(model: nn.Module, data_loader: DataLoader, all_writer, DEVICE, epoch: int):
 
-    total_test, true_pos_test, true_neg_test = 0, 0, 0
-    total_pos_test, total_neg_test = 0, 0
-    true_labels_test, scores_test = np.zeros(0), np.zeros(0)
-    correct_labeling_test = 0
+    if args.target in ['Survival_Time', 'Survival_Binary']:
+        all_targets, all_outputs, all_censored, all_cont_targets, all_binary_targets = [], [], [], [], []
+
+    if args.target != 'Survival_Time':
+        total_test, true_pos_test, true_neg_test = 0, 0, 0
+        total_pos_test, total_neg_test = 0, 0
+        true_targets_test, scores_test = np.zeros(0), np.zeros(0)
+        correct_labeling_test = 0
+
     slide_names = []
 
     model.eval()
-
+    model.to(DEVICE)
     with torch.no_grad():
-        for idx, (data, targets, time_list, f_names, _) in enumerate(data_loader):
-            data, targets = data.to(device=DEVICE), targets.to(device=DEVICE).squeeze(1)
-            model.to(DEVICE)
+        for idx, minibatch in enumerate(data_loader):
+            if type(data_loader) == zip:
+                new_minibatch = {}
+                for key in minibatch[0].keys():
+                    if type(minibatch[0][key]) == torch.Tensor:
+                        new_minibatch[key] = torch.cat([minibatch[0][key], minibatch[1][key]], dim=0)
+                    elif type(minibatch[0][key]) == list:
+                        new_minibatch[key] = minibatch[0][key] + minibatch[1][key]
+
+                minibatch = new_minibatch
+
+            data = minibatch['Data']
+            target = minibatch['Target']
+            time_list = minibatch['Time List']
+            f_names = minibatch['File Names']
+
+            slide_names_batch = [os.path.basename(f_name) for f_name in f_names]
+            slide_names.extend(slide_names_batch)
+
+            if args.target in ['Survival_Time', 'Survival_Binary']:
+                censored = minibatch['Censored']
+                target_binary = minibatch['Target Binary']
+                target_cont = minibatch['Survival Time']
+
+            all_targets.extend(target.numpy()[:, 0])
+            all_cont_targets.extend(target_cont.numpy())
+            all_binary_targets.extend(target_binary.numpy())
+            all_censored.extend(censored.numpy())
+
+
+            data, targets = data.to(device=DEVICE), target.to(device=DEVICE).squeeze(1)
 
             outputs, _ = model(data)
 
-            outputs = torch.nn.functional.softmax(outputs, dim=1)
-            _, predicted = outputs.max(1)
+            if args.target == 'Survival_Time':
+                outputs = torch.reshape(outputs, [outputs.size(0)])
+                all_outputs.extend(outputs.detach().cpu().numpy())
 
-            slide_names_batch = [os.path.basename(f_name) for f_name in f_names]
-            scores_test = np.concatenate((scores_test, outputs[:, 1].cpu().detach().numpy()))
-            true_labels_test = np.concatenate((true_labels_test, targets.cpu().detach().numpy()))
-            slide_names.extend(slide_names_batch)
+            else:
+                outputs = torch.nn.functional.softmax(outputs, dim=1)
+                _, predicted = outputs.max(1)
+                all_outputs.extend(- outputs[:, 1].detach().cpu().numpy())
 
-            total_test += targets.size(0)
-            correct_labeling_test += predicted.eq(targets).sum().item()
-            total_pos_test += targets.eq(1).sum().item()
-            total_neg_test += targets.eq(0).sum().item()
-            true_pos_test += predicted[targets.eq(1)].eq(1).sum().item()
-            true_neg_test += predicted[targets.eq(0)].eq(0).sum().item()
+                scores_test = np.concatenate((scores_test, outputs[:, 1].cpu().detach().numpy()))
+                total_test += targets.size(0)
+                total_pos_test += targets.eq(1).sum().item()
+                total_neg_test += targets.eq(0).sum().item()
+                true_pos_test += predicted[targets.eq(1)].eq(1).sum().item()
+                true_neg_test += predicted[targets.eq(0)].eq(0).sum().item()
+                correct_labeling_test += predicted.eq(targets).sum().item()
+                true_targets_test = np.concatenate((true_targets_test, targets.cpu().detach().numpy()))
 
-        #if not args.bootstrap:
-        acc = 100 * float(correct_labeling_test) / total_test
-        bacc = 100. * ((true_pos_test + EPS) / (total_pos_test + EPS) + (true_neg_test + EPS) / (total_neg_test + EPS)) / 2
-        roc_auc = np.nan
-        if not all(true_labels_test == true_labels_test[0]): #more than one label
-            fpr, tpr, _ = roc_curve(true_labels_test, scores_test)
-            roc_auc = auc(fpr, tpr)
-        #RanS 8.12.20, perform slide inference
-        patch_df = pd.DataFrame({'slide': slide_names, 'scores': scores_test, 'labels': true_labels_test})
-        slide_mean_score_df = patch_df.groupby('slide').mean()
-        roc_auc_slide = np.nan
-        if not all(slide_mean_score_df['labels'] == slide_mean_score_df['labels'][0]): #more than one label
-            roc_auc_slide = roc_auc_score(slide_mean_score_df['labels'], slide_mean_score_df['scores'])
-        #else: #bootstrap
-        if args.bootstrap:
-            # load dataset
-            # configure bootstrap
-            n_iterations = 100
+        # Compute C index
+        if args.target in ['Survival_Time', 'Survival_Binary']:
+            c_index, num_concordant_pairs, num_discordant_pairs, _, _ = concordance_index_censored(np.invert(all_censored), all_cont_targets, all_outputs)
 
-            # run bootstrap
-            roc_auc_array = np.empty(n_iterations)
-            slide_roc_auc_array = np.empty(n_iterations)
-            roc_auc_array[:], slide_roc_auc_array[:] = np.nan, np.nan
-            acc_array, bacc_array = np.empty(n_iterations), np.empty(n_iterations)
-            acc_array[:], bacc_array[:] = np.nan, np.nan
+        # Compute AUC:
+        if args.target == 'Survival_Time':
+            # Sorting out all the Censored data
+            not_censored_indices = np.where(np.array(all_censored) == False)
+            relevant_binary_targets = np.array(all_binary_targets)[not_censored_indices]
+            relevant_outputs = np.array(all_outputs)[not_censored_indices]
+            # Sorting out all the non valid binary data:
+            relevant_binary_targets = np.reshape(relevant_binary_targets, (relevant_binary_targets.shape[0]))
+            valid_binary_target_indices = np.where(relevant_binary_targets != -1)
+            relevant_binary_targets = relevant_binary_targets[valid_binary_target_indices]
+            relevant_outputs = relevant_outputs[valid_binary_target_indices]
+            fpr_train, tpr_train, _ = roc_curve(relevant_binary_targets, - relevant_outputs)
+            roc_auc_train = auc(fpr_train, tpr_train)
 
-            all_preds = np.array([int(score > 0.5) for score in scores_test])
+            # The following line is declared to avoid errors when "perform slide inference" later on
+            scores_train, true_targets_train = np.zeros(len(slide_names)), np.zeros(len(slide_names))
 
-            for ii in range(n_iterations):
-                #slide_resampled, scores_resampled, labels_resampled = resample(slide_names, scores, true_labels)
-                #fpr, tpr, _ = roc_curve(labels_resampled, scores_resampled)
-                #patch_df = pd.DataFrame({'slide': slide_resampled, 'scores': scores_resampled, 'labels': labels_resampled})
+        else:
+            '''fpr_train, tpr_train, _ = roc_curve(true_targets_train, scores_train)
+            roc_auc_train = auc(fpr_train, tpr_train)'''
 
-                #patch_df = pd.DataFrame({'slide': slide_names, 'scores': scores, 'labels': true_labels})
-                slide_names = np.array(slide_names)
-                slide_choice = resample(np.unique(np.array(slide_names)))
-                slide_resampled = np.concatenate([slide_names[slide_names == slide] for slide in slide_choice])
-                scores_resampled = np.concatenate([scores_test[slide_names == slide] for slide in slide_choice])
-                labels_resampled = np.concatenate([true_labels_test[slide_names == slide] for slide in slide_choice])
-                preds_resampled = np.concatenate([all_preds[slide_names == slide] for slide in slide_choice])
-                patch_df = pd.DataFrame({'slide': slide_resampled, 'scores': scores_resampled, 'labels': labels_resampled})
+            '''test_acc = 100 * correct_labeling_test / total_test
+            balanced_acc_test = 100. * ((true_pos_test + EPS) / (total_pos_test + EPS) + (true_neg_test + EPS) / (total_neg_test + EPS)) / 2
+            roc_auc_train = np.nan
+            if not all(true_targets_train == true_targets_train[0]):  # more than one label
+                fpr_train, tpr_train, _ = roc_curve(true_targets_train, scores_train)
+                roc_auc_train = auc(fpr_train, tpr_train)
+            all_writer.add_scalar('Train/Balanced Accuracy', balanced_acc_train, e)
+            all_writer.add_scalar('Train/Accuracy', train_acc, e)'''
 
-                num_correct_i = np.sum(preds_resampled == labels_resampled)
-                true_pos_i = np.sum(labels_resampled + preds_resampled == 2)
-                total_pos_i = np.sum(labels_resampled == 1)
-                true_neg_i = np.sum(labels_resampled + preds_resampled == 0)
-                total_neg_i = np.sum(labels_resampled == 0)
-                tot = total_pos_i + total_neg_i
-                acc_array[ii] = 100 * float(num_correct_i) / tot
-                bacc_array[ii] = 100. * ((true_pos_i + EPS) / (total_pos_i + EPS) + (true_neg_i + EPS) / (total_neg_i + EPS)) / 2
-                fpr, tpr, _ = roc_curve(labels_resampled, scores_resampled)
-                if not all(labels_resampled == labels_resampled[0]): #more than one label
-                    roc_auc_array[ii] = roc_auc_score(labels_resampled, scores_resampled)
+            #if not args.bootstrap:
+            acc = 100 * float(correct_labeling_test) / total_test
+            bacc = 100. * ((true_pos_test + EPS) / (total_pos_test + EPS) + (true_neg_test + EPS) / (total_neg_test + EPS)) / 2
+            roc_auc = np.nan
+            if not all(true_targets_test == true_targets_test[0]):  # more than one label
+                fpr, tpr, _ = roc_curve(true_targets_test, scores_test)
+                roc_auc = auc(fpr, tpr)
+            #RanS 8.12.20, perform slide inference
+            patch_df = pd.DataFrame({'slide': slide_names, 'scores': scores_test, 'labels': true_targets_test})
+            slide_mean_score_df = patch_df.groupby('slide').mean()
+            roc_auc_slide = np.nan
+            if not all(slide_mean_score_df['labels'] == slide_mean_score_df['labels'][0]):  # more than one label
+                roc_auc_slide = roc_auc_score(slide_mean_score_df['labels'], slide_mean_score_df['scores'])
+            #else: #bootstrap
+            if args.bootstrap:
+                # load dataset
+                # configure bootstrap
+                n_iterations = 100
 
-                slide_mean_score_df = patch_df.groupby('slide').mean()
-                if not all(slide_mean_score_df['labels'] == slide_mean_score_df['labels'][0]):  # more than one label
-                    slide_roc_auc_array[ii] = roc_auc_score(slide_mean_score_df['labels'], slide_mean_score_df['scores'])
-            #roc_auc = np.nanmean(roc_auc_array)
-            #roc_auc_slide = np.nanmean(slide_roc_auc_array)
-            roc_auc_std = np.nanstd(roc_auc_array)
-            roc_auc_slide_std = np.nanstd(slide_roc_auc_array)
-            #acc = np.nanmean(acc_array)
-            acc_err = np.nanstd(acc_array)
-            #bacc = np.nanmean(bacc_array)
-            bacc_err = np.nanstd(bacc_array)
+                # run bootstrap
+                roc_auc_array = np.empty(n_iterations)
+                slide_roc_auc_array = np.empty(n_iterations)
+                roc_auc_array[:], slide_roc_auc_array[:] = np.nan, np.nan
+                acc_array, bacc_array = np.empty(n_iterations), np.empty(n_iterations)
+                acc_array[:], bacc_array[:] = np.nan, np.nan
 
-            all_writer.add_scalar('Test_errors/Accuracy error', acc_err, epoch)
-            all_writer.add_scalar('Test_errors/Balanced Accuracy error', bacc_err, epoch)
-            all_writer.add_scalar('Test_errors/Roc-Auc error', roc_auc_std, epoch)
-            if args.n_patches_test > 1:
-                all_writer.add_scalar('Test_errors/slide AUC error', roc_auc_slide_std, epoch)
+                all_preds = np.array([int(score > 0.5) for score in scores_test])
 
-        all_writer.add_scalar('Test/Accuracy', acc, epoch)
-        all_writer.add_scalar('Test/Balanced Accuracy', bacc, epoch)
+                for ii in range(n_iterations):
+                    #slide_resampled, scores_resampled, labels_resampled = resample(slide_names, scores, true_labels)
+                    #fpr, tpr, _ = roc_curve(labels_resampled, scores_resampled)
+                    #patch_df = pd.DataFrame({'slide': slide_resampled, 'scores': scores_resampled, 'labels': labels_resampled})
+
+                    #patch_df = pd.DataFrame({'slide': slide_names, 'scores': scores, 'labels': true_labels})
+                    slide_names = np.array(slide_names)
+                    slide_choice = resample(np.unique(np.array(slide_names)))
+                    slide_resampled = np.concatenate([slide_names[slide_names == slide] for slide in slide_choice])
+                    scores_resampled = np.concatenate([scores_test[slide_names == slide] for slide in slide_choice])
+                    labels_resampled = np.concatenate([true_targets_test[slide_names == slide] for slide in slide_choice])
+                    preds_resampled = np.concatenate([all_preds[slide_names == slide] for slide in slide_choice])
+                    patch_df = pd.DataFrame({'slide': slide_resampled, 'scores': scores_resampled, 'labels': labels_resampled})
+
+                    num_correct_i = np.sum(preds_resampled == labels_resampled)
+                    true_pos_i = np.sum(labels_resampled + preds_resampled == 2)
+                    total_pos_i = np.sum(labels_resampled == 1)
+                    true_neg_i = np.sum(labels_resampled + preds_resampled == 0)
+                    total_neg_i = np.sum(labels_resampled == 0)
+                    tot = total_pos_i + total_neg_i
+                    acc_array[ii] = 100 * float(num_correct_i) / tot
+                    bacc_array[ii] = 100. * ((true_pos_i + EPS) / (total_pos_i + EPS) + (true_neg_i + EPS) / (total_neg_i + EPS)) / 2
+                    fpr, tpr, _ = roc_curve(labels_resampled, scores_resampled)
+                    if not all(labels_resampled == labels_resampled[0]): #more than one label
+                        roc_auc_array[ii] = roc_auc_score(labels_resampled, scores_resampled)
+
+                    slide_mean_score_df = patch_df.groupby('slide').mean()
+                    if not all(slide_mean_score_df['labels'] == slide_mean_score_df['labels'][0]):  # more than one label
+                        slide_roc_auc_array[ii] = roc_auc_score(slide_mean_score_df['labels'], slide_mean_score_df['scores'])
+                #roc_auc = np.nanmean(roc_auc_array)
+                #roc_auc_slide = np.nanmean(slide_roc_auc_array)
+                roc_auc_std = np.nanstd(roc_auc_array)
+                roc_auc_slide_std = np.nanstd(slide_roc_auc_array)
+                #acc = np.nanmean(acc_array)
+                acc_err = np.nanstd(acc_array)
+                #bacc = np.nanmean(bacc_array)
+                bacc_err = np.nanstd(bacc_array)
+
+                all_writer.add_scalar('Test_errors/Accuracy error', acc_err, epoch)
+                all_writer.add_scalar('Test_errors/Balanced Accuracy error', bacc_err, epoch)
+                all_writer.add_scalar('Test_errors/Roc-Auc error', roc_auc_std, epoch)
+                if args.n_patches_test > 1:
+                    all_writer.add_scalar('Test_errors/slide AUC error', roc_auc_slide_std, epoch)
+
+            all_writer.add_scalar('Test/Accuracy', acc, epoch)
+            all_writer.add_scalar('Test/Balanced Accuracy', bacc, epoch)
+
+        if 'c_index' not in locals():
+            c_index = -1
+
+        all_writer.add_scalar('Train/C index', c_index, epoch)
         all_writer.add_scalar('Test/Roc-Auc', roc_auc, epoch)
         if args.n_patches_test > 1:
             all_writer.add_scalar('Test/slide AUC', roc_auc_slide, epoch)
@@ -369,7 +489,9 @@ def check_accuracy(model: nn.Module, data_loader: DataLoader, all_writer, DEVICE
         if args.n_patches_test > 1:
             print('Slide AUC of {:.2f} over Test set'.format(roc_auc_slide))
         else:
-            print('Tile AUC of {:.2f} over Test set'.format(roc_auc))
+            print('Tile AUC: {:.2f} and C index: {} over Test set'.format(roc_auc, c_index))
+
+
     model.train()
     return acc, bacc, roc_auc
 
@@ -430,54 +552,113 @@ if __name__ == '__main__':
 
     print('num workers = ', num_workers)
 
-    # Get data:
-    train_dset = datasets.WSI_REGdataset(DataSet=args.dataset,
-                                         tile_size=TILE_SIZE,
-                                         target_kind=args.target,
-                                         test_fold=args.test_fold,
-                                         train=True,
-                                         print_timing=args.time,
-                                         transform_type=args.transform_type,
-                                         n_tiles=args.n_patches_train,
-                                         color_param=args.c_param,
-                                         get_images=args.images,
-                                         desired_slide_magnification=args.mag,
-                                         DX=args.dx,
-                                         loan=args.loan,
-                                         er_eq_pr=args.er_eq_pr,
-                                         slide_per_block=args.slide_per_block,
-                                         balanced_dataset=args.balanced_dataset
-                                         )
-    test_dset = datasets.WSI_REGdataset(DataSet=args.dataset,
-                                        tile_size=TILE_SIZE,
-                                        target_kind=args.target,
-                                        test_fold=args.test_fold,
-                                        train=False,
-                                        print_timing=False,
-                                        transform_type='none',
-                                        n_tiles=args.n_patches_test,
-                                        get_images=args.images,
-                                        desired_slide_magnification=args.mag,
-                                        DX=args.dx,
-                                        loan=args.loan,
-                                        er_eq_pr=args.er_eq_pr
-                                        )
     sampler = None
     do_shuffle = True
-    if args.balanced_sampling:
-        labels = pd.DataFrame(train_dset.target * train_dset.factor)
-        n_pos = np.sum(labels == 'Positive').item()
-        n_neg = np.sum(labels == 'Negative').item()
-        weights = pd.DataFrame(np.zeros(len(train_dset)))
-        weights[np.array(labels == 'Positive')] = 1 / n_pos
-        weights[np.array(labels == 'Negative')] = 1 / n_neg
-        do_shuffle = False  # the sampler shuffles
-        sampler = torch.utils.data.sampler.WeightedRandomSampler(weights=weights.squeeze(), num_samples=len(train_dset))
 
-    train_loader = DataLoader(train_dset, batch_size=args.batch_size, shuffle=do_shuffle,
-                              num_workers=num_workers, pin_memory=True, sampler=sampler)
-    test_loader  = DataLoader(test_dset, batch_size=args.batch_size*2, shuffle=False,
-                              num_workers=num_workers, pin_memory=True)
+    # Get data:
+    if args.target in ['Survival_Time', 'Survival_Binary']:
+        train_dset = {'Censored': None,
+                      'UnCensored': None}
+        test_dset = {'Censored': None,
+                     'UnCensored': None}
+        batch_size = {'Censored': int(np.ceil(args.batch_size * 0.25)),
+                      'UnCensored': int(args.batch_size - np.ceil(args.batch_size * 0.25))}
+        train_loader = {'Censored': None,
+                        'UnCensored': None}
+        test_loader = {'Censored': None,
+                       'UnCensored': None}
+
+        for key in train_dset.keys():
+            censor_status = True if key == 'Censored' else False
+            print('Creating {} Train dataset'.format(key))
+            train_dset[key] = datasets.WSI_REGdataset(DataSet=args.dataset,
+                                                      tile_size=TILE_SIZE,
+                                                      target_kind=args.target,
+                                                      test_fold=args.test_fold,
+                                                      train=True,
+                                                      print_timing=args.time,
+                                                      transform_type=args.transform_type,
+                                                      n_tiles=args.n_patches_train,
+                                                      color_param=args.c_param,
+                                                      get_images=args.images,
+                                                      desired_slide_magnification=args.mag,
+                                                      DX=args.dx,
+                                                      loan=args.loan,
+                                                      er_eq_pr=args.er_eq_pr,
+                                                      slide_per_block=args.slide_per_block,
+                                                      is_Censored=censor_status
+                                                      )
+            print('Creating {} Test dataset'.format(key))
+            test_dset[key] = datasets.WSI_REGdataset(DataSet=args.dataset,
+                                                     tile_size=TILE_SIZE,
+                                                     target_kind=args.target,
+                                                     test_fold=args.test_fold,
+                                                     train=False,
+                                                     print_timing=False,
+                                                     transform_type='none',
+                                                     n_tiles=args.n_patches_test,
+                                                     get_images=args.images,
+                                                     desired_slide_magnification=args.mag,
+                                                     DX=args.dx,
+                                                     loan=args.loan,
+                                                     er_eq_pr=args.er_eq_pr,
+                                                     is_Censored=censor_status
+                                                     )
+
+            train_loader[key] = DataLoader(train_dset[key], batch_size=batch_size[key], shuffle=do_shuffle,
+                                           num_workers=num_workers, pin_memory=True, sampler=sampler)
+            test_loader[key] = DataLoader(test_dset[key], batch_size=batch_size[key] * 2, shuffle=False,
+                                          num_workers=num_workers, pin_memory=True)
+
+        train_loader = zip(train_loader['Censored'], train_loader['UnCensored'])
+        test_loader = zip(test_loader['Censored'], test_loader['UnCensored'])
+    else:
+        train_dset = datasets.WSI_REGdataset(DataSet=args.dataset,
+                                             tile_size=TILE_SIZE,
+                                             target_kind=args.target,
+                                             test_fold=args.test_fold,
+                                             train=True,
+                                             print_timing=args.time,
+                                             transform_type=args.transform_type,
+                                             n_tiles=args.n_patches_train,
+                                             color_param=args.c_param,
+                                             get_images=args.images,
+                                             desired_slide_magnification=args.mag,
+                                             DX=args.dx,
+                                             loan=args.loan,
+                                             er_eq_pr=args.er_eq_pr,
+                                             slide_per_block=args.slide_per_block,
+                                             balanced_dataset=args.balanced_dataset
+                                             )
+        test_dset = datasets.WSI_REGdataset(DataSet=args.dataset,
+                                            tile_size=TILE_SIZE,
+                                            target_kind=args.target,
+                                            test_fold=args.test_fold,
+                                            train=False,
+                                            print_timing=False,
+                                            transform_type='none',
+                                            n_tiles=args.n_patches_test,
+                                            get_images=args.images,
+                                            desired_slide_magnification=args.mag,
+                                            DX=args.dx,
+                                            loan=args.loan,
+                                            er_eq_pr=args.er_eq_pr
+                                            )
+
+        if args.balanced_sampling:
+            labels = pd.DataFrame(train_dset.target * train_dset.factor)
+            n_pos = np.sum(labels == 'Positive').item()
+            n_neg = np.sum(labels == 'Negative').item()
+            weights = pd.DataFrame(np.zeros(len(train_dset)))
+            weights[np.array(labels == 'Positive')] = 1 / n_pos
+            weights[np.array(labels == 'Negative')] = 1 / n_neg
+            do_shuffle = False  # the sampler shuffles
+            sampler = torch.utils.data.sampler.WeightedRandomSampler(weights=weights.squeeze(), num_samples=len(train_dset))
+
+        train_loader = DataLoader(train_dset, batch_size=args.batch_size, shuffle=do_shuffle,
+                                  num_workers=num_workers, pin_memory=True, sampler=sampler)
+        test_loader  = DataLoader(test_dset, batch_size=args.batch_size*2, shuffle=False,
+                                  num_workers=num_workers, pin_memory=True)
 
     # RanS 20.6.21
     if args.loan:
@@ -485,7 +666,10 @@ if __name__ == '__main__':
         test_labels_df = pd.DataFrame({'slide_name': test_loader.dataset.image_file_names, 'label': test_loader.dataset.target})
 
     # Save transformation data to 'run_data.xlsx'
-    transformation_string = ', '.join([str(train_dset.transform.transforms[i]) for i in range(len(train_dset.transform.transforms))])
+    if type(train_dset) == dict:
+        transformation_string = ', '.join([str(train_dset['Censored'].transform.transforms[i]) for i in range(len(train_dset['Censored'].transform.transforms))])
+    else:
+        transformation_string = ', '.join([str(train_dset.transform.transforms[i]) for i in range(len(train_dset.transform.transforms))])
     utils.run_data(experiment=experiment, transformation_string=transformation_string)
 
     # Load model
@@ -497,8 +681,12 @@ if __name__ == '__main__':
     # Save model data and data-set size to run_data.xlsx file (Only if this is a new run).
     if args.experiment == 0:
         utils.run_data(experiment=experiment, model=model.model_name)
-        utils.run_data(experiment=experiment, DataSet_size=(train_dset.real_length, test_dset.real_length))
-        utils.run_data(experiment=experiment, DataSet_Slide_magnification=train_dset.desired_magnification)
+        if type(train_dset) == dict:
+            utils.run_data(experiment=experiment, DataSet_size=(train_dset['Censored'].real_length, test_dset['Censored'].real_length))
+            utils.run_data(experiment=experiment, DataSet_Slide_magnification=train_dset['Censored'].desired_magnification)
+        else:
+            utils.run_data(experiment=experiment, DataSet_size=(train_dset.real_length, test_dset.real_length))
+            utils.run_data(experiment=experiment, DataSet_Slide_magnification=train_dset.desired_magnification)
 
         # Saving code files, args and main file name (this file) to Code directory within the run files.
         utils.save_code_files(args, train_dset)

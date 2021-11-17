@@ -29,4 +29,16 @@ def Cox_loss(risk_function_results: torch.Tensor, targets: torch.Tensor, censore
 
     return -loss
 
-#def Gil_Loss(risk_function_results: torch.Tensor, targets: torch.Tensor, censored: torch.Tensor) -> torch.float32:
+def Gils_Loss(model_outputs: torch.Tensor, targets: torch.Tensor, censored: torch.Tensor) -> torch.float32:
+    num_samples = targets.shape[0]
+    loss = 0
+
+    for i in range(num_samples):
+        if not censored[i] or (censored[i] and model_outputs[i] < targets[i]):
+            loss += (model_outputs[i] - targets[i]) ** 2
+
+    return loss
+
+
+
+
