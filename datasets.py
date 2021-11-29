@@ -438,8 +438,8 @@ class WSI_Master_Dataset(Dataset):
                 'File Names': self.image_file_names[idx],
                 'Images': images,
                 'Target Binary': target_binary,
-                'Survival Time': self.target_cont[idx] if self.target_kind in ['Survival_Time', 'Survival_Binary'] else 'None',
-                'Censored': bool(self.censored[idx]) if self.target_kind in ['Survival_Time', 'Survival_Binary'] else 'None'
+                'Survival Time': self.target_cont[idx] if self.target_kind in ['Survival_Time', 'Survival_Binary'] else torch.LongTensor([-1]),
+                'Censored': bool(self.censored[idx]) if self.target_kind in ['Survival_Time', 'Survival_Binary'] else torch.LongTensor([-1])
                 }
 
 
@@ -1482,15 +1482,20 @@ class Features_MILdataset(Dataset):
             if dataset == 'TCGA_ABCTB':
                 if target in ['ER', 'ER_Features'] or (target in ['PR', 'PR_Features', 'Her2', 'Her2_Features'] and test_fold == 1):
                     grid_location_dict = {'TCGA': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/TCGA_Grid_data.xlsx',
-                                          'ABCTB': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/ABCTB_Grid_data.xlsx'}
+                                          'ABCTB': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/ABCTB_Grid_data.xlsx'
+                                          }
 
             elif dataset == 'CAT':
-                grid_location_dict = {
-                    'TCGA': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/TCGA_Grid_data.xlsx',
-                    'ABCTB': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/ABCTB_TIF_Grid_data.xlsx',
-                    'CARMEL': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/CARMEL_Grid_data.xlsx'}
-                slides_data_DF_CARMEL = pd.read_excel('/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/slides_data_CARMEL_ALL.xlsx')
-                slides_data_DF_CARMEL.set_index('file', inplace=True)
+                grid_location_dict = {'TCGA': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/TCGA_Grid_data.xlsx',
+                                      'ABCTB': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/ABCTB_TIF_Grid_data.xlsx',
+                                      'CARMEL': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/CARMEL_Grid_data.xlsx'
+                                      }
+                slide_data_DF_dict = {'TCGA': pd.read_excel('/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/slides_data_TCGA.xlsx'),
+                                      'ABCTB': pd.read_excel('/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/slides_data_ABCTB_TIF.xlsx'),
+                                      'CARMEL': pd.read_excel('/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/slides_data_CARMEL_ALL.xlsx')
+                                        }
+                '''slides_data_DF_CARMEL = pd.read_excel('/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/slides_data_CARMEL_ALL.xlsx')
+                slides_data_DF_CARMEL.set_index('file', inplace=True)'''
 
             elif dataset == 'CARMEL':
                 grid_location_dict = {
@@ -1543,14 +1548,16 @@ class Features_MILdataset(Dataset):
                 raise Exception("Need to write which dictionaries to use in this receptor case")
 
         grid_DF = pd.DataFrame()
+        slide_data_DF = pd.DataFrame()
         for key in grid_location_dict.keys():
             new_grid_DF = pd.read_excel(grid_location_dict[key])
             grid_DF = pd.concat([grid_DF, new_grid_DF])
+            slide_data_DF = pd.concat([slide_data_DF, slide_data_DF_dict[key]])
 
         grid_DF.set_index('file', inplace=True)
+        slide_data_DF.set_index('file', inplace=True)
 
         for file_idx, file in enumerate(tqdm(data_files)):
-            #with open(os.path.join(data_location, file), 'rb') as filehandle:
             with open(file, 'rb') as filehandle:
                 inference_data = pickle.load(filehandle)
 
@@ -1642,6 +1649,7 @@ class Features_MILdataset(Dataset):
                         patient_dict['num tiles'].append(tiles_in_slide)
                         patient_dict['tile scores'] = np.concatenate((patient_dict['tile scores'], patch_scores[slide_num, :tiles_in_slide]), axis=0)
                         patient_dict['labels'].append(int(labels[slide_num]))
+                        # A patient with multiple slides has only 1 target, therefore another target should not be inserted into the dict
                         #patient_dict['target'].append(int(targets[slide_num]))
                         patient_dict['slides'].append(slide_names[slide_num])
                         patient_dict['scores'].append(scores[slide_num])
@@ -1680,6 +1688,21 @@ class Features_MILdataset(Dataset):
                     self.scores.append(scores[slide_num])
                     #self.tile_location.append(tile_location[slide_num, :tiles_in_slide, :])
                     self.tile_location.append(tile_location[slide_num, :tiles_in_slide])
+
+                # Checking for consistency between targets loaded from the feature files and slides_data_DF.
+                # The location of this check should include per patient dataset or per slide dataset
+                slide_data_target = slide_data_DF.loc[slide_names[slide_num]][target + ' status']
+                if slide_data_target == 'Positive':
+                    slide_data_target = 1
+                elif slide_data_target == 'Negaitive':
+                    slide_data_target = 0
+                else:
+                    slide_data_target = -1
+
+                feature_file_target = targets[slide_num]
+                if slide_data_target != feature_file_target:
+                    raise Exception('Found inconsistency between targets in feature files and slide_data_DF')
+
 
         print('There are {}/{} slides with \"bad number of good tile\" '.format(bad_num_of_good_tiles, total_slides))
         print('There are {}/{} slides with \"bad segmentation\" '.format(slides_with_bad_segmentation, total_slides))
@@ -2494,7 +2517,8 @@ class Batched_Full_Slide_Inference_Dataset(WSI_Master_Dataset):
 class C_Index_Test_Dataset(Dataset):
     def __init__(self,
                  train: bool = True,
-                 binary_target: bool = False):
+                 binary_target: bool = False,
+                 without_censored: bool = False):
 
         self.train_type = 'Features'
 
@@ -2508,24 +2532,18 @@ class C_Index_Test_Dataset(Dataset):
 
         legit_cases = list(range(0, int(0.8 * num_cases)) if train else range(int(0.8 * num_cases), num_cases))
 
-        all_targets = DF['Observed survival time']
-
         self.data = []
         for case_index in tqdm(legit_cases):
-            if binary_target:
-                if DF.loc[case_index]['Binary label'] == -1 or DF.loc[case_index, 'Censored']:
-                    continue
-                '''else:
-                    case = {'Binary Target': DF.loc[case_index]['Binary label'],
-                            'Features': np.array(DF.loc[case_index, [0, 1, 2, 3, 4, 5, 6, 7]]).astype(np.float32),
-                            'Censored': DF.loc[case_index, 'Censored'],
-                            'Target': DF.loc[case_index, 'Observed survival time']
-                            }
-            else:'''
+            if binary_target and (DF.loc[case_index]['Binary label'] == -1 or DF.loc[case_index, 'Censored']):
+                #if DF.loc[case_index]['Binary label'] == -1 or DF.loc[case_index, 'Censored']:
+                continue
+            if without_censored and DF.loc[case_index]['Censored']:
+                continue
             case = {'Binary Target': DF.loc[case_index]['Binary label'],
-                    'Target': DF.loc[case_index, 'Observed survival time'],
+                    'Time Target': DF.loc[case_index, 'Observed survival time'],
                     'Features': np.array(DF.loc[case_index, [0, 1, 2, 3, 4, 5, 6, 7]]).astype(np.float32),
-                    'Censored': DF.loc[case_index, 'Censored']
+                    'Censored': DF.loc[case_index, 'Censored'],
+                    'True Time Targets': DF.loc[case_index, 'True survival time']
                     }
             self.data.append(case)
 

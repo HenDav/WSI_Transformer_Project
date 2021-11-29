@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 
 def Cox_loss(risk_function_results: torch.Tensor, targets: torch.Tensor, censored: torch.Tensor) -> torch.float32:
     """
@@ -12,7 +13,8 @@ def Cox_loss(risk_function_results: torch.Tensor, targets: torch.Tensor, censore
     # outer loop running over all live patients in the minibatch:
     # Actually we're going over all patients in the outer loop but in the inner loop we'll run over all patients still living
     # at the time the patient in the outer loop lives)
-    loss = 0
+    '''
+    loss, counter = 0, 0
     for i in range(num_tiles):
         if censored[i]:
             continue
@@ -26,19 +28,62 @@ def Cox_loss(risk_function_results: torch.Tensor, targets: torch.Tensor, censore
             inner_loop_sum += torch.exp(risk_function_results[j])
 
         loss += risk_function_results[i] - torch.log(inner_loop_sum)
+        counter += 1
+
+    loss /= counter
+    '''
+
+    # Other calculation:
+    order = reversed(np.argsort(targets))
+
+    risk_scores_s = risk_function_results[order]
+    censored_s = censored[order]
+
+    cumsum_vec = torch.cumsum(torch.exp(risk_scores_s), dim=0)
+    cumsum_vec_0 = cumsum_vec[censored_s == 0]
+    risk_0 = risk_scores_s[censored_s == 0]
+    likelihood_vec = risk_0 - torch.log(cumsum_vec_0)
+    loss = torch.mean(likelihood_vec)
 
     return -loss
 
-def Gils_Loss(model_outputs: torch.Tensor, targets: torch.Tensor, censored: torch.Tensor) -> torch.float32:
-    num_samples = targets.shape[0]
-    loss = 0
 
-    for i in range(num_samples):
-        if not censored[i] or (censored[i] and model_outputs[i] < targets[i]):
-            loss += (model_outputs[i] - targets[i]) ** 2
+def L2_Loss(model_outputs: torch.Tensor, targets: torch.Tensor, censored: torch.Tensor) -> torch.float32:
+    # in case the model outputs has 2 channels it means that it came from a binary model. We need to turn iא into 1
+    # channel by softmaxing and taking the second channel
+    if model_outputs.size(1) == 2:
+        new_model_outputs = torch.nn.functional.softmax(model_outputs, dim=1)[:, 1]
+    else:
+        new_model_outputs = model_outputs
+
+    '''for i in range(num_samples):
+        if not censored[i] or (censored[i] and new_model_outputs[i] < targets[i]):
+            loss_1 += (new_model_outputs[i] - targets[i]) ** 2'''
+
+
+    valid_indices_1 = np.where(censored == False)[0]
+    valid_indices_2 = np.where(new_model_outputs[:, 0].cpu() < targets.cpu())[0]
+    valid_indices = list(set(np.concatenate((valid_indices_1, valid_indices_2))))
+    #loss = torch.sum(torch.sqrt((new_model_outputs[valid_indices][:, 0] - targets[valid_indices]) ** 2))
+    loss = torch.sum((new_model_outputs[valid_indices][:, 0] - targets[valid_indices]) ** 2)
 
     return loss
 
+def Combined_loss(model_outputs: torch.Tensor, targets_time: torch.Tensor, targets_binary: torch.Tensor,censored: torch.Tensor, weights: list = [1, 1, 1]):
+    # Compute Cox loss:
+    loss_cox = Cox_loss(risk_function_results=model_outputs[:, 0], targets=targets_time, censored=censored)
 
+    # Compute L2 loss
+    loss_L2 = L2_Loss(model_outputs=torch.reshape(model_outputs[:, 1], (model_outputs[:, 1].size(0), 1)), targets=targets_time, censored=censored)
+    # Compute Cross Entropy loss:
+    valid_indices = targets_binary != -1
+    outputs_for_binary = torch.nn.functional.softmax(model_outputs[valid_indices][:, 2:], dim=1)
+    loss_cross_entropy = torch.nn.functional.cross_entropy(outputs_for_binary, targets_binary[valid_indices])
+    # Combine together:
+    total_loss = weights[0] * loss_cox +\
+                 weights[1] * loss_L2 +\
+                 weights[2] * loss_cross_entropy
+
+    return total_loss
 
 

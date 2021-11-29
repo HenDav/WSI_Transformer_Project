@@ -27,9 +27,9 @@ parser.add_argument('-e', '--epochs', default=1001, type=int, help='Epochs to ru
 parser.add_argument('-ex', '--experiment', type=int, default=0, help='Continue train of this experiment')
 parser.add_argument('-fe', '--from_epoch', type=int, default=0, help='Continue train from epoch')
 parser.add_argument('-d', dest='dx', action='store_true', help='Use ONLY DX cut slides')
-parser.add_argument('-ds', '--dataset', type=str, default='ABCTB', help='DataSet to use')
+parser.add_argument('-ds', '--dataset', type=str, default='TCGA', help='DataSet to use')
 parser.add_argument('-time', dest='time', action='store_true', help='save train timing data ?')
-parser.add_argument('-tar', '--target', default='Survival_Binary', type=str, help='label: Her2/ER/PR/EGFR/PDL1')
+parser.add_argument('-tar', '--target', default='ER', type=str, help='label: Her2/ER/PR/EGFR/PDL1')
 parser.add_argument('--n_patches_test', default=1, type=int, help='# of patches at test time')
 parser.add_argument('--n_patches_train', default=10, type=int, help='# of patches at train time')
 parser.add_argument('--lr', default=1e-5, type=float, help='learning rate')
@@ -130,7 +130,7 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                 target_binary = minibatch['Target Binary']
                 target_cont = minibatch['Survival Time']
 
-            all_targets.extend(target.numpy()[:, 0])
+            all_targets.extend(target.numpy()[:, 0])  # FIXME: ...
             all_cont_targets.extend(target_cont.numpy())
             all_binary_targets.extend(target_binary.numpy())
             all_censored.extend(censored.numpy())
@@ -504,7 +504,7 @@ if __name__ == '__main__':
     DEVICE = utils.device_gpu_cpu()
 
     # Tile size definition:
-    TILE_SIZE = 128
+    TILE_SIZE = 256
 
     if sys.platform == 'linux' or sys.platform == 'win32':
         TILE_SIZE = 256

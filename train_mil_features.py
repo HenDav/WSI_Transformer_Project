@@ -51,11 +51,12 @@ args = parser.parse_args()
 
 EPS = 1e-7
 
+'''
 def norm_img(img):
     img -= img.min()
     img /= img.max()
     return img
-
+'''
 
 def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader, DEVICE, optimizer, print_timing: bool=False):
     """
