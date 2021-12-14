@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from cycler import cycler
 
 parser = argparse.ArgumentParser(description='WSI_MIL Features Slide inference')
-parser.add_argument('-ex', '--experiment', type=int, default=10491, help='Use this model gor inference')
+parser.add_argument('-ex', '--experiment', type=int, default=10509, help='Use this model gor inference')
 parser.add_argument('-fe', '--from_epoch', type=int, default=[500], help='Use this epoch model for inference')
 parser.add_argument('-sts', '--save_tile_scores', dest='save_tile_scores', action='store_true', help='save tile scores')
 parser.add_argument('--carmel_test_set', dest='carmel_test_set', action='store_true', help='run inference over carmel batch 9-11 ?')
@@ -26,7 +26,7 @@ args = parser.parse_args()
 
 EPS = 1e-7
 
-args.carmel_test_set = True
+args.carmel_test_set = False
 
 custom_cycler = (cycler(color=['#377eb8', '#ff7f00', '#4daf4a',
                                     '#f781bf', '#a65628', '#984ea3',
@@ -62,9 +62,24 @@ if sys.platform == 'darwin':
 
     CAT_dsets = [r'FEATURES: Exp_355-ER-TestFold_1', r'FEATURES: Exp_392-Her2-TestFold_1', r'FEATURES: Exp_10-PR-TestFold_1',
                  r'FEATURES: Exp_393-ER-TestFold_2', r'FEATURES: Exp_20063-PR-TestFold_2', r'FEATURES: Exp_412-Her2-TestFold_2']
+    CARMEL_dsets = [r'FEATURES: Exp_419-Ki67-TestFold_1']
+    ABCTB_dsets = [r'FEATURES: Exp_20094-survival-TestFold_1']
 
-    dset = 'CAT' if run_data_output['Dataset Name'] in CAT_dsets else None
-    dset = 'CARMEL 9-11' if args.carmel_test_set else dset
+    if run_data_output['Dataset Name'] in CAT_dsets:
+        dset = 'CAT'
+    elif run_data_output['Dataset Name'] in CARMEL_dsets:
+        dset = 'CARMEL'
+    elif run_data_output['Dataset Name'] in ABCTB_dsets:
+        dset = 'ABCTB'
+    else:
+        dset = None
+
+    if args.carmel_test_set:
+        dset = 'CARMEL 9-11'
+
+    if dset == None:
+        raise Exception('Dataset must be chosen')
+
     data_4_inference = utils.get_RegModel_Features_location_dict(train_DataSet=dset,
                                                                  target=run_data_output['Receptor'].split('_')[0],
                                                                  test_fold=run_data_output['Test Fold'])
@@ -110,7 +125,7 @@ if sys.platform == 'darwin':
     carmel_only = False
 
 if args.carmel_test_set:
-    key = 'Carmel 9'  # TODO: Modify this
+    key = 'Carmel 11'  # TODO: Modify this
     test_data_dir = test_data_dir[key]
 
 else:

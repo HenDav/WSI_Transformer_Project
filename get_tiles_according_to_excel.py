@@ -20,8 +20,8 @@ if sys.platform == 'darwin':
     highest_DF = pd.read_excel(r'/Users/wasserman/Developer/WSI_MIL/Data For Gil/patches_to_extract_pos.xlsx')
     lowest_DF = pd.read_excel(r'/Users/wasserman/Developer/WSI_MIL/Data For Gil/patches_to_extract_neg.xlsx')
 elif sys.platform == 'linux':
-    highest_DF = pd.read_excel(r'/home/womer/project/Data For Gil/patches_to_extract_highest_normalized.xlsx')
-    lowest_DF = pd.read_excel(r'/home/womer/project/Data For Gil/patches_to_extract_lowest_normalized.xlsx')
+    highest_DF = pd.read_excel(r'/home/womer/project/Data For Gil/Patches_to_extract_IDC.xlsx')
+    #lowest_DF = pd.read_excel(r'/home/womer/project/Data For Gil/patches_to_extract_lowest_normalized.xlsx')
 
 highest_slide_filenames = list(highest_DF['SlideName'])
 highest_tile_indices = list(highest_DF['TileIdx'])
@@ -30,12 +30,12 @@ highest_image_outputnames = list(highest_DF['OutputName'])
 for tile_idx in range(len(highest_DF)):
     highest_tile_locations.append((highest_DF['TileLocation1'][tile_idx], highest_DF['TileLocation2'][tile_idx]))
 
-lowest_slide_filenames = list(lowest_DF['SlideName'])
+'''lowest_slide_filenames = list(lowest_DF['SlideName'])
 lowest_tile_indices = list(lowest_DF['TileIdx'])
 lowest_tile_locations = []
 lowest_image_outputnames = list(lowest_DF['OutputName'])
 for tile_idx in range(len(lowest_DF)):
-    lowest_tile_locations.append([lowest_DF['TileLocation1'][tile_idx], lowest_DF['TileLocation2'][tile_idx]])
+    lowest_tile_locations.append([lowest_DF['TileLocation1'][tile_idx], lowest_DF['TileLocation2'][tile_idx]])'''
 
 # Extracting the tiles:
 #dir_dict = utils.get_datasets_dir_dict(Dataset='CARMEL')
@@ -44,8 +44,9 @@ slide_data_file = r'/home/womer/project/All Data/Ran_Features/Grid_data/slides_d
 
 slides_meta_data_DF = pd.read_excel(slide_data_file)
 slides_meta_data_DF.set_index('file', inplace=True)
-batches = {'Highest': [highest_slide_filenames, highest_tile_indices, highest_tile_locations, highest_image_outputnames],
-           'Lowest': [lowest_slide_filenames, lowest_tile_indices, lowest_tile_locations, lowest_image_outputnames]}
+batches = {'Highest': [highest_slide_filenames, highest_tile_indices, highest_tile_locations, highest_image_outputnames]}
+'''batches = {'Highest': [highest_slide_filenames, highest_tile_indices, highest_tile_locations, highest_image_outputnames],
+           'Lowest': [lowest_slide_filenames, lowest_tile_indices, lowest_tile_locations, lowest_image_outputnames]}'''
 
 for key in batches.keys():
     slide_filenames = batches[key][0]

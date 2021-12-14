@@ -104,14 +104,14 @@ def _choose_data(grid_list: list,
 
     locs = [grid_list[idx] for idx in idxs]
     image_tiles, time_list, labels = _get_tiles(slide=slide,
-                                        locations=locs,
-                                        tile_size_level_0=level_0_tile_size,
-                                        adjusted_tile_sz=adjusted_tile_size,
-                                        output_tile_sz=tile_size,
-                                        best_slide_level=best_slide_level,
-                                        print_timing=print_timing,
-                                        random_shift=random_shift,
-                                        loan=loan)
+                                                locations=locs,
+                                                tile_size_level_0=level_0_tile_size,
+                                                adjusted_tile_sz=adjusted_tile_size,
+                                                output_tile_sz=tile_size,
+                                                best_slide_level=best_slide_level,
+                                                print_timing=print_timing,
+                                                random_shift=random_shift,
+                                                loan=loan)
 
     return image_tiles, time_list, labels
 
@@ -1598,6 +1598,11 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str, test_fo
                                                             'TestSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_358-ER-TestFold_1/Inference/test_w_features',
                                                             'REG Model Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_358-ER-TestFold_1/Model_CheckPoints/model_data_Epoch_1000.pt'
                                                             },
+                                                     'Ki67': {'DataSet Name': r'FEATURES: Exp_419-Ki67-TestFold_1',
+                                                              'TrainSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_419-Ki67-TestFold_1/Inference/train_w_features',
+                                                              'TestSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_419-Ki67-TestFold_1/Inference/test_w_features',
+                                                              'REG Model Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_419-Ki67-TestFold_1/Model_CheckPoints/model_data_Epoch_1000.pt'
+                                                              },
                                                      'Her2': {'DataSet Name': None,
                                                               'TrainSet Location': None,
                                                               'TestSet Location': None,
@@ -1616,6 +1621,12 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str, test_fo
                                                                                       'Carmel 11': None
                                                                                       }
                                                                  },
+                                                          'Ki67': {'DataSet Name': r'FEATURES: Exp_419-Ki67-TestFold_1, CARMEL ONLY Slides Batch 9-11',
+                                                                   'TestSet Location': {'Carmel 9': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_419-Ki67-TestFold_1/Inference/CARMEL9/',
+                                                                                        'Carmel 10': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_419-Ki67-TestFold_1/Inference/CARMEL10/',
+                                                                                        'Carmel 11': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_419-Ki67-TestFold_1/Inference/CARMEL11/'
+                                                                                        }
+                                                                   },
                                                           'Her2': {'DataSet Name': None,
                                                                    'TestSet Location': {'Carmel 9': None,
                                                                                       'Carmel 10': None,
@@ -1649,6 +1660,13 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str, test_fo
                                                                  }
                                                           }
                                                },
+                               'ABCTB': {'Fold 1': {'survival': {'DataSet Name': r'FEATURES: Exp_20094-survival-TestFold_1',
+                                                                 'TrainSet Location': r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20094-survival-TestFold_1/Inference/train_w_features/',
+                                                                 'TestSet Location': r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20094-survival-TestFold_1/Inference/test_w_features/',
+                                                                 'REG Model Location': r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20094-survival-TestFold_1/Model_CheckPoints/model_data_Epoch_1000.pt'
+                                                                 }
+                                                    }
+                                         },
                                'TCGA_ABCTB': {'Fold 1': {'ER': {'DataSet Name': r'FEATURES: Exp_293-ER-TestFold_1',
                                                                 'TrainSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_293-ER-TestFold_1/Inference/train_inference_w_features',
                                                                 'TestSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_293-ER-TestFold_1/Inference/test_inference_w_features',
@@ -1733,6 +1751,13 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str, test_fo
                                                             }
                                                    }
                                         },
+                                'ABCTB': {'Fold 1': {'survival': {'DataSet Name': r'FEATURES: Exp_20094-survival-TestFold_1',
+                                                                  'TrainSet Location': None,
+                                                                  'TestSet Location': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/survival/Ran_Exp_20094-survival-TestFold_1/Test/',
+                                                                  'REG Model Location': None
+                                                                  }
+                                                     }
+                                          },
                                 'CAT with Location': {'Fold 1': {'ER': {'DataSet Name': r'FEATURES: Exp_355-ER-TestFold_1 With Locations',
                                                                         'TrainSet Location': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/Ran_Exp_355-TestFold_1/Train_with_location',
                                                                         'TestSet Location': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/Ran_Exp_355-TestFold_1/Test_with_location',
@@ -1760,6 +1785,11 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str, test_fo
                                                              'TestSet Location': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/Ran_Exp_358-TestFold_1/Test',
                                                              'REG Model Location': r'/Users/wasserman/Developer/WSI_MIL/Data from gipdeep/runs/Ran_models/ER/CARMEL_358-TF_1/model_data_Epoch_1000.pt'
                                                              },
+                                                      'Ki67': {'DataSet Name': r'FEATURES: Exp_419-Ki67-TestFold_1',
+                                                               'TrainSet Location': None,
+                                                               'TestSet Location': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Ki67/Ran_Exp_419-Ki67-TestFold_1/Test/',
+                                                               'REG Model Location': None
+                                                               },
                                                       'Her2': {'DataSet Name': None,
                                                                'TrainSet Location': None,
                                                                'TestSet Location': None,
@@ -1778,6 +1808,12 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str, test_fo
                                                                                        'Carmel 11': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/Ran_Exp_355-TestFold_1/Carmel11/'
                                                                                        }
                                                                   },
+                                                           'Ki67': {'DataSet Name': r'FEATURES: Exp_419-Ki67-TestFold_1, CARMEL ONLY Slides Batch 9-11',
+                                                                    'TestSet Location': {'Carmel 9': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Ki67/Ran_Exp_419-Ki67-TestFold_1/Carmel9/',
+                                                                                         'Carmel 10': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Ki67/Ran_Exp_419-Ki67-TestFold_1/Carmel10/',
+                                                                                         'Carmel 11': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Ki67/Ran_Exp_419-Ki67-TestFold_1/Carmel11/'
+                                                                                         }
+                                                                    },
                                                            'Her2': {'DataSet Name': r'FEATURES: Model From Exp_392-Her2-TestFold_1, CARMEL ONLY Slides Batch 9-11',
                                                                     'TestSet Location': {'Carmel 9': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Her2/Ran_Exp_392-TestFold_1/Carmel9/',
                                                                                          'Carmel 10': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Her2/Ran_Exp_392-TestFold_1/Carmel10/',

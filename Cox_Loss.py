@@ -45,6 +45,7 @@ def Cox_loss(risk_function_results: torch.Tensor, targets: torch.Tensor, censore
     likelihood_vec = risk_0 - torch.log(cumsum_vec_0)
     loss = torch.mean(likelihood_vec)
 
+    #print('Cox -> num of samples in use {}'.format(sum(censored_s == 0).item()))
     return -loss
 
 
@@ -67,7 +68,9 @@ def L2_Loss(model_outputs: torch.Tensor, targets: torch.Tensor, censored: torch.
     #loss = torch.sum(torch.sqrt((new_model_outputs[valid_indices][:, 0] - targets[valid_indices]) ** 2))
     loss = torch.sum((new_model_outputs[valid_indices][:, 0] - targets[valid_indices]) ** 2)
 
+    #print('L2 -> num of samples in use {}'.format(len(valid_indices)))
     return loss
+
 
 def Combined_loss(model_outputs: torch.Tensor, targets_time: torch.Tensor, targets_binary: torch.Tensor,censored: torch.Tensor, weights: list = [1, 1, 1]):
     # Compute Cox loss:
@@ -84,6 +87,6 @@ def Combined_loss(model_outputs: torch.Tensor, targets_time: torch.Tensor, targe
                  weights[1] * loss_L2 +\
                  weights[2] * loss_cross_entropy
 
-    return total_loss
+    return total_loss, loss_cox,  loss_L2, loss_cross_entropy
 
 

@@ -17,7 +17,7 @@ from pathlib import Path
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('-e', '--epochs', default=500, type=int, help='Epochs to run')
 parser.add_argument('-tar', '--target', type=str, default='Time', help='Binary / Time')
-parser.add_argument('-l', '--loss', type=str, default='L2', help='Cox / L2')
+parser.add_argument('-l', '--loss', type=str, default='Cox', help='Cox / L2')
 parser.add_argument('-fe', '--from_epoch', type=int, default=0, help='Continue train from epoch')
 parser.add_argument('-mb', '--mini_batch_size', type=int, default=20, help='Mini batch size')
 parser.add_argument('-tm', '--train_mode', type=str, default='T2T', help='B2B, B2T, T2B, T2T')
@@ -61,10 +61,8 @@ def train(from_epoch: int = 0, epochs: int = 2, data_loader = None):
 
             model.to(DEVICE)
 
-
             optimizer.zero_grad()
             outputs = model(data)
-
             outputs.retain_grad()  # FIXME: checking how to retrieve gradients
 
             if args.target == 'Time':
@@ -73,7 +71,7 @@ def train(from_epoch: int = 0, epochs: int = 2, data_loader = None):
 
             elif args.target == 'Binary':
                 outputs = torch.nn.functional.softmax(outputs, dim=1)
-                _, predicted = outputs.max(1)
+                outputs.retain_grad()
                 all_outputs.extend(outputs[:, 1].detach().cpu().numpy())
                 loss = criterion(outputs, target_binary)
 
@@ -82,7 +80,9 @@ def train(from_epoch: int = 0, epochs: int = 2, data_loader = None):
             # model.bias.register_hook(lambda grad: print(grad))  # FIXME: checking how to retrieve gradients
 
             loss.backward()
+
             dLoss__d_outputs += np.sum(np.abs(outputs.grad.detach().cpu().numpy()))
+
             optimizer.step()
             train_loss += loss.item()
 
@@ -118,7 +118,7 @@ def train(from_epoch: int = 0, epochs: int = 2, data_loader = None):
             fpr_train, tpr_train, _ = roc_curve(all_target_binary, all_outputs)
             roc_auc_train = auc(fpr_train, tpr_train)
 
-        all_writer.add_scalar('Train/Loss Per Epoch', train_loss, e)
+        all_writer.add_scalar('Train/Loss Per Sample (Per Epoch)', train_loss / len(data_loader.dataset), e)
         all_writer.add_scalar('Train/C-index Per Epoch', c_index, e)
         all_writer.add_scalar('Train/AUC Per Epoch', roc_auc_train, e)
         all_writer.add_scalar('Train/d_Loss/d_outputs Per Epoch', dLoss__d_outputs, e)
@@ -210,7 +210,7 @@ def test(current_epoch, test_data_loader):
 
 
         print('Validation set Performance. C-index: {}, AUC: {}'.format(c_index, roc_auc_test))
-        all_writer.add_scalar('Test/Loss Per Epoch', test_loss, current_epoch)
+        all_writer.add_scalar('Test/Loss Per Sample (Per Epoch)', test_loss / len(test_data_loader.dataset), current_epoch)
         all_writer.add_scalar('Test/C-index Per Epoch', c_index, current_epoch)
         all_writer.add_scalar('Test/AUC Per Epoch', roc_auc_test, current_epoch)
 
@@ -219,8 +219,6 @@ def test(current_epoch, test_data_loader):
 ########################################################################################################################
 ########################################################################################################################
 
-
-#args.without_censored = True
 
 # Model definition:
 
@@ -243,6 +241,7 @@ elif args.target == 'Binary':
     flip_outputs = True
     main_dir = 'Test_Run/Binary'
 
+main_dir = main_dir + '_Step_' + str(args.lr)
 main_dir = main_dir + '_without_Censored' if args.without_censored else main_dir
 
 # Continue train from previous epoch:
@@ -292,11 +291,14 @@ else:
 
 DEVICE = utils.device_gpu_cpu()
 
-train_set = C_Index_Test_Dataset(train=True, without_censored=args.without_censored)
-test_set = C_Index_Test_Dataset(train=False, without_censored=args.without_censored)
+train_set = C_Index_Test_Dataset(train=True)
+test_set = C_Index_Test_Dataset(train=False)
+
+'''train_set = C_Index_Test_Dataset_Original(train=True, without_censored=args.without_censored)
+test_set = C_Index_Test_Dataset_Original(train=False, without_censored=args.without_censored)'''
 
 train_loader = DataLoader(train_set, batch_size=args.mini_batch_size, shuffle=True)
-test_loader = DataLoader(train_set, batch_size=args.mini_batch_size, shuffle=False)
+test_loader = DataLoader(test_set, batch_size=args.mini_batch_size, shuffle=False)
 
 
 all_writer = SummaryWriter(main_dir)
