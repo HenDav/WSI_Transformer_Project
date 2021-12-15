@@ -52,20 +52,26 @@ def make_dir(dirname):
 def get_optimal_slide_level(slide, magnification, desired_mag, tile_size):
     desired_downsample = magnification / desired_mag  # downsample needed for each dimension (reflected by level_downsamples property)
 
-    level, best_next_level = -1, -1
-    for index, downsample in enumerate(slide.level_downsamples):
-        if isclose(desired_downsample, downsample, rel_tol=1e-3):
-            level = index
-            level_downsample = 1
-            break
+    if desired_downsample < 1: #upsample
+        best_slide_level = 0
+        level_0_tile_size = int(desired_downsample * tile_size)
+        adjusted_tile_size = level_0_tile_size
+    else:
+        level, best_next_level = -1, -1
+        for index, downsample in enumerate(slide.level_downsamples):
+            if isclose(desired_downsample, downsample, rel_tol=1e-3):
+                level = index
+                level_downsample = 1
+                break
 
-        elif downsample < desired_downsample:
-            best_next_level = index
-            level_downsample = int(desired_downsample / slide.level_downsamples[best_next_level])
+            elif downsample < desired_downsample:
+                best_next_level = index
+                level_downsample = int(desired_downsample / slide.level_downsamples[best_next_level])
 
-    adjusted_tile_size = tile_size * level_downsample
-    best_slide_level = level if level > best_next_level else best_next_level
-    level_0_tile_size = int(desired_downsample) * tile_size
+        adjusted_tile_size = tile_size * level_downsample
+        best_slide_level = level if level > best_next_level else best_next_level
+        level_0_tile_size = int(desired_downsample) * tile_size
+
     return best_slide_level, adjusted_tile_size, level_0_tile_size
 
 
@@ -485,9 +491,15 @@ def run_data(experiment: str = None,
         MultiSlide = str(run_DF_exp.loc[[experiment], ['MultiSlide Per Bag']].values[0][0])
         model_name = str(run_DF_exp.loc[[experiment], ['Model']].values[0][0])
         Desired_Slide_magnification = int(run_DF_exp.loc[[experiment], ['Desired Slide Magnification']].values[0][0])
-        free_bias = bool(run_DF_exp.loc[[experiment], ['Free Bias']].values[0][0])
-        CAT_only = bool(run_DF_exp.loc[[experiment], ['Using Feature from CAT model alone']].values[0][0]) if not np.isnan(run_DF_exp.loc[[experiment], ['Using Feature from CAT model alone']].values[0][0]) else False
-        Class_Relation = float(run_DF_exp.loc[[experiment], ['Class Relation']].values[0][0])
+        try:
+            free_bias = bool(run_DF_exp.loc[[experiment], ['Free Bias']].values[0][0])
+            CAT_only = bool(run_DF_exp.loc[[experiment], ['Using Feature from CAT model alone']].values[0][0])
+            Class_Relation = float(run_DF_exp.loc[[experiment], ['Class Relation']].values[0][0])
+        except:
+            free_bias = np.nan
+            CAT_only = np.nan
+            Class_Relation = np.nan
+
 
         if sys.platform == 'linux':
             if location.split('/')[0] == 'runs':
@@ -629,6 +641,7 @@ class MyGaussianNoiseTransform:
         x = Image.fromarray(noise_img)
         return x
 
+
 class MyMeanPixelRegularization:
     """replace patch with single pixel value"""
 
@@ -641,39 +654,35 @@ class MyMeanPixelRegularization:
         return x
 
 
-class HEDColorJitter:
-    """Jitter colors in HED color space rather than RGB color space."""
-    def __init__(self, sigma):
-        self.sigma = sigma
-    def __call__(self, x):
-        x_arr = np.array(x)
-        x2 = HED_color_jitter(x_arr, self.sigma)
-        x2 = Image.fromarray(x2)
-        return x2
-
-
 def define_transformations(transform_type, train, tile_size, color_param=0.1):
 
     MEAN = {'TCGA': [58.2069073 / 255, 96.22645279 / 255, 70.26442606 / 255],
             'HEROHE': [224.46091564 / 255, 190.67338568 / 255, 218.47883547 / 255],
-            'Ron': [0.8998, 0.8253, 0.9357]
+            'Ron': [0.8998, 0.8253, 0.9357],
+            'Imagenet': [0.485, 0.456, 0.406]
             }
 
     STD = {'TCGA': [40.40400300279664 / 255, 58.90625962739444 / 255, 45.09334057330417 / 255],
            'HEROHE': [np.sqrt(1110.25292532) / 255, np.sqrt(2950.9804851) / 255, np.sqrt(1027.10911208) / 255],
-           'Ron': [0.1125, 0.1751, 0.0787]
+           'Ron': [0.1125, 0.1751, 0.0787],
+           'Imagenet': [0.229, 0.224, 0.225]
            }
+
+    if False: #TODO RanS, implement imagenet normalization where needed
+        norm_type = 'Imagenet'
+    else:
+        norm_type = 'Ron'
 
     # Setting the transformation:
     if transform_type == 'aug_receptornet':
         final_transform = transforms.Compose([transforms.Normalize(
-                                                  mean=(MEAN['Ron'][0], MEAN['Ron'][1], MEAN['Ron'][2]),
-                                                  std=(STD['Ron'][0], STD['Ron'][1], STD['Ron'][2]))])
+                                                  mean=(MEAN[norm_type][0], MEAN[norm_type][1], MEAN[norm_type][2]),
+                                                  std=(STD[norm_type][0], STD[norm_type][1], STD[norm_type][2]))])
     else:
         final_transform = transforms.Compose([transforms.ToTensor(),
                                               transforms.Normalize(
-                                                  mean=(MEAN['Ron'][0], MEAN['Ron'][1], MEAN['Ron'][2]),
-                                                  std=(STD['Ron'][0], STD['Ron'][1], STD['Ron'][2]))
+                                                  mean=(MEAN[norm_type][0], MEAN[norm_type][1], MEAN[norm_type][2]),
+                                                  std=(STD[norm_type][0], STD[norm_type][1], STD[norm_type][2]))
                                               ])
     scale_factor = 0.2
     # if self.transform and self.train:
@@ -798,7 +807,7 @@ def get_datasets_dir_dict(Dataset: str):
     TCGA_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/TCGA'
     ABCTB_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/ABCTB/ABCTB'
     HEROHE_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/HEROHE'
-    SHEBA_gipdeep_path = r'/mnt/gipnetapp_public/sgils/Breast/Sheba/SHEBA'
+    SHEBA_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/Sheba/SHEBA'
     ABCTB_TIF_gipdeep_path = r'/mnt/gipmed_new/Data/ABCTB_TIF'
     CARMEL_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/Carmel'
     TCGA_LUNG_gipdeep_path = r'/mnt/gipmed_new/Data/Lung/TCGA_Lung/TCGA_LUNG'
@@ -829,6 +838,14 @@ def get_datasets_dir_dict(Dataset: str):
                 dir_dict['CARMEL' + str(ii)] = os.path.join(CARMEL_gipdeep_path, 'Batch_' + str(ii), 'CARMEL' + str(ii))
         elif sys.platform == 'darwin':  # Omer
             dir_dict['CARMEL'] = CARMEL_omer_path
+
+    elif (Dataset[:6] == 'CARMEL') and (len(Dataset) > 6):
+        batch_num = Dataset[6:]
+        if sys.platform == 'linux':  # GIPdeep
+            dir_dict[Dataset] = os.path.join(CARMEL_gipdeep_path, 'Batch_' + batch_num, 'CARMEL' + batch_num)
+        elif sys.platform == 'win32':  # Ran local
+            dir_dict[Dataset] = TCGA_ran_path #temp for debug only
+
     elif Dataset == 'CAT':
         if sys.platform == 'linux':  # GIPdeep
             for ii in np.arange(1, 9):
@@ -896,6 +913,10 @@ def get_datasets_dir_dict(Dataset: str):
         if sys.platform == 'linux':  # GIPdeep Run from local files
             #dir_dict['ABCTB'] = ABCTB_gipdeep_path
             dir_dict['ABCTB'] = ABCTB_TIF_gipdeep_path
+            #dir_dict['ABCTB'] = r'/mnt/gipmed_new/Data/Breast/ABCTB/mrxs_50test_temp/ABCTB' #temp RanS 9.11.21
+            #dir_dict['ABCTB'] = r'/mnt/gipmed_new/Data/Breast/ABCTB/tif_49_slides' #temp RanS 9.11.21
+            #dir_dict['ABCTB'] = r'/mnt/gipmed_new/Data/Breast/ABCTB/mrxs_50test_temp/duplicated'  # temp RanS 29.11.21
+            #dir_dict['ABCTB'] = r'/mnt/gipmed_new/Data/Breast/ABCTB/tif_49_slides_duplicated' #temp RanS 9.11.21
 
         elif sys.platform == 'win32':  # Ran local
             dir_dict['ABCTB'] = ABCTB_ran_path
@@ -909,7 +930,7 @@ def get_datasets_dir_dict(Dataset: str):
 
     elif Dataset == 'PORTO_HE':
         if sys.platform == 'linux':
-            dir_dict['PORTO_HE'] = r'/mnt/gipnetapp_public/sgils/LUNG/PORTO_HE'
+            dir_dict['PORTO_HE'] = r'/mnt/gipmed_new/Data/Lung/PORTO_HE'
         elif sys.platform == 'win32':  # Ran local
             dir_dict['PORTO_HE'] = r'C:\ran_data\Lung_examples\LUNG'
         elif sys.platform == 'darwin':  # Omer local
@@ -917,7 +938,7 @@ def get_datasets_dir_dict(Dataset: str):
 
     elif Dataset == 'PORTO_PDL1':
         if sys.platform == 'linux':
-            dir_dict['PORTO_PDL1'] = r'/mnt/gipnetapp_public/sgils/LUNG/PORTO_PDL1'
+            dir_dict['PORTO_PDL1'] = r'/mnt/gipmed_new/Data/Lung/sgils/LUNG/PORTO_PDL1'
         elif sys.platform == 'win32':  # Ran local
             #dir_dict['PORTO_PDL1'] = r'C:\ran_data\IHC_examples\PORTO_PDL1'
             dir_dict['PORTO_PDL1'] = r'C:\ran_data\IHC_examples\temp_8_slides\PORTO_PDL1'
@@ -931,18 +952,28 @@ def get_datasets_dir_dict(Dataset: str):
             dir_dict['Ipatimup'] = Ipatimup_gipdeep_path
             dir_dict['Covilha'] = Covilha_gipdeep_path
 
+    elif Dataset == 'HIC':
+        if sys.platform == 'linux':  # GIPdeep
+            dir_dict['Ipatimup'] = Ipatimup_gipdeep_path
+            dir_dict['Covilha'] = Covilha_gipdeep_path
+            dir_dict['HEROHE'] = HEROHE_gipdeep_path
+
     return dir_dict
 
 
 def assert_dataset_target(DataSet, target_kind):
-    if DataSet == 'PORTO_HE' and target_kind not in ['PDL1', 'EGFR']:
+    if DataSet == 'PORTO_HE' and target_kind not in ['PDL1', 'EGFR', 'is_full_cancer']:
         raise ValueError('For PORTO_HE DataSet, target should be one of: PDL1, EGFR')
     elif DataSet == 'PORTO_PDL1' and target_kind != 'PDL1':
         raise ValueError('For PORTO_PDL1 DataSet, target should be PDL1')
     elif DataSet == 'HEROHE' and target_kind != 'Her2':
         raise ValueError('for HEROHE DataSet, target should be Her2')
     #elif (DataSet == 'TCGA' or DataSet == 'CARMEL' or DataSet == 'CAT') and target_kind not in ['ER', 'PR', 'Her2', 'OR']:
-    elif (DataSet in ['TCGA', 'CARMEL', 'CAT', 'IC']) and target_kind not in ['ER', 'PR', 'Her2', 'OR']:
+    elif (DataSet in ['TCGA', 'CAT']) and target_kind not in ['ER', 'PR', 'Her2', 'OR']:
+        raise ValueError('target should be one of: ER, PR, Her2, OR')
+    elif (DataSet in ['IC','HIC']) and target_kind not in ['ER', 'PR', 'Her2', 'OR', 'Ki67']:
+        raise ValueError('target should be one of: ER, PR, Her2, OR')
+    elif (DataSet == 'CARMEL') and target_kind not in ['ER', 'PR', 'Her2', 'OR', 'Ki67', 'ER100']:
         raise ValueError('target should be one of: ER, PR, Her2, OR')
     elif (DataSet == 'RedSquares') and target_kind != 'RedSquares':
         raise ValueError('target should be: RedSquares')
@@ -950,8 +981,8 @@ def assert_dataset_target(DataSet, target_kind):
         raise ValueError('for SHEBA DataSet, target should be Onco')
     elif DataSet == 'TCGA_LUNG' and target_kind not in ['is_cancer', 'is_LUAD', 'is_full_cancer']:
         raise ValueError('for TCGA_LUNG DataSet, target should be is_cancer or is_LUAD')
-    elif DataSet == 'LEUKEMIA' and target_kind not in ['ALL','is_B','is_HR', 'is_over_6', 'is_over_10', 'is_over_15', 'WBC_over_20', 'WBC_over_50', 'is_HR_B', 'is_tel_aml_B', 'is_tel_aml_non_hr_B']:
-        raise ValueError('for LEUKEMIA DataSet, target should be ALL, is_B, is_HR, is_over_6, is_over_10, is_over_15, WBC_over_20, WBC_over_50, is_HR_B, is_tel_aml_B, is_tel_aml_non_hr_B')
+    elif DataSet == 'LEUKEMIA' and target_kind not in ['ALL','is_B','is_HR', 'is_over_6', 'is_over_10', 'is_over_15', 'WBC_over_20', 'WBC_over_50', 'is_HR_B', 'is_tel_aml_B', 'is_tel_aml_non_hr_B', 'MRD']:
+        raise ValueError('for LEUKEMIA DataSet, target should be ALL, is_B, is_HR, is_over_6, is_over_10, is_over_15, WBC_over_20, WBC_over_50, is_HR_B, is_tel_aml_B, is_tel_aml_non_hr_B, MRD')
     elif (DataSet in ['ABCTB', 'ABCTB_TIF']) and target_kind not in ['ER', 'PR', 'Her2', 'survival', 'Survival_Time', 'Survival_Binary']:
         raise ValueError('target should be one of: ER, PR, Her2, survival, Survival_Time, Survival_Binary')
 
@@ -1538,6 +1569,15 @@ def dataset_properties_to_location(dataset_name_list: list, receptor: str, test_
         dataset_location_list.append([dataset, location, dataset_name, regular_model_location])
 
     return dataset_location_list
+
+
+def get_label(target):
+    if target == 'Positive':
+        return [1]
+    elif target == 'Negative':
+        return [0]
+    else: #unknown
+        return [-1]
 
 
 def get_RegModel_Features_location_dict(train_DataSet: str, target: str, test_fold: int):
