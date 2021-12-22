@@ -122,7 +122,13 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             data, target = data.to(DEVICE), target.to(DEVICE).squeeze(1)
 
             optimizer.zero_grad()
+            if print_timing:
+                time_fwd_start = time.time()
+
             outputs, _ = model(data)
+
+            if print_timing:
+                time_fwd = time.time() - time_fwd_start
 
             if args.target == 'Survival_Time':
                 loss = criterion(outputs, target, censored)
@@ -144,9 +150,15 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                 correct_neg += predicted[target.eq(0)].eq(0).sum().item()
 
             if loss != 0:
+                if print_timing:
+                    time_backprop_start = time.time()
+
                 loss.backward()
                 optimizer.step()
                 train_loss += loss.item()
+
+                if print_timing:
+                    time_backprop = time.time() - time_backprop_start
 
             slide_names_batch = [os.path.basename(f_name) for f_name in f_names]
             slide_names.extend(slide_names_batch)
@@ -162,6 +174,8 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             if print_timing:
                 time_stamp = batch_idx + e * len(dloader_train)
                 time_writer.add_scalar('Time/Train (iter) [Sec]', train_time, time_stamp)
+                time_writer.add_scalar('Time/Forward Pass [Sec]', time_fwd, time_stamp)
+                time_writer.add_scalar('Time/Back Propagation [Sec]', time_backprop, time_stamp)
                 # print('Elapsed time of one train iteration is {:.2f} s'.format(train_time))
                 time_list = torch.stack(time_list, 1)
                 if len(time_list[0]) == 4:

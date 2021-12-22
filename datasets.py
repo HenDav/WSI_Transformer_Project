@@ -11,7 +11,7 @@ from torch.utils.data import Dataset
 from typing import List
 from utils import MyRotation, Cutout, _get_tiles, _choose_data, chunks, map_original_grid_list_to_equiv_grid_list
 from utils import define_transformations, assert_dataset_target
-from utils import dataset_properties_to_location, get_label
+from utils import dataset_properties_to_location, get_label, num_2_bool
 from utils import show_patches_and_transformations, get_datasets_dir_dict, balance_dataset
 import openslide
 from tqdm import tqdm
@@ -515,7 +515,6 @@ class WSI_REGdataset(WSI_Master_Dataset):
                  loan: bool = False,
                  er_eq_pr: bool = False,
                  slide_per_block: bool = False,
-                 balanced_dataset: bool = False,
                  balanced_dataset: bool = False,
                  RAM_saver: bool = False
                  ):
@@ -1812,9 +1811,13 @@ class Features_to_Survival(Dataset):
     def __init__(self,
                  is_train: bool = True,
                  is_per_patient: bool = False,
+                 is_per_slide: bool = False,
                  is_all_tiles: bool = False,
                  bag_size: int = 1
                  ):
+
+        if is_per_patient and is_per_slide:
+            raise Exception('Data arrangement cannot be "per slide" and "per patient" at the same time')
 
         if sys.platform == 'darwin':
             if is_train:
@@ -1830,10 +1833,11 @@ class Features_to_Survival(Dataset):
 
         dataset = 'ABCTB'
         self.train_type = 'Features'
+        self.is_train = is_train
 
         self.slide_names = []
         self.labels = []
-        self.targets = []
+        #self.targets = []
         self.features = []
         self.num_tiles = []
         self.scores = []
@@ -1841,10 +1845,10 @@ class Features_to_Survival(Dataset):
         self.tile_location = []
         self.patient_data = {}
         self.bad_patient_list = []
-        self.is_per_patient = is_per_patient
+        self.is_per_patient, self.is_per_slide = is_per_patient, is_per_slide
         self.is_all_tiles = is_all_tiles
         self.bag_size = bag_size
-        self.censor = []
+        self.censor, self.time_target, self.binary_target = [], [], []
 
         slides_from_same_patient_with_different_target_values, total_slides, bad_num_of_good_tiles = 0, 0, 0
         slides_with_not_enough_tiles, slides_with_bad_segmentation = 0, 0
@@ -1920,6 +1924,10 @@ class Features_to_Survival(Dataset):
                 except KeyError:
                     raise Exception('Debug')
 
+                # Skip slides that have a "Exclude" marker in Slides_data.xlsx file
+                if slide_data_DF.loc[slide_names[slide_num]]['Exclude for time prediction?'] == 'Exclude':
+                    continue
+
                 total_slides += 1
                 feature_1 = features[slide_num, :, :, 0]
                 nan_indices = np.argwhere(np.isnan(feature_1)).tolist()
@@ -1930,14 +1938,25 @@ class Features_to_Survival(Dataset):
                 except TypeError:
                     raise Exception('Debug')
 
+                # Get censor status and targets (Binary and time).
+                censor_status = slide_data_DF.loc[slide_names[slide_num]]['Censored']
+                censor_status = num_2_bool(censor_status)
+                target_time = slide_data_DF.loc[slide_names[slide_num]]['Follow-up Months Since Diagnosis']
+                target_binary = slide_data_DF.loc[slide_names[slide_num]]['survival status']
+                target_binary = get_label(target_binary)[0]
+
+                # Check that binary target from feature files matched the data in slides_data.xlsx:
+                if target_binary != targets[slide_num]:
+                    raise Exception('Mismatch found between targets')
+
                 if is_per_patient:
                     # calculate patient id:
                     patient = slide_names[slide_num].split('.')[0]
-                    if patient.split('-')[0] == 'TCGA':
+                    '''if patient.split('-')[0] == 'TCGA':
                         patient = '-'.join(patient.split('-')[:3])
                     elif slide_names[slide_num].split('.')[-1] == 'mrxs':  # This is a CARMEL slide
                         #patient = slides_data_DF_CARMEL.loc[slide_names[slide_num], 'patient barcode']
-                        patient = slide_data_DF.loc[slide_names[slide_num], 'patient barcode']
+                        patient = slide_data_DF.loc[slide_names[slide_num], 'patient barcode']'''
 
                     # insert to the "all patient list"
                     patient_list.append(patient)
@@ -1954,7 +1973,7 @@ class Features_to_Survival(Dataset):
 
                         # Check if the patient has multiple targets
                         patient_same_target = True if int(targets[slide_num]) == patient_dict['target'] else False  # Checking the the patient target is not changing between slides
-                        # if the patient has multiple targets than:
+                        # if the patient has multiple targets than we need to remove it from the valid data:
                         if not patient_same_target:
                             slides_from_same_patient_with_different_target_values += 1 + len(patient_dict['slides'])  # we skip more than 1 slide since we need to count the current slide and the ones that are already inserted to the patient_dict
                             self.patient_data.pop(patient)  #  remove it from the dictionary of legitimate patients
@@ -1969,13 +1988,17 @@ class Features_to_Survival(Dataset):
                         patient_dict['slides'].append(slide_names[slide_num])
                         patient_dict['scores'].append(scores[slide_num])
 
-                        # Now we decide how many feature tiles will be taken w.r.t self.fixed_tile_num parameter
-                        if self.fixed_tile_num is not None:
-                            tiles_in_slide = tiles_in_slide if tiles_in_slide <= self.fixed_tile_num else self.fixed_tile_num
-
                         features_old = patient_dict['features']
                         features_new = features[slide_num, :, :tiles_in_slide, :].squeeze(0).astype(np.float32)
                         patient_dict['features'] = np.concatenate((features_old, features_new), axis=0)
+
+                        # Check that the censor status, target_time and target_binary has not changed:
+                        if censor_status != self.patient_data[patient]['Censored']:
+                            raise Exception('This patient has multiple censor status')
+                        if target_binary != self.patient_data[patient]['Binary Target']:
+                            raise Exception('This patient has multiple Binary Targets')
+                        if target_time != self.patient_data[patient]['Time Target']:
+                            raise Exception('This patient has multiple Time Targets')
 
                     else:
                         patient_dict = {'num tiles': [tiles_in_slide],
@@ -1984,7 +2007,10 @@ class Features_to_Survival(Dataset):
                                         'labels': [int(labels[slide_num])],
                                         'target': int(targets[slide_num]),
                                         'slides': [slide_names[slide_num]],
-                                        'scores': [scores[slide_num]]
+                                        'scores': [scores[slide_num]],
+                                        'Censored': censor_status,
+                                        'Time Target': target_time,
+                                        'Binary Target': target_binary
                                         }
 
                         self.patient_data[patient] = patient_dict
@@ -1995,34 +2021,14 @@ class Features_to_Survival(Dataset):
                     self.tile_scores.append(patch_scores[slide_num, :tiles_in_slide])
                     self.slide_names.append(slide_names[slide_num])
                     self.labels.append(int(labels[slide_num]))
-                    self.targets.append(int(targets[slide_num]))
+                    #self.targets.append(int(targets[slide_num]))
                     self.scores.append(scores[slide_num])
                     #self.tile_location.append(tile_location[slide_num, :tiles_in_slide, :])
                     self.tile_location.append(tile_location[slide_num, :tiles_in_slide])
 
-                    censor_status = slide_data_DF.loc[slide_names[slide_num]]['Censored']
-                    if censor_status == 1:
-                        censor_status = True
-                    elif censor_status == 0:
-                        censor_status = False
-                    else:
-                        censor_status = -1
                     self.censor.append(censor_status)
-
-                # Checking for consistency between targets loaded from the feature files and slides_data_DF.
-                # The location of this check should include per patient dataset or per slide dataset
-                slide_data_target = slide_data_DF.loc[slide_names[slide_num]]['survival status']
-                if slide_data_target == 'Positive':
-                    slide_data_target = 1
-                elif slide_data_target == 'Negative':
-                    slide_data_target = 0
-                else:
-                    slide_data_target = -1
-
-                feature_file_target = targets[slide_num]
-                if slide_data_target != feature_file_target:
-                    raise Exception('Found inconsistency between targets in feature files and slide_data_DF')
-
+                    self.time_target.append(target_time)
+                    self.binary_target.append(target_binary)
 
         print('There are {}/{} slides with \"bad number of good tile\" '.format(bad_num_of_good_tiles, total_slides))
         print('There are {}/{} slides with \"bad segmentation\" '.format(slides_with_bad_segmentation, total_slides))
@@ -2035,40 +2041,41 @@ class Features_to_Survival(Dataset):
             print('Initialized Dataset with {} feature slides in {} patients'.format(total_slides - slides_from_same_patient_with_different_target_values - slides_with_not_enough_tiles,
                                                                                      self.__len__()))
         else:
-            print('Initialized Dataset with {} feature slides'.format(len(self.targets)))
+            print('Initialized Dataset with {} feature slides'.format(len(self.censor)))
 
     def __len__(self):
         if self.is_per_patient:
-            raise Exception('Need to implement')
-            #return len(self.patient_keys)
+            return len(self.patient_keys)
+
+        elif self.is_per_slide:
+            return len(self.slide_names)
+
         else:
-            return len(self.slide_names) * 10
+            if self.is_all_tiles:
+                return len(self.slide_names)
+            else:
+                return len(self.slide_names) * 10
 
     def __getitem__(self, item):
         if self.is_per_patient:
-            raise Exception('Need to implement')
             patient_data = self.patient_data[self.patient_keys[item]]
-            num_tiles = int(np.array(patient_data['num tiles']).sum())
 
-            if self.is_repeating_tiles:
-                tile_idx = list(range(num_tiles)) if self.is_all_tiles else choices(range(num_tiles), k=self.bag_size)
-            else:
-                tile_idx = list(range(num_tiles)) if self.is_all_tiles else sample(range(num_tiles), k=self.bag_size)
-
-            return {'labels': np.array(patient_data['labels']).mean(),
-                    'targets': patient_data['target'],
-                    'scores': np.array(patient_data['scores']).mean(),
-                    'tile scores': patient_data['tile scores'][tile_idx],
-                    'features': patient_data['features'][tile_idx],
-                    'num tiles': num_tiles
+            return {'Binary Target': patient_data['Binary Target'],
+                    'Time Target': patient_data['Time Target'],
+                    'Features': patient_data['features'],
+                    'Censored': patient_data['Censored']
                     }
 
         else:
-            item = item % len(self.targets)
-            tile_idx = list(range(self.num_tiles[item])) if self.is_all_tiles else choices(range(self.num_tiles[item]), k=self.bag_size)
+            if not self.is_all_tiles: # In case we're not getting all the tiles of a slide we want to fo over each slide for 10 times during each epoch
+                item = item % len(self.censor)
+            if self.is_per_slide:
+                tile_idx = list(range(self.num_tiles[item]))
+            else:
+                tile_idx = list(range(self.num_tiles[item])) if self.is_all_tiles else choices(range(self.num_tiles[item]), k=self.bag_size)
 
-            return {'Binary Target': self.targets[item],
-                    'Time Target': [-1],
+            return {'Binary Target': self.binary_target[item],
+                    'Time Target': self.time_target[item],
                     'Features': self.features[item][tile_idx],
                     'Censored': self.censor[item],
                     'tile scores': self.tile_scores[item][tile_idx],
@@ -2840,7 +2847,9 @@ class C_Index_Test_Dataset(Dataset):
     def __init__(self,
                  train: bool = True,
                  is_all_censored: bool = False,
-                 is_all_not_censored: bool = False):
+                 is_all_not_censored: bool = False,
+                 data_difficulty: 'str' = 'Basic'
+                 ):
 
         if is_all_censored and is_all_not_censored:
             raise Exception('\'is_all_censored\' and \'is_all_not_censored\' CANNOT be TRUE at the same time')
@@ -2848,9 +2857,15 @@ class C_Index_Test_Dataset(Dataset):
         self.train_type = 'Features'
 
         if sys.platform == 'darwin':
-            #file_location = r'/Users/wasserman/Developer/WSI_MIL/All Data/survival_synthetic/Survival_time_synthetic.xlsx'
-            #file_location = r'/Users/wasserman/Developer/WSI_MIL/All Data/survival_synthetic/Survival_time_synthetic_80_censored.xlsx'
-            file_location = r'/Users/wasserman/Developer/WSI_MIL/All Data/survival_synthetic/Survival_time_synthetic_hard.xlsx'
+            if data_difficulty == 'Basic':
+                file_location = r'/Users/wasserman/Developer/WSI_MIL/All Data/survival_synthetic/Survival_time_synthetic.xlsx'
+            elif data_difficulty == 'Moderate':
+                file_location = r'/Users/wasserman/Developer/WSI_MIL/All Data/survival_synthetic/Survival_time_synthetic_80_censored.xlsx'
+            elif data_difficulty == 'Difficult':
+                file_location = r'/Users/wasserman/Developer/WSI_MIL/All Data/survival_synthetic/Survival_time_synthetic_hard.xlsx'
+            else:
+                raise Exception('Data difficulty is not identified')
+
         elif sys.platform == 'linux':
             file_location = r'/home/womer/project/All Data/survival_synthetic/Survival_time_synthetic.xlsx'
         DF = pd.read_excel(file_location)

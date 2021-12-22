@@ -80,7 +80,7 @@ def Combined_loss(model_outputs: torch.Tensor, targets_time: torch.Tensor, targe
     loss_L2 = L2_Loss(model_outputs=torch.reshape(model_outputs[:, 1], (model_outputs[:, 1].size(0), 1)), targets=targets_time, censored=censored)
     # Compute Cross Entropy loss:
     valid_indices = targets_binary != -1
-    outputs_for_binary = torch.nn.functional.softmax(model_outputs[valid_indices][:, 2:], dim=1)
+    outputs_for_binary = model_outputs[valid_indices][:, 2:]
     loss_cross_entropy = torch.nn.functional.cross_entropy(outputs_for_binary, targets_binary[valid_indices])
     # Combine together:
     total_loss = weights[0] * loss_cox +\

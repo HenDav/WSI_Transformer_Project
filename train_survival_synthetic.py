@@ -17,12 +17,12 @@ from pathlib import Path
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('-e', '--epochs', default=500, type=int, help='Epochs to run')
 parser.add_argument('-tar', '--target', type=str, default='Time', help='Binary / Time')
-parser.add_argument('-l', '--loss', type=str, default='Cox', help='Cox / L2')
+parser.add_argument('-l', '--loss', type=str, default='L2', help='Cox / L2')
 parser.add_argument('-fe', '--from_epoch', type=int, default=0, help='Continue train from epoch')
 parser.add_argument('-mb', '--mini_batch_size', type=int, default=20, help='Mini batch size')
 parser.add_argument('-tm', '--train_mode', type=str, default='T2T', help='B2B, B2T, T2B, T2T')
 parser.add_argument('-wc', '--without_censored', dest='without_censored', action='store_true', help='train without censpred data')
-parser.add_argument('--lr', default=10e-5, type=float, help='learning rate')
+parser.add_argument('--lr', default=20e-5, type=float, help='learning rate')
 args = parser.parse_args()
 
 
@@ -34,6 +34,9 @@ def train(from_epoch: int = 0, epochs: int = 2, data_loader = None):
         all_target_time, all_target_binary, all_outputs, all_censored = [], [], [], []
         train_loss = 0
         dLoss__d_outputs = 0
+
+        model.train()
+        model.to(DEVICE)
 
         for batch_idx, minibatch in enumerate(data_loader):
             time_stamp = batch_idx + e * len(data_loader)
@@ -59,8 +62,6 @@ def train(from_epoch: int = 0, epochs: int = 2, data_loader = None):
             target_binary = target_binary.to(DEVICE)
             target_time = target_time.to(DEVICE)
 
-            model.to(DEVICE)
-
             optimizer.zero_grad()
             outputs = model(data)
             outputs.retain_grad()  # FIXME: checking how to retrieve gradients
@@ -70,19 +71,17 @@ def train(from_epoch: int = 0, epochs: int = 2, data_loader = None):
                 loss = criterion(outputs, target_time, censored)
 
             elif args.target == 'Binary':
-                outputs = torch.nn.functional.softmax(outputs, dim=1)
-                outputs.retain_grad()
-                all_outputs.extend(outputs[:, 1].detach().cpu().numpy())
                 loss = criterion(outputs, target_binary)
+
+                outputs_after_sftmx = torch.nn.functional.softmax(outputs, dim=1)
+                all_outputs.extend(outputs_after_sftmx[:, 1].detach().cpu().numpy())
 
             # loss.register_hook(lambda grad: print(grad))  # FIXME: checking how to retrieve gradients
             # model.weight.register_hook(lambda grad: print(grad))  # FIXME: checking how to retrieve gradients
             # model.bias.register_hook(lambda grad: print(grad))  # FIXME: checking how to retrieve gradients
 
             loss.backward()
-
             dLoss__d_outputs += np.sum(np.abs(outputs.grad.detach().cpu().numpy()))
-
             optimizer.step()
             train_loss += loss.item()
 
@@ -271,8 +270,6 @@ if args.from_epoch != 0:
 else:
     from_epoch = 0
 
-
-
 check_parameters = False
 check_optimization = False
 if check_parameters or check_optimization:
@@ -284,15 +281,15 @@ if check_parameters or check_optimization:
         model.eval()
     elif check_optimization:
         optimizer = optim.Adam(model.parameters(), lr=1e-5, weight_decay=5e-5)
-        model.train()
+
 else:
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=5e-5)
-    model.train()
+
 
 DEVICE = utils.device_gpu_cpu()
 
-train_set = C_Index_Test_Dataset(train=True)
-test_set = C_Index_Test_Dataset(train=False)
+train_set = C_Index_Test_Dataset(train=True, data_difficulty='Basic')
+test_set = C_Index_Test_Dataset(train=False, data_difficulty='Basic')
 
 '''train_set = C_Index_Test_Dataset_Original(train=True, without_censored=args.without_censored)
 test_set = C_Index_Test_Dataset_Original(train=False, without_censored=args.without_censored)'''

@@ -1579,6 +1579,15 @@ def get_label(target):
     else: #unknown
         return [-1]
 
+def num_2_bool(num):
+    if num == 1:
+        return True
+    elif num == 0:
+        return False
+    else:
+        return -1
+
+
 
 def get_RegModel_Features_location_dict(train_DataSet: str, target: str, test_fold: int):
     All_Data_Dict = {'linux': {'CAT': {'Fold 1': {'ER': {'DataSet Name': r'FEATURES: Exp_355-ER-TestFold_1',
