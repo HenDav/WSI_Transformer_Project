@@ -16,13 +16,15 @@ from pathlib import Path
 
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('-e', '--epochs', default=500, type=int, help='Epochs to run')
-parser.add_argument('-tar', '--target', type=str, default='Time', help='Binary / Time')
+parser.add_argument('-tar', '--target', type=str, default='Binary', help='Binary / Time')
 parser.add_argument('-l', '--loss', type=str, default='L2', help='Cox / L2')
 parser.add_argument('-fe', '--from_epoch', type=int, default=0, help='Continue train from epoch')
 parser.add_argument('-mb', '--mini_batch_size', type=int, default=20, help='Mini batch size')
 parser.add_argument('-tm', '--train_mode', type=str, default='T2T', help='B2B, B2T, T2B, T2T')
 parser.add_argument('-wc', '--without_censored', dest='without_censored', action='store_true', help='train without censpred data')
-parser.add_argument('--lr', default=20e-5, type=float, help='learning rate')
+parser.add_argument('--lr', default=40e-5, type=float, help='learning rate')
+parser.add_argument('--data_diff', type=str, default='Basic', help='data difficulty')
+parser.add_argument('--eps', default=1e-8, type=float, help='epsilon (for optimizer')
 args = parser.parse_args()
 
 
@@ -82,7 +84,35 @@ def train(from_epoch: int = 0, epochs: int = 2, data_loader = None):
 
             loss.backward()
             dLoss__d_outputs += np.sum(np.abs(outputs.grad.detach().cpu().numpy()))
-            optimizer.step()
+            _, _, m, v, lr = optimizer.step()
+
+            # Converting m,v to numpy and concatenating the bias to weights
+            if args.target == 'Binary':
+                m = np.append(m[0].view(16).numpy(), m[1].numpy())
+                v = np.append(v[0].view(16).numpy(), v[1].numpy())
+            else:
+                m = np.append(m[0].detach().cpu().numpy().reshape(8,), m[1].detach().cpu().numpy())
+                v = np.append(v[0].detach().cpu().numpy().reshape(8, ), v[1].detach().cpu().numpy())
+
+            all_writer_min.add_scalar('Train/Effective lr', lr[0], time_stamp)
+            all_writer_max.add_scalar('Train/Effective lr', lr[1], time_stamp)
+
+            all_writer.add_scalar('Train/m parameters values', m.mean(), time_stamp)
+            all_writer_min.add_scalar('Train/m parameters values', m.min(), time_stamp)
+            all_writer_max.add_scalar('Train/m parameters values', m.max(), time_stamp)
+
+            all_writer.add_scalar('Train/v parameters values', v.mean(), time_stamp)
+            all_writer_max.add_scalar('Train/v parameters values', v.max(), time_stamp)
+            all_writer_min.add_scalar('Train/v parameters values', v.min(), time_stamp)
+
+            m_v_eps = m / (np.sqrt(v) + args.eps)
+            all_writer.add_scalar('Train/m_v_eps parameters values', m_v_eps.mean(), time_stamp)
+            all_writer_max.add_scalar('Train/m_v_eps parameters values', m_v_eps.max(), time_stamp)
+            all_writer_min.add_scalar('Train/m_v_eps parameters values', m_v_eps.min(), time_stamp)
+
+
+
+
             train_loss += loss.item()
 
             all_writer.add_scalar('Train/Loss per Minibatch', loss, time_stamp)
@@ -221,16 +251,17 @@ def test(current_epoch, test_data_loader):
 
 # Model definition:
 
+main_dir = 'Test_Run/Data_' + args.data_diff
 if args.target == 'Time':
     model = nn.Linear(8, 1)
     if args.loss == 'Cox':
         criterion = Cox_loss
         flip_outputs = False
-        main_dir = 'Test_Run/Time_Cox'
+        main_dir = main_dir + '/Time_Cox'
     elif args.loss == 'L2':
         criterion = L2_Loss
         flip_outputs = True
-        main_dir = 'Test_Run/Time_L2'
+        main_dir = main_dir + '/Time_L2'
     else:
         Exception('No valid loss function defined')
 
@@ -238,9 +269,9 @@ elif args.target == 'Binary':
     model = nn.Linear(8, 2)
     criterion = nn.CrossEntropyLoss()
     flip_outputs = True
-    main_dir = 'Test_Run/Binary'
+    main_dir = main_dir + '/Binary'
 
-main_dir = main_dir + '_Step_' + str(args.lr)
+main_dir = main_dir + '_Step_' + str(args.lr) + '_Eps_' + str(args.eps)
 main_dir = main_dir + '_without_Censored' if args.without_censored else main_dir
 
 # Continue train from previous epoch:
@@ -283,13 +314,13 @@ if check_parameters or check_optimization:
         optimizer = optim.Adam(model.parameters(), lr=1e-5, weight_decay=5e-5)
 
 else:
-    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=5e-5)
+    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=5e-5, eps=args.eps)
 
 
 DEVICE = utils.device_gpu_cpu()
 
-train_set = C_Index_Test_Dataset(train=True, data_difficulty='Basic')
-test_set = C_Index_Test_Dataset(train=False, data_difficulty='Basic')
+train_set = C_Index_Test_Dataset(train=True, data_difficulty=args.data_diff)
+test_set = C_Index_Test_Dataset(train=False, data_difficulty=args.data_diff)
 
 '''train_set = C_Index_Test_Dataset_Original(train=True, without_censored=args.without_censored)
 test_set = C_Index_Test_Dataset_Original(train=False, without_censored=args.without_censored)'''
@@ -297,9 +328,9 @@ test_set = C_Index_Test_Dataset_Original(train=False, without_censored=args.with
 train_loader = DataLoader(train_set, batch_size=args.mini_batch_size, shuffle=True)
 test_loader = DataLoader(test_set, batch_size=args.mini_batch_size, shuffle=False)
 
-
-all_writer = SummaryWriter(main_dir)
-
+all_writer = SummaryWriter(os.path.join(main_dir, 'mean'))
+all_writer_max = SummaryWriter(os.path.join(main_dir, 'max'))
+all_writer_min = SummaryWriter(os.path.join(main_dir, 'min'))
 if not os.path.isdir(os.path.join(main_dir, 'Model_CheckPoints')):
     Path(os.path.join(main_dir, 'Model_CheckPoints')).mkdir(parents=True)
 

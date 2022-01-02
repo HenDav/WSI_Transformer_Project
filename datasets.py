@@ -38,7 +38,7 @@ class WSI_Master_Dataset(Dataset):
                  color_param: float = 0.1,
                  n_tiles: int = 10,
                  test_time_augmentation: bool = False,
-                 desired_slide_magnification: int = 20,
+                 desired_slide_magnification: int = 10,
                  slide_repetitions: int = 1,
                  loan: bool = False,
                  er_eq_pr: bool = False,
@@ -108,7 +108,7 @@ class WSI_Master_Dataset(Dataset):
                 elif (PR_target == 'Negative' or ER_target == 'Negative'): #avoid 'Missing Data'
                     all_targets[ii] = 'Negative'
 
-        if self.target_kind in ['Survival_Time', 'Survival_Binary']:
+        if self.target_kind in ['Survival_Time', 'Survival_Binary']:  # TODO: Check if this part can be removed - it might be useless
             all_censored = list(self.meta_data_DF['Censored'])
             all_targets_cont = list(self.meta_data_DF['Time (months)'])
             all_binary_targets = list(self.meta_data_DF['Survival Binary (5 Yr)'])
@@ -412,10 +412,19 @@ class WSI_Master_Dataset(Dataset):
 
         aug_time = (time.time() - start_aug) / self.bag_size
         total_time = time.time() - start_getitem
+
         if self.print_time:
             time_list = (time_list[0], time_list[1], aug_time, total_time)
+            time_dict = {'Average time to extract a tile': time_list[1],
+                         'Augmentation time': aug_time,
+                         'Total time': total_time
+                         }
         else:
             time_list = [0]
+            time_dict = {'Average time to extract a tile': 0,
+                         'Augmentation time': 0,
+                         'Total time': 0
+                         }
 
         # TODO: check what this function does
         debug_patches_and_transformations = False
@@ -440,6 +449,7 @@ class WSI_Master_Dataset(Dataset):
         return {'Data': X,
                 'Target': label,
                 'Time List': time_list,
+                'Time dict': time_dict,
                 'File Names': self.image_file_names[idx],
                 'Images': images,
                 'Target Binary': target_binary,
@@ -565,6 +575,7 @@ class WSI_REGdataset(WSI_Master_Dataset):
                 'Target Binary': data_dict['Target Binary'],
                 'Survival Time': data_dict['Survival Time'],
                 'Time List': data_dict['Time List'],
+                'Time dict': data_dict['Time dict'],
                 'File Names': data_dict['File Names'],
                 'Images': data_dict['Images']
                 }
@@ -1535,7 +1546,7 @@ class Features_MILdataset(Dataset):
                 slide_data_DF_dict = {'TCGA': pd.read_excel('/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/slides_data_TCGA.xlsx'),
                                       'ABCTB': pd.read_excel('/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/slides_data_ABCTB_TIF.xlsx'),
                                       'CARMEL': pd.read_excel('/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/slides_data_CARMEL_ALL.xlsx')
-                                        }
+                                      }
                 '''slides_data_DF_CARMEL = pd.read_excel('/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/slides_data_CARMEL_ALL.xlsx')
                 slides_data_DF_CARMEL.set_index('file', inplace=True)'''
 
@@ -1574,18 +1585,22 @@ class Features_MILdataset(Dataset):
                 slide_data_DF_dict = {'ABCTB': pd.read_excel(r'/mnt/gipmed_new/Data/ABCTB_TIF/slides_data_ABCTB.xlsx')}
 
             elif dataset == 'CAT':
-                grid_location_dict = {
-                    'TCGA': r'/mnt/gipmed_new/Data/Breast/TCGA/Grids_10/Grid_data.xlsx',
-                    'ABCTB': r'/mnt/gipmed_new/Data/ABCTB_TIF/Grids_10/Grid_data.xlsx',
-                    'CARMEL': r'/home/womer/project/All Data/Ran_Features/Grid_data/CARMEL_Grid_data.xlsx'}
-                slides_data_DF_CARMEL = pd.read_excel('/home/womer/project/All Data/Ran_Features/Grid_data/slides_data_CARMEL_ALL.xlsx')
-                slides_data_DF_CARMEL.set_index('file', inplace=True)
+                grid_location_dict = {'TCGA': r'/mnt/gipmed_new/Data/Breast/TCGA/Grids_10/Grid_data.xlsx',
+                                      'ABCTB': r'/mnt/gipmed_new/Data/ABCTB_TIF/Grids_10/Grid_data.xlsx',
+                                      'CARMEL': r'/home/womer/project/All Data/Ran_Features/Grid_data/CARMEL_Grid_data.xlsx'}
+
+                slide_data_DF_dict = {'TCGA': pd.read_excel(r'/mnt/gipmed_new/Data/Breast/TCGA/slides_data_TCGA.xlsx'),
+                                      'ABCTB': pd.read_excel(r'/mnt/gipmed_new/Data/ABCTB_TIF/slides_data_ABCTB.xlsx'),
+                                      'CARMEL': pd.read_excel('/home/womer/project/All Data/Ran_Features/Grid_data/slides_data_CARMEL_ALL.xlsx')
+                                      }
+                #slides_data_DF_CARMEL = pd.read_excel('/home/womer/project/All Data/Ran_Features/Grid_data/slides_data_CARMEL_ALL.xlsx')
+                #slides_data_DF_CARMEL.set_index('file', inplace=True)
 
             elif dataset == 'CARMEL':
-                grid_location_dict = {
-                    'CARMEL': r'/home/womer/project/All Data/Ran_Features/Grid_data/CARMEL_Grid_data.xlsx'}
-                slides_data_DF_CARMEL = pd.read_excel('/home/womer/project/All Data/Ran_Features/Grid_data/slides_data_CARMEL_ALL.xlsx')
-                slides_data_DF_CARMEL.set_index('file', inplace=True)
+                grid_location_dict = {'CARMEL': r'/home/womer/project/All Data/Ran_Features/Grid_data/CARMEL_Grid_data.xlsx'}
+                slide_data_DF_dict = {'CARMEL': pd.read_excel('/home/womer/project/All Data/Ran_Features/Grid_data/slides_data_CARMEL_ALL.xlsx')}
+                #slides_data_DF_CARMEL = pd.read_excel('/home/womer/project/All Data/Ran_Features/Grid_data/slides_data_CARMEL_ALL.xlsx')
+                #slides_data_DF_CARMEL.set_index('file', inplace=True)
 
             elif dataset == 'CARMEL_40':
                 grid_location_dict = {
@@ -1629,6 +1644,9 @@ class Features_MILdataset(Dataset):
                 print(features.shape)
 
             for slide_num in range(num_slides):
+                # The slide '10-14248_1_1_a.mrxs' in Carmel 9 should be named '20-14248_1_1_a.mrxs':
+                if slide_names[slide_num] == '10-14248_1_1_a.mrxs':
+                    slide_names[slide_num] = '20-14248_1_1_a.mrxs'
                 # Skip slides that have a "bad segmentation" marker in GridData.xlsx file
                 try:
                     if grid_DF.loc[slide_names[slide_num], 'bad segmentation'] == 1:
@@ -1638,6 +1656,7 @@ class Features_MILdataset(Dataset):
                     raise Exception('Debug')
                 except KeyError:
                     raise Exception('Debug')
+
 
                 # skip slides that don't belong to CARMEL dataset in case carmel_only flag is TRUE:
                 if slide_names[slide_num].split('.')[-1] != 'mrxs' and self.carmel_only:  # This is not a CARMEL slide and carmel_only flag is TRUE
@@ -1755,12 +1774,13 @@ class Features_MILdataset(Dataset):
                         raise Exception('Found inconsistency between targets in feature files and slide_data_DF')
 
 
-        print('There are {}/{} slides with \"bad number of good tile\" '.format(bad_num_of_good_tiles, total_slides))
+        print('There are {}/{} slides whose tile amount in Grid_data.xlsx is lower than amount found in the feature files'.format(bad_num_of_good_tiles, total_slides))
         print('There are {}/{} slides with \"bad segmentation\" '.format(slides_with_bad_segmentation, total_slides))
         print('There are {}/{} slides with less than {} tiles '.format(slides_with_not_enough_tiles, total_slides, minimum_tiles_in_slide))
 
         if self.is_per_patient:
             self.patient_keys = list(self.patient_data.keys())
+            self.patient_set = set(patient_list)
             print('Skipped {}/{} slides for {}/{} patients (Inconsistent target value for same patient)'.format(
                 slides_from_same_patient_with_different_target_values, total_slides, len(self.bad_patient_list),
                 len(set(patient_list))))
@@ -1807,14 +1827,19 @@ class Features_MILdataset(Dataset):
                     }
 
 
-class Features_to_Survival(Dataset):
+class Features_to_Survival_Old(Dataset):
     def __init__(self,
                  is_train: bool = True,
                  is_per_patient: bool = False,
                  is_per_slide: bool = False,
                  is_all_tiles: bool = False,
-                 bag_size: int = 1
+                 bag_size: int = 1,
+                 is_all_censored: bool = False,
+                 is_all_not_censored: bool = False,
                  ):
+
+        if is_all_censored and is_all_not_censored:
+            raise Exception('\'is_all_censored\' and \'is_all_not_censored\' CANNOT be TRUE at the same time')
 
         if is_per_patient and is_per_slide:
             raise Exception('Data arrangement cannot be "per slide" and "per patient" at the same time')
@@ -1827,9 +1852,9 @@ class Features_to_Survival(Dataset):
 
         elif sys.platform == 'linux':
             if is_train:
-                data_location = r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20094-survival-TestFold_1/Inference/train_w_features/'
+                data_location = r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20094-survival-TestFold_1/Inference/train_w_features_new/'
             else:
-                data_location = r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20094-survival-TestFold_1/Inference/test_w_features/'
+                data_location = r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20094-survival-TestFold_1/Inference/test_w_features_new/'
 
         dataset = 'ABCTB'
         self.train_type = 'Features'
@@ -1859,9 +1884,8 @@ class Features_to_Survival(Dataset):
         print('Loading data from files in location: {}'.format(data_location))
         corrected_data_file_list = []
         for data_file in data_files:
-            if 'features' in data_file.split('_'):
+            if 'features' in data_file.split('/')[-1].split('_'):
                 corrected_data_file_list.append(data_file)
-                #data_files.remove(data_file)
 
         data_files = corrected_data_file_list
 
@@ -2016,6 +2040,9 @@ class Features_to_Survival(Dataset):
                         self.patient_data[patient] = patient_dict
 
                 else:
+                    if (is_all_not_censored and censor_status) or (is_all_censored and not censor_status):  # FIXME: fix this line
+                        continue
+
                     self.num_tiles.append(tiles_in_slide)
                     self.features.append(features[slide_num, :, :tiles_in_slide, :].squeeze(0).astype(np.float32))
                     self.tile_scores.append(patch_scores[slide_num, :tiles_in_slide])
@@ -2083,6 +2110,247 @@ class Features_to_Survival(Dataset):
                     'num tiles': self.num_tiles[item],
                     'tile locations': self.tile_location[item][tile_idx] if hasattr(self, 'tile_location') else None
                     }
+
+
+class Features_to_Survival(Dataset):
+    def __init__(self,
+                 is_train: bool = True,
+                 # is_per_patient: bool = False,
+                 # is_per_slide: bool = False,
+                 is_all_tiles: bool = False,
+                 bag_size: int = 1,
+                 is_all_censored: bool = False,
+                 is_all_not_censored: bool = False,
+                 ):
+
+        if is_all_censored and is_all_not_censored:
+            raise Exception('\'is_all_censored\' and \'is_all_not_censored\' CANNOT be TRUE at the same time')
+
+        if sys.platform == 'darwin':
+            if is_train:
+                data_location = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/survival/Ran_Exp_20094-survival-TestFold_1/Train/'
+            else:
+                data_location = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/survival/Ran_Exp_20094-survival-TestFold_1/Test/'
+
+        elif sys.platform == 'linux':
+            if is_train:
+                data_location = r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20094-survival-TestFold_1/Inference/train_w_features_new/'
+            else:
+                data_location = r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20094-survival-TestFold_1/Inference/test_w_features_new/'
+
+        dataset = 'ABCTB'
+        self.train_type = 'Features'
+        self.is_train = is_train
+
+        self.slide_names = []
+        self.patient_id = []
+        self.slide_for_patient_with_multiple_targets = []
+        self.labels = []
+        self.features = []
+        self.num_tiles = []
+        self.scores = []
+        self.tile_scores = []
+        self.tile_location = []
+        self.bad_patient_list = []
+        self.patient_data = {}
+        #  self.is_per_patient, self.is_per_slide = is_per_patient, is_per_slide
+        self.is_all_tiles = is_all_tiles
+        self.bag_size = bag_size
+        self.censor, self.time_target, self.binary_target = [], [], []
+
+        slides_from_same_patient_with_different_target_values, total_slides, bad_num_of_good_tiles = 0, 0, 0
+        slides_with_not_enough_tiles, slides_with_bad_segmentation = 0, 0
+        patient_list = []
+
+        data_files = glob(os.path.join(data_location, '*.data'))
+
+        print('Loading data from files in location: {}'.format(data_location))
+        corrected_data_file_list = []
+        for data_file in data_files:
+            if 'features' in data_file.split('/')[-1].split('_'):
+                corrected_data_file_list.append(data_file)
+
+        data_files = corrected_data_file_list
+
+        if sys.platform == 'darwin':
+            if dataset == 'ABCTB':
+                grid_location_dict = {'ABCTB': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/ABCTB_TIF_Grid_data.xlsx'}
+                slide_data_DF_dict = {'ABCTB': pd.read_excel('/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/slides_data_ABCTB.xlsx')}
+
+            else:
+                raise Exception("Need to write which dictionaries to use in this receptor case")
+
+        elif sys.platform == 'linux':
+            if dataset == 'ABCTB':
+                grid_location_dict = {'ABCTB': r'/mnt/gipmed_new/Data/ABCTB_TIF/Grids_10/Grid_data.xlsx'}
+                slide_data_DF_dict = {'ABCTB': pd.read_excel(r'/mnt/gipmed_new/Data/ABCTB_TIF/slides_data_ABCTB.xlsx')}
+
+            else:
+                raise Exception("Need to write which dictionaries to use in this receptor case")
+
+        grid_DF = pd.DataFrame()
+        slide_data_DF = pd.DataFrame()
+        for key in grid_location_dict.keys():
+            new_grid_DF = pd.read_excel(grid_location_dict[key])
+            grid_DF = pd.concat([grid_DF, new_grid_DF])
+            slide_data_DF = pd.concat([slide_data_DF, slide_data_DF_dict[key]])
+
+        grid_DF.set_index('file', inplace=True)
+        slide_data_DF.set_index('file', inplace=True)
+
+        for file_idx, file in enumerate(tqdm(data_files)):
+            with open(file, 'rb') as filehandle:
+                inference_data = pickle.load(filehandle)
+
+            try:
+                if len(inference_data) == 6:
+                    labels, targets, scores, patch_scores, slide_names, features = inference_data
+                    tile_location = np.array([[(np.nan, np.nan)] * patch_scores.shape[1]] * patch_scores.shape[0])
+                elif len(inference_data) == 7:
+                    labels, targets, scores, patch_scores, slide_names, features, batch_number = inference_data
+                    tile_location = np.array([[np.nan, np.nan] * patch_scores.shape[1]] * patch_scores.shape[0])
+                elif len(inference_data) == 8:
+                    labels, targets, scores, patch_scores, slide_names, features, batch_number, tile_location = inference_data
+            except ValueError:
+                raise Exception('Debug')
+
+            try:
+                num_slides, max_tile_num = features.shape[0], features.shape[2]
+            except UnboundLocalError:
+                print(file_idx, file, len(inference_data))
+                print(features.shape)
+
+            for slide_num in range(num_slides):
+                # Skip slides that have a "bad segmentation" marker in GridData.xlsx file
+                try:
+                    if grid_DF.loc[slide_names[slide_num], 'bad segmentation'] == 1:
+                        slides_with_bad_segmentation += 1
+                        continue
+                except ValueError:
+                    raise Exception('Debug')
+                except KeyError:
+                    raise Exception('Debug')
+
+                # Skip slides that have a "Exclude" marker in Slides_data.xlsx file
+                if slide_data_DF.loc[slide_names[slide_num]]['Exclude for time prediction?'] == 'Exclude':
+                    continue
+
+                total_slides += 1
+                feature_1 = features[slide_num, :, :, 0]
+                nan_indices = np.argwhere(np.isnan(feature_1)).tolist()
+                tiles_in_slide = nan_indices[0][1] if bool(nan_indices) else max_tile_num  # check if there are any nan values in feature_1
+                column_title = 'Legitimate tiles - 256 compatible @ X10' if len(dataset.split('_')) == 1 else 'Legitimate tiles - 256 compatible @ X' + dataset.split('_')[1]
+                try:
+                    tiles_in_slide_from_grid_data = int(grid_DF.loc[slide_names[slide_num], column_title])
+                except TypeError:
+                    raise Exception('Debug')
+
+                # Get censor status and targets (Binary and time).
+                censor_status = slide_data_DF.loc[slide_names[slide_num]]['Censored']
+                censor_status = num_2_bool(censor_status)
+                target_time = slide_data_DF.loc[slide_names[slide_num]]['Follow-up Months Since Diagnosis']
+                target_binary = slide_data_DF.loc[slide_names[slide_num]]['survival status']
+                target_binary = get_label(target_binary)[0]
+
+                # Check that binary target from feature files matched the data in slides_data.xlsx:
+                if target_binary != targets[slide_num]:
+                    raise Exception('Mismatch found between targets')
+
+                # calculate patient id:
+                patient = slide_names[slide_num].split('.')[0]
+                self.patient_id.append(patient)
+
+                # Check if the patient has already been observed to be with multiple targets.
+                # if so mark it as such and add to the count of those kind of slides.
+                if patient in self.bad_patient_list:
+                    self.slide_for_patient_with_multiple_targets.append(True)
+                    slides_from_same_patient_with_different_target_values += 1
+                else:
+                    self.slide_for_patient_with_multiple_targets.append(False)
+
+
+                # in case this patient has already been seen, than it has multiple slides and we need to check for target consistency:
+                if patient in self.patient_data.keys():
+                    self.patient_data[patient]['slides'].append(slide_names[slide_num])  # Add the slide name to the slide of this patient
+
+                    # Check if the patient has multiple targets
+                    same_target_for_patient = True if int(targets[slide_num]) == self.patient_data[patient]['Binary Target'] else False  # Checking the the patient target is not changing between slides
+                    # if the patient has multiple targets than we need to mark it as so.
+                    if not same_target_for_patient:
+                        slides_from_same_patient_with_different_target_values += 1 + len(patient_dict['slides'])  # we skip more than 1 slide since we need to count the current slide and the ones that are already inserted to the patient_dict
+                        self.bad_patient_list.append(patient)  # insert it to the list of non legitimate patients
+
+                    # Check that the censor status and target_time has not changed:
+                    if censor_status != self.patient_data[patient]['Censored']:
+                        raise Exception('This patient has multiple censor status')
+                    if target_time != self.patient_data[patient]['Time Target']:
+                        raise Exception('This patient has multiple Time Targets')
+
+                else:  # Its a new patient and we need to create a dict for it
+                    patient_dict = {'slides': [slide_names[slide_num]],
+                                    'Censored': censor_status,
+                                    'Time Target': target_time,
+                                    'Binary Target': target_binary
+                                    }
+
+                    self.patient_data[patient] = patient_dict
+
+                if (is_all_not_censored and censor_status) or (is_all_censored and not censor_status):  # FIXME: fix this line
+                    continue
+
+                self.num_tiles.append(tiles_in_slide)
+                self.features.append(features[slide_num, :, :tiles_in_slide, :].squeeze(0).astype(np.float32))
+                self.tile_scores.append(patch_scores[slide_num, :tiles_in_slide])
+                self.slide_names.append(slide_names[slide_num])
+                self.labels.append(int(labels[slide_num]))
+                self.scores.append(scores[slide_num])
+                self.tile_location.append(tile_location[slide_num, :tiles_in_slide])
+                self.censor.append(censor_status)
+                self.time_target.append(target_time)
+                self.binary_target.append(target_binary)
+
+        print('There are {}/{} slides with \"bad number of good tile\" '.format(bad_num_of_good_tiles, total_slides))
+        print('There are {}/{} slides with \"bad segmentation\" '.format(slides_with_bad_segmentation, total_slides))
+
+        # self.patient_keys = list(self.patient_data.keys())
+        print('There are {}/{} slides for {}/{} patients with Inconsistent target value for same patient)'.format(
+            slides_from_same_patient_with_different_target_values,
+            total_slides,
+            len(self.bad_patient_list),
+            len(self.patient_data.keys())))
+
+        print('Initialized Dataset with {} feature slides'.format(len(self.censor)))
+
+    def __len__(self):
+        # The size of the train set is X 10 the number of slides so that each epoch will be X 10 the size of the slides
+        # The size of the TestSet or when we want to get all tiles from each slide will be the number of the slides
+        if self.is_all_tiles or not self.is_train:
+            return len(self.slide_names)
+        else:
+            return len(self.slide_names) * 10
+
+    def __getitem__(self, item):
+        if not self.is_all_tiles: # In case we're not getting all the tiles of a slide we want to fo over each slide for 10 times during each epoch
+            item = item % len(self.censor)
+
+        # For TestSet we'll get all the tiles for each slide since the length of the dataset is defined as the number of slides
+        # For the trainset we need to rescale 'item'
+        if not self.is_train:
+            tile_idx = list(range(self.num_tiles[item]))
+        else:
+            tile_idx = list(range(self.num_tiles[item])) if self.is_all_tiles else choices(range(self.num_tiles[item]), k=self.bag_size)
+
+        return {'Binary Target': self.binary_target[item],
+                'Time Target': self.time_target[item],
+                'Features': self.features[item][tile_idx],
+                'Censored': self.censor[item],
+                'tile scores': self.tile_scores[item][tile_idx],
+                'slide name': self.slide_names[item],
+                'num tiles': self.num_tiles[item],
+                'tile locations': self.tile_location[item][tile_idx] if hasattr(self, 'tile_location') else None,
+                'Slide belongs to Patient with Multiple Targets': self.slide_for_patient_with_multiple_targets[item],
+                'Slide Belongs to Patient': self.patient_id[item]
+                }
 
 
 class Combined_Features_for_MIL_Training_dataset(Dataset):
@@ -2954,7 +3222,7 @@ class WSI_Master_Dataset_Survival(Dataset):
                  color_param: float = 0.1,
                  n_tiles: int = 10,
                  test_time_augmentation: bool = False,
-                 desired_slide_magnification: int = 20,
+                 desired_slide_magnification: int = 10,
                  slide_repetitions: int = 1,
                  loan: bool = False,
                  er_eq_pr: bool = False,

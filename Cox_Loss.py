@@ -34,7 +34,7 @@ def Cox_loss(risk_function_results: torch.Tensor, targets: torch.Tensor, censore
     '''
 
     # Other calculation:
-    order = reversed(np.argsort(targets))
+    order = reversed(np.argsort(targets.cpu()))
 
     risk_scores_s = risk_function_results[order]
     censored_s = censored[order]

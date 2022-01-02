@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from cycler import cycler
 
 parser = argparse.ArgumentParser(description='WSI_MIL Features Slide inference')
-parser.add_argument('-ex', '--experiment', type=int, default=10509, help='Use this model gor inference')
+parser.add_argument('-ex', '--experiment', type=int, default=10524, help='Use this model gor inference')
 parser.add_argument('-fe', '--from_epoch', type=int, default=[500], help='Use this epoch model for inference')
 parser.add_argument('-sts', '--save_tile_scores', dest='save_tile_scores', action='store_true', help='save tile scores')
 parser.add_argument('--carmel_test_set', dest='carmel_test_set', action='store_true', help='run inference over carmel batch 9-11 ?')
@@ -61,8 +61,9 @@ if sys.platform == 'darwin':
 
 
     CAT_dsets = [r'FEATURES: Exp_355-ER-TestFold_1', r'FEATURES: Exp_392-Her2-TestFold_1', r'FEATURES: Exp_10-PR-TestFold_1',
-                 r'FEATURES: Exp_393-ER-TestFold_2', r'FEATURES: Exp_20063-PR-TestFold_2', r'FEATURES: Exp_412-Her2-TestFold_2']
-    CARMEL_dsets = [r'FEATURES: Exp_419-Ki67-TestFold_1']
+                 r'FEATURES: Exp_393-ER-TestFold_2', r'FEATURES: Exp_20063-PR-TestFold_2', r'FEATURES: Exp_412-Her2-TestFold_2',
+                 r'FEATURES: Exp_472-ER-TestFold_3']
+    CARMEL_dsets = [r'FEATURES: Exp_419-Ki67-TestFold_1', r'FEATURES: Exp_490-Ki67-TestFold_2']
     ABCTB_dsets = [r'FEATURES: Exp_20094-survival-TestFold_1']
 
     if run_data_output['Dataset Name'] in CAT_dsets:
@@ -85,47 +86,13 @@ if sys.platform == 'darwin':
                                                                  test_fold=run_data_output['Test Fold'])
     test_data_dir = data_4_inference['TestSet Location']
 
-    '''if dataset == 'FEATURES: Exp_293-ER-TestFold_1':
-        dset = 'TCGA_ABCTB'
-        test_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/Fold_1/Test'
-
-    elif dataset == 'FEATURES: Exp_299-ER-TestFold_2':
-        dset = 'TCGA_ABCTB'
-        test_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/ran_299-Fold_2/Test'
-
-    elif dataset == 'FEATURES: Exp_309-PR-TestFold_1':
-        dset = 'TCGA_ABCTB'
-        test_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/PR/Fold_1/Test'
-
-    elif dataset == 'FEATURES: Exp_308-Her2-TestFold_1':
-        dset = 'TCGA_ABCTB'
-        test_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Her2/Fold_1/Test'
-
-    elif dataset == 'FEATURES: Exp_355-ER-TestFold_1':
-        dset = 'CAT'
-        test_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/Ran_Exp_355-TestFold_1/Test'
-
-    elif dataset == 'FEATURES: Exp_358-ER-TestFold_1':
-        dset = 'CARMEL'
-        test_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/Ran_Exp_358-TestFold_1/Test'
-
-    elif dataset == 'FEATURES: Exp_381-ER-TestFold_1':
-        dset = 'CARMEL_40'
-        test_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/Ran_Exp_381-TestFold_1/Test'
-
-    elif dataset == 'FEATURES: Exp_393-ER-TestFold_2':
-        dset = 'CAT'
-        test_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/Ran_Exp_393-TestFold_2/Test'
-'''
-
-
-    args.save_tile_scores = True
-    is_per_patient = False
+    args.save_tile_scores = False
+    is_per_patient = True
     #is_per_patient = False if args.save_tile_scores else True
     carmel_only = False
 
 if args.carmel_test_set:
-    key = 'Carmel 11'  # TODO: Modify this
+    key = 'Carmel 9'  # TODO: Modify this
     test_data_dir = test_data_dir[key]
 
 else:
@@ -406,11 +373,6 @@ for model_num, model_epoch in enumerate(args.from_epoch):
 
             label_MIL = 'Model' + str(model_epoch) + ': MIL Per ' + postfix + ' AUC='
 
-
-
-        #acc = 100 * correct_labeling / total
-        #balanced_acc = 100 * (correct_pos / (total_pos + EPS) + correct_neg / (total_neg + EPS)) / 2
-
         fpr_mil, tpr_mil, _ = roc_curve(true_targets, scores_mil)
         roc_auc_mil = auc(fpr_mil, tpr_mil)
         plt.plot(fpr_mil, tpr_mil)
@@ -423,10 +385,12 @@ if not args.carmel_test_set:
     plt.xlim(0, 1)
     plt.ylim(0, 1)
     plt.grid(b=True)
-    title = 'Inference Per {} for Model {}, Loss: {}, Per {} Tiles'.format('Patient' if is_per_patient else 'Slide',
-                                                                           args.experiment,
-                                                                           total_loss,
-                                                                           total_tiles_infered)
+    title = 'Per {}, Model {}.'.format('Patient' if is_per_patient else 'Slide',
+                                       args.experiment
+                                       )
+    if is_per_patient:
+        title += ' Removed {}/{} Patients.'.format(len(inf_dset.bad_patient_list), len(inf_dset.patient_set))
+
     plt.title(title)
 
     if is_per_patient:

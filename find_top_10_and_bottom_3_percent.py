@@ -7,10 +7,22 @@ from scipy.io import savemat, loadmat
 
 compute_highest_and_lowest = True
 is_all_tiles = True
+dset = 'CARMEL 9-11'
+target = 'ER'
+tf = 1
+which_carmel = 9
+
+filename_extension = dset + ' ' + target + ' TestFold_' + str(tf)
 if compute_highest_and_lowest:
-    data_dir_dict = utils.get_RegModel_Features_location_dict(train_DataSet='CAT with Location', target='ER', test_fold=1)
-    original_dset = datasets.Features_MILdataset(dataset='CAT',
-                                                 data_location=data_dir_dict['TestSet Location'],
+    #data_dir_dict = utils.get_RegModel_Features_location_dict(train_DataSet='CAT with Location', target='ER', test_fold=1)
+    data_dir_dict = utils.get_RegModel_Features_location_dict(train_DataSet=dset, target=target, test_fold=tf)
+    if dset == 'CARMEL 9-11':
+        data_location = data_dir_dict['TestSet Location']['Carmel ' + str(which_carmel)]
+    else:
+        data_location = data_dir_dict['TestSet Location']
+
+    original_dset = datasets.Features_MILdataset(dataset=dset,
+                                                 data_location=data_location,
                                                  is_per_patient=False,
                                                  is_all_tiles=True,
                                                  target='ER',
@@ -144,14 +156,14 @@ if compute_highest_and_lowest:
                       }
 
         if is_all_tiles:
-            savemat('/Users/wasserman/Developer/WSI_MIL/Data For Gil/all_tiles_no_features.mat', highest)
+            savemat('/Users/wasserman/Developer/WSI_MIL/Data For Gil/all_tiles_no_features_' + filename_extension + '.mat', highest)
         else:
-            savemat('/Users/wasserman/Developer/WSI_MIL/Data For Gil/highest_10.mat', highest)
-            savemat('/Users/wasserman/Developer/WSI_MIL/Data For Gil/lowest_3.mat', lowest)
+            savemat('/Users/wasserman/Developer/WSI_MIL/Data For Gil/highest_10_' + filename_extension + '.mat', highest)
+            savemat('/Users/wasserman/Developer/WSI_MIL/Data For Gil/lowest_3_' + filename_extension + '.mat', lowest)
 
 else:
-    highest = loadmat(r'/Users/wasserman/Developer/WSI_MIL/Data For Gil/highest_10.mat')
-    lowest = loadmat(r'/Users/wasserman/Developer/WSI_MIL/Data For Gil/lowest_3.mat')
+    highest = loadmat(r'/Users/wasserman/Developer/WSI_MIL/Data For Gil/highest_10_' + filename_extension + '.mat')
+    lowest = loadmat(r'/Users/wasserman/Developer/WSI_MIL/Data For Gil/lowest_3_' + filename_extension + '.mat')
 
 
 print('Done')

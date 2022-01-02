@@ -24,10 +24,10 @@ parser.add_argument('-fe', '--from_epoch', type=int, default=0, help='Continue t
 parser.add_argument('-mb', '--mini_batch_size', type=int, default=20, help='Mini batch size')
 parser.add_argument('-tm', '--train_mode', type=str, default='T2T', help='B2B, B2T, T2B, T2T')
 #parser.add_argument('-wc', '--without_censored', dest='without_censored', action='store_true', help='train without censpred data')
-parser.add_argument('--lr', default=40e-5, type=float, help='learning rate')
+parser.add_argument('--lr', default=20e-5, type=float, help='learning rate')
 parser.add_argument('-lw', '--loss_weights', type=float, default=[1, 1, 1], help='loss weights')
 parser.add_argument('-cr', '--censored_ratio', type=float, default=0.5, help='ratio of censored samples in each minibatch')
-parser.add_argument('-dd', '--data_diff', type=str, default='Basic', help='dtata difficulty')
+parser.add_argument('--data_diff', type=str, default='Basic', help='data difficulty')
 args = parser.parse_args()
 
 # Calculating the number of censored and not censored samples in each minibatch:
