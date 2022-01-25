@@ -18,9 +18,11 @@ from sklearn.utils import resample
 import smtplib, ssl
 import psutil
 import nets, PreActResNets, resnet_v2
+from sphere_res import StereoSphereRes
 from datetime import datetime
 from Cox_Loss import Cox_loss
 import re
+import matplotlib.pyplot as plt
 
 parser = argparse.ArgumentParser(description='WSI_REG Training of PathNet Project')
 parser.add_argument('-tf', '--test_fold', default=1, type=int, help='fold to be as TEST FOLD')
@@ -96,7 +98,11 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             total_pos_train, total_neg_train = np.zeros(2), np.zeros(2)
             correct_labeling = np.zeros(2)
         else:
-            true_targets_train, scores_train = np.zeros(0), np.zeros(0)
+            if N_classes == 2:
+                scores_train = np.zeros(0)
+            else:
+                scores_train = np.zeros((N_classes, 0))
+            true_targets_train = np.zeros(0)
             correct_pos, correct_neg = 0, 0
             total_pos_train, total_neg_train = 0, 0
             correct_labeling = 0
@@ -118,6 +124,12 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             time_list = minibatch['Time List']
             f_names = minibatch['File Names']
 
+            temp_plot = False
+            if temp_plot:
+                fig, ax = plt.subplots(1,3)
+                for ii in range(3):
+                    ax[ii].imshow(data[0, ii, :, :])
+
             if args.target == 'Survival_Time':
                 censored = minibatch['Censored']
                 target_binary = minibatch['Target Binary']
@@ -131,18 +143,22 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             optimizer.zero_grad()
             outputs, _ = model(data)
 
+            temp_plot = False
+            if temp_plot: # RanS 24.1.22
+                import matplotlib.pyplot as plt
+                plt.imshow(torch.squeeze(data[0, :, :, :].permute(1, 2, 0))) #normalized image looks bad (color truncation at 0)
+                plt.imshow(torch.squeeze(data[0, 1, :, :])) #red color only
+                plt.colorbar()
+
             if args.target == 'Survival_Time':
                 loss = criterion(outputs, target, censored)
                 outputs = torch.reshape(outputs, [outputs.size(0)])
                 all_outputs.extend(outputs.detach().cpu().numpy())
             else:
                 if multi_target:
-                    batch_len =len(target)
+                    batch_len = len(target)
                     loss_array = torch.zeros(batch_len, 2)
-
-                    #loss_array[:, 0] = criterion(outputs[:, :2], torch.squeeze(target[:, 0]))
                     loss_array[:, 0] = criterion(outputs[:, :2], target[:, 0].reshape(batch_len))
-                    #loss_array[:, 1] = criterion(outputs[:, 2:], torch.squeeze(target[:, 1]))
                     loss_array[:, 1] = criterion(outputs[:, 2:], target[:, 1].reshape(batch_len))
                     mask = loss_array != 0
                     loss = torch.mean((loss_array * mask).sum(dim=1) / mask.sum(dim=1))
@@ -160,7 +176,10 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                     loss = criterion(outputs, target)
                     outputs = torch.nn.functional.softmax(outputs, dim=1)
                     _, predicted = outputs.max(1)
-                    scores_train = np.concatenate((scores_train, outputs[:, 1].cpu().detach().numpy()))
+                    if N_classes == 2:
+                        scores_train = np.concatenate((scores_train, outputs[:, 1].cpu().detach().numpy()))
+                    else:
+                        scores_train = np.hstack((scores_train, outputs.cpu().detach().numpy().transpose()))
                     true_targets_train = np.concatenate((true_targets_train, target.cpu().detach().numpy()))
                     total_pos_train += target.eq(1).sum().item()
                     total_neg_train += target.eq(0).sum().item()
@@ -171,6 +190,7 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
 
             if loss != 0:
                 loss.backward()
+                #utils.plot_grad_flow(model.named_parameters()) #temp RanS 24.1.22
                 optimizer.step()
                 train_loss += loss.item()
 
@@ -209,7 +229,7 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
 
         if multi_target:
             roc_auc_train = np.empty(2)
-            roc_auc_train[:] = np.nan
+            roc_auc_train[:] = np.float64(np.nan)
             if len(np.unique(true_targets_train[0, true_targets_train[0,:] >= 0])) > 1:  # more than one label
                 fpr_train, tpr_train, _ = roc_curve(true_targets_train[0, true_targets_train[0,:] >= 0], scores_train[0, true_targets_train[0,:] >= 0])
                 roc_auc_train[0] = auc(fpr_train, tpr_train)
@@ -219,8 +239,22 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             all_writer.add_scalars('Train/Balanced Accuracy', {target0: balanced_acc_train[0], target1: balanced_acc_train[1]}, e)
             all_writer.add_scalars('Train/Roc-Auc', {target0: roc_auc_train[0], target1: roc_auc_train[1]}, e)
             all_writer.add_scalars('Train/Accuracy', {target0: train_acc[0], target1: train_acc[1]}, e)
+        elif N_classes > 2: #multiclass
+            #calculate binary AUC scores for each threshold
+            for i_thresh in range(N_classes-1):
+                roc_auc_train = np.float64(np.nan)
+                N_pos = np.sum(true_targets_train >= (i_thresh + 1))  # num of positive targets
+                N_neg = np.sum(true_targets_train < (i_thresh + 1))  # num of negative targets
+                if (N_pos > 0) and (N_neg > 0):  # more than one label
+                    scores_train_thresh = np.sum(scores_train[i_thresh+1:, :], axis=0)
+                    true_targets_train_thresh = true_targets_train >= (i_thresh + 1)
+                    fpr_train, tpr_train, _ = roc_curve(true_targets_train_thresh, scores_train_thresh)
+                    roc_auc_train = auc(fpr_train, tpr_train)
+                all_writer.add_scalar('Train/Roc-Auc_thresh' + str(i_thresh), roc_auc_train, e)
+            all_writer.add_scalar('Train/Balanced Accuracy', balanced_acc_train, e)
+            all_writer.add_scalar('Train/Accuracy', train_acc, e)
         else:
-            roc_auc_train = np.nan
+            roc_auc_train = np.float64(np.nan)
             if len(np.unique(true_targets_train[true_targets_train >= 0])) > 1:  #more than one label
                 fpr_train, tpr_train, _ = roc_curve(true_targets_train, scores_train)
                 roc_auc_train = auc(fpr_train, tpr_train)
@@ -255,7 +289,7 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             acc_test, bacc_test, roc_auc_test = check_accuracy(model, dloader_test, all_writer, DEVICE, e)
 
             # perform slide inference
-            if not multi_target:
+            if (not multi_target) and (N_classes == 2):
                 patch_df = pd.DataFrame({'slide': slide_names, 'scores': scores_train, 'labels': true_targets_train})
                 slide_mean_score_df = patch_df.groupby('slide').mean()
                 roc_auc_slide = np.nan
@@ -285,6 +319,9 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                        os.path.join(args.output_dir, 'Model_CheckPoints', 'model_data_Epoch_' + str(e) + '.pt'))
             print('saved checkpoint to', args.output_dir) #RanS 23.6.21
 
+        if (args.dataset == 'TMA') and (args.mag == 7): #temp RanS 24.1.22
+            scheduler.step()
+
     all_writer.close()
     if print_timing:
         time_writer.close()
@@ -297,9 +334,13 @@ def check_accuracy(model: nn.Module, data_loader: DataLoader, all_writer, DEVICE
         true_labels_test, scores_test = np.zeros((2, 0)), np.zeros((2, 0))
         correct_labeling_test = np.zeros(2)
     else:
+        if N_classes == 2:
+            scores_test = np.zeros(0)
+        else:
+            scores_test = np.zeros((N_classes, 0))
         true_pos_test, true_neg_test = 0, 0
         total_pos_test, total_neg_test = 0, 0
-        true_labels_test, scores_test = np.zeros(0), np.zeros(0)
+        true_labels_test = np.zeros(0)
         correct_labeling_test = 0
     total_test = 0
     slide_names = []
@@ -334,7 +375,12 @@ def check_accuracy(model: nn.Module, data_loader: DataLoader, all_writer, DEVICE
             else:
                 outputs = torch.nn.functional.softmax(outputs, dim=1)
                 _, predicted = outputs.max(1)
-                scores_test = np.concatenate((scores_test, outputs[:, 1].cpu().detach().numpy()))
+
+                if N_classes == 2:
+                    scores_test = np.concatenate((scores_test, outputs[:, 1].cpu().detach().numpy()))
+                else:
+                    scores_test = np.hstack((scores_test, outputs.cpu().detach().numpy().transpose()))
+
                 true_labels_test = np.concatenate((true_labels_test, targets.cpu().detach().numpy()))
                 correct_labeling_test += predicted.eq(targets).sum().item()
                 total_pos_test += targets.eq(1).sum().item()
@@ -344,14 +390,14 @@ def check_accuracy(model: nn.Module, data_loader: DataLoader, all_writer, DEVICE
             total_test += targets.size(0)
 
         #perform slide inference
-        if not multi_target:
+        if (not multi_target) and (N_classes == 2):
             patch_df = pd.DataFrame({'slide': slide_names, 'scores': scores_test, 'labels': true_labels_test})
             slide_mean_score_df = patch_df.groupby('slide').mean()
             roc_auc_slide = np.nan
             if not all(slide_mean_score_df['labels'] == slide_mean_score_df['labels'][0]): #more than one label
                 roc_auc_slide = roc_auc_score(slide_mean_score_df['labels'], slide_mean_score_df['scores'])
 
-        if args.bootstrap and not multi_target: #does not support multi target!
+        if args.bootstrap and (not multi_target) and (N_classes == 2): #does not support multitarget, multiclass!
             # load dataset
             # configure bootstrap
             n_iterations = 100
@@ -415,12 +461,26 @@ def check_accuracy(model: nn.Module, data_loader: DataLoader, all_writer, DEVICE
                 fpr_train, tpr_train, _ = roc_curve(true_labels_test[1, true_labels_test[1, :] >= 0],
                                                     scores_test[1, true_labels_test[1, :] >= 0])
                 roc_auc[1] = auc(fpr_train, tpr_train)
-            all_writer.add_scalars('Train/Balanced Accuracy',
+            all_writer.add_scalars('Test/Balanced Accuracy',
                                    {target0: bacc[0], target1: bacc[1]}, epoch)
-            all_writer.add_scalars('Train/Roc-Auc', {target0: roc_auc[0], target1: roc_auc[1]}, epoch)
-            all_writer.add_scalars('Train/Accuracy', {target0: acc[0], target1: acc[1]}, epoch)
+            all_writer.add_scalars('Test/Roc-Auc', {target0: roc_auc[0], target1: roc_auc[1]}, epoch)
+            all_writer.add_scalars('Test/Accuracy', {target0: acc[0], target1: acc[1]}, epoch)
+        elif N_classes > 2:  # multiclass
+            # calculate binary AUC scores for each threshold
+            for i_thresh in range(N_classes - 1):
+                roc_auc = np.float64(np.nan)
+                N_pos = np.sum(true_labels_test >= (i_thresh + 1))  # num of positive targets
+                N_neg = np.sum(true_labels_test < (i_thresh + 1))  # num of negative targets
+                if (N_pos > 0) and (N_neg > 0):  # more than one label
+                    scores_test_thresh = np.sum(scores_test[i_thresh + 1:, :], axis=0)
+                    true_targets_test_thresh = true_labels_test >= (i_thresh + 1)
+                    fpr, tpr, _ = roc_curve(true_targets_test_thresh, scores_test_thresh)
+                    roc_auc = auc(fpr, tpr)
+                all_writer.add_scalar('Test/Roc-Auc_thresh_' + str(i_thresh), roc_auc, epoch)
+            all_writer.add_scalar('Test/Accuracy', acc, epoch)
+            all_writer.add_scalar('Test/Balanced Accuracy', bacc, epoch)
         else:
-            roc_auc = np.nan
+            roc_auc = np.float64(np.nan)
             if not all(true_labels_test == true_labels_test[0]):  # more than one label
                 fpr, tpr, _ = roc_curve(true_labels_test, scores_test)
                 roc_auc = auc(fpr, tpr)
@@ -452,6 +512,9 @@ if __name__ == '__main__':
     if sys.platform == 'linux' or sys.platform == 'win32':
         TILE_SIZE = 256
 
+    if (args.dataset == 'TMA') and (args.mag == 7):
+        TILE_SIZE = 512
+
     # Saving/Loading run meta data to/from file:
     if args.experiment == 0:
         run_data_results = utils.run_data(test_fold=args.test_fold,
@@ -468,11 +531,12 @@ if __name__ == '__main__':
     else:
         run_data_output = utils.run_data(experiment=args.experiment)
         args.output_dir, args.test_fold, args.transform_type, TILE_SIZE, tiles_per_bag, \
-        args.batch_size, args.dx, args.dataset, args.target, args.model, args.mag =\
+        args.batch_size, args.dx, args.dataset, args.target, prev_model_name, args.mag =\
             run_data_output['Location'], run_data_output['Test Fold'], run_data_output['Transformations'], run_data_output['Tile Size'],\
             run_data_output['Tiles Per Bag'], run_data_output['Num Bags'], run_data_output['DX'], run_data_output['Dataset Name'],\
             run_data_output['Receptor'], run_data_output['Model Name'], run_data_output['Desired Slide Magnification']
 
+        #args.model = prev_model_name #temp cancelled RanS 3.1.21
         print('args.dataset:', args.dataset)
         print('args.target:', args.target)
         print('args.args.batch_size:', args.batch_size)
@@ -556,6 +620,11 @@ if __name__ == '__main__':
         model.change_num_classes(num_classes=1)  # This will convert the liner (classifier) layer into the beta layer
         model.model_name += '_Continous_Time'
 
+    try:
+        N_classes = model.linear.out_features #for resnets and such
+    except:
+        N_classes = model._final_1x1_conv.out_channels #for StereoSphereRes
+
     # Save model data and data-set size to run_data.xlsx file (Only if this is a new run).
     if args.experiment == 0:
         utils.run_data(experiment=experiment, model=model.model_name)
@@ -607,6 +676,18 @@ if __name__ == '__main__':
 
 
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    if (args.dataset == 'TMA') and (args.mag == 7): #temp RanS 13.1.22
+        modules = [{'params': model.parameters(), 'weight_decay': args.weight_decay}]
+        optimizer = optim.SGD(modules, lr=args.lr, momentum=0.9, weight_decay=args.weight_decay, nesterov=True)
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=60, gamma=0.1)
+
+    if len(args.target.split('+')) > 1:
+        multi_target = True
+        target0, target1 = args.target.split('+')
+        if model.linear.out_features != 4:
+            raise IOError('Model defined does not support multitarget training, select model with 4 output channels')
+    else:
+        multi_target = False
 
     if DEVICE.type == 'cuda':
         model = torch.nn.DataParallel(model) #DataParallel, RanS 1.8.21
@@ -626,14 +707,6 @@ if __name__ == '__main__':
             for k, v in state.items():
                 if torch.is_tensor(v):
                     state[k] = v.to(DEVICE)
-
-    if len(args.target.split('+')) > 1:
-        multi_target = True
-        target0, target1 = args.target.split('+')
-        if model.linear.out_features != 4:
-            raise IOError('Model defined does not support multitarget training, select model with 4 output channels')
-    else:
-        multi_target = False
 
     if args.focal:
         criterion = utils.FocalLoss(gamma=2)  # RanS 18.7.21

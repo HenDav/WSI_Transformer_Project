@@ -5,7 +5,13 @@ from cycler import cycler
 import numpy as np
 import pandas as pd
 import os
-from inference_loader_input import inference_files, inference_dir, save_csv, patient_level, inference_name, dataset
+from inference_loader_input import inference_files, inference_dir, save_csv, patient_level, inference_name, dataset, target
+
+multi_target = False
+if len(target.split('+')) > 1:
+    multi_target = True
+    target0, target1 = target.split('+')
+    target_names = [target0, target1]
 
 custom_cycler = (cycler(color=['#377eb8', '#ff7f00', '#4daf4a',
                                     '#f781bf', '#a65628', '#984ea3',
@@ -105,8 +111,7 @@ for ind, key in enumerate(inference_files.keys()):
             except:
                 pass
 
-        if len(fpr) == 1:
-            # temp RanS 20.12.21
+        if fpr.__class__ == int:
             my_scores = np.array(all_scores)
             my_targets = np.array(all_targets)
             my_scores = my_scores[my_targets >= 0]
@@ -114,11 +119,22 @@ for ind, key in enumerate(inference_files.keys()):
             fpr, tpr, _ = roc_curve(my_targets, my_scores)
             roc_auc.append(roc_auc_score(my_targets, my_scores))
         else:
-            roc_auc.append(auc(fpr, tpr))
+            if multi_target:
+                for i_target in range(2):
+                    my_scores = np.array(all_scores[:, i_target])
+                    my_targets = np.array(all_targets[i_target,:])
+                    my_scores = my_scores[my_targets >= 0]
+                    my_targets = my_targets[my_targets >= 0]
+                    fpr, tpr, _ = roc_curve(my_targets, my_scores)
+                    roc_auc.append(roc_auc_score(my_targets, my_scores))
+                    plt.plot(fpr, tpr)
+                    legend_labels.append(key + ' ' + target_names[i_target] + ' (AUC=' + str(round(roc_auc[-1], 3)) + ')')
+            else:
+                roc_auc.append(auc(fpr, tpr))
         # RanS 18.1.21
         #temp fix RanS 4.2.21
-        if patch_scores.ndim == 3:
-            patch_scores = np.squeeze(patch_scores[:, ind,:])
+        #if patch_scores.ndim == 3:
+        #    patch_scores = np.squeeze(patch_scores[:, ind,:])
         # all_scores = np.max(patch_scores, axis=1) #maxpool - temp! RanS 20.1.21
         slide_score_mean = np.array([np.nanmean(patch_scores[ii, patch_scores[ii, :] > 0]) for ii in range(patch_scores.shape[0])])
         slide_score_std = np.array([np.nanstd(patch_scores[ii, patch_scores[ii, :] > 0]) for ii in range(patch_scores.shape[0])])
@@ -171,13 +187,12 @@ for ind, key in enumerate(inference_files.keys()):
 
     EPS = 1e-7
     print(key)
-    print('{} / {} correct classifications'.format(int(len(all_labels) - np.abs(np.array(all_targets) - np.array(all_labels)).sum()), len(all_labels)))
-    #fpr, tpr, _ = roc_curve(all_targets, all_scores)
-    #roc_auc1 = roc_auc_score(all_targets, all_scores)
-    balanced_acc = 100. * ((true_pos + EPS) / (total_pos + EPS) + (true_neg + EPS) / (total_neg + EPS)) / 2
-    print('roc_auc:', roc_auc[-1])
-    print('balanced_acc:', balanced_acc)
-    print('np.sum(all_labels):', np.sum(all_labels))
+    if not multi_target:
+        print('{} / {} correct classifications'.format(int(len(all_labels) - np.abs(np.array(all_targets) - np.array(all_labels)).sum()), len(all_labels)))
+        balanced_acc = 100. * ((true_pos + EPS) / (total_pos + EPS) + (true_neg + EPS) / (total_neg + EPS)) / 2
+        print('roc_auc:', roc_auc[-1])
+        print('balanced_acc:', balanced_acc)
+        print('np.sum(all_labels):', np.sum(all_labels))
 
     #temp RanS - calc BACC for each thresold
     plot_threshold = False
@@ -225,8 +240,9 @@ for ind, key in enumerate(inference_files.keys()):
         plt.plot(fpr_patient, tpr_patient)
         legend_labels.append(key + ' (patient AUC=' + str(round(roc_auc_patient, 3)) + ')')
     else:
-        plt.plot(fpr, tpr)
-        legend_labels.append(key + ' (AUC=' + str(round(roc_auc[-1], 3)) +')')
+        if not multi_target:
+            plt.plot(fpr, tpr)
+            legend_labels.append(key + ' (AUC=' + str(round(roc_auc[-1], 3)) +')')
 
 #combine several models, RanS 11.4.21
 slide_score_mean_all = np.mean(np.array(slide_score_all), axis=0)

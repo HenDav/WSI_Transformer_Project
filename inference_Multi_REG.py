@@ -105,7 +105,8 @@ for counter in range(len(args.from_epoch)):
     if len(args.target.split('+')) > 1:
         multi_target = True
         target0, target1 = args.target.split('+')
-        model_name = model_name[:-2] + '(num_classes=4)' #manually add num_classes since the arguments are not saved in run_data
+        if counter == 0 and model_name[-15:] != '(num_classes=4)':
+            model_name = model_name[:-2] + '(num_classes=4)' #manually add num_classes since the arguments are not saved in run_data
     else:
         multi_target = False
 
@@ -117,6 +118,12 @@ for counter in range(len(args.from_epoch)):
     model.load_state_dict(model_data_loaded['model_state_dict'])
     model.eval()
     models.append(model)
+
+#get number of classes based on the first model
+try:
+    N_classes = models[0].linear.out_features #for resnets and such
+except:
+    N_classes = models[0]._final_1x1_conv.out_channels #for StereoSphereRes
 
 # override run_data dx if args.dx is true
 if args.dx:
@@ -131,6 +138,9 @@ if sys.platform == 'linux':
         tiles_per_iter = 100
 elif sys.platform == 'win32':
     TILE_SIZE = 256
+
+if (args.dataset == 'TMA') and (args.mag == 7):
+    TILE_SIZE = 512
 
 #RanS 16.3.21, support ron's model as well
 if args.model_path != '':
@@ -196,7 +206,11 @@ else:
     all_targets = []
     total_pos, total_neg = 0, 0
     patch_scores = np.empty((NUM_SLIDES, NUM_MODELS, args.num_tiles))
-    all_scores, all_labels = np.zeros((NUM_SLIDES, NUM_MODELS)), np.zeros((NUM_SLIDES, NUM_MODELS))
+    all_labels = np.zeros((NUM_SLIDES, NUM_MODELS))
+    if N_classes == 2:
+        all_scores = np.zeros((NUM_SLIDES, NUM_MODELS))
+    else:
+        all_scores = np.zeros((NUM_SLIDES, NUM_MODELS, N_classes))
     correct_pos = np.zeros(NUM_MODELS)
     correct_neg = np.zeros(NUM_MODELS)
 
@@ -322,8 +336,8 @@ with torch.no_grad():
                     patch_scores[slide_num, model_num, :len(scores_3[model_num]), 1] = scores_3[model_num]
                     all_scores[slide_num, model_num, 0] = scores_1[model_num].mean()
                     all_scores[slide_num, model_num, 1] = scores_3[model_num].mean()
-                    correct_pos[model_num] += np.squeeze((predicted == 1) & (target_squeezed.eq(1).numpy()))
-                    correct_neg[model_num] += np.squeeze((predicted == 0) & (target_squeezed.eq(0).numpy()))
+                    correct_pos[model_num] += np.squeeze((predicted == 1) & (target_squeezed.eq(1).cpu().numpy()))
+                    correct_neg[model_num] += np.squeeze((predicted == 0) & (target_squeezed.eq(0).cpu().numpy()))
                 else:
                     current_slide_tile_scores = np.vstack((scores_0[model_num], scores_1[model_num]))
                     predicted = current_slide_tile_scores.mean(1).argmax()
@@ -404,15 +418,22 @@ for model_num in range(NUM_MODELS):
         output_dir = Output_Dirs[model_num]
 
     #RanS 20.12.21, remove targets = -1 from auc calculation
-    scores_arr = all_scores[:, model_num]
-    targets_arr = np.array(all_targets)
-    scores_arr = scores_arr[targets_arr >= 0]
-    targets_arr = targets_arr[targets_arr >= 0]
-    fpr, tpr, _ = roc_curve(targets_arr, scores_arr)
-    '''try:
-        fpr, tpr, _ = roc_curve(all_targets, all_scores[:, model_num])
+    try:
+        if multi_target:
+            for i_target in range(2):
+                my_scores = np.array(all_scores[:, model_num, i_target])
+                my_targets = np.array(all_targets[i_target, :])
+                my_scores = my_scores[my_targets >= 0]
+                my_targets = my_targets[my_targets >= 0]
+                fpr, tpr, _ = roc_curve(my_targets, my_scores)
+        else:
+            scores_arr = all_scores[:, model_num]
+            targets_arr = np.array(all_targets)
+            scores_arr = scores_arr[targets_arr >= 0]
+            targets_arr = targets_arr[targets_arr >= 0]
+            fpr, tpr, _ = roc_curve(targets_arr, scores_arr)
     except ValueError:
-        fpr, tpr = 0, 0'''
+        fpr, tpr = 0, 0 #if all labels are unknown
 
     # Save roc_curve to file:
     file_name = os.path.join(data_path, output_dir, 'Inference', args.subdir, 'Model_Epoch_' + str(args.from_epoch[model_num])

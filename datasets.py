@@ -171,14 +171,17 @@ class WSI_Master_Dataset(Dataset):
             if self.multi_target:
                 valid_slide_indices = np.where(np.isin(all_targets[:, 0], ['Positive', 'Negative']) | np.isin(all_targets[:, 1], ['Positive', 'Negative']))[0]
             else:
-                valid_slide_indices = np.where(np.isin(np.array(all_targets), ['Positive', 'Negative']) == True)[0]
+                valid_slide_indices1 = np.where(np.isin(np.array(all_targets), ['Positive', 'Negative']) == True)[0]
+                valid_slide_indices2 = np.where(np.isin(np.array(all_targets), [0,1,2,3,4,5,6,7,8,9]) == True)[0] #Support up to 10 classes
+                valid_slide_indices = np.hstack((valid_slide_indices1, valid_slide_indices2))
 
         #inference on unknown labels in case of (blind) test inference or Batched_Full_Slide_Inference_Dataset
         if len(valid_slide_indices) == 0 or self.train_type == 'Infer_All_Folds' or (self.target_kind == 'survival' and self.train_type == 'Infer'):
             if self.multi_target:
                 valid_slide_indices = np.where(all_targets[:, 0])[0]
             else:
-                valid_slide_indices = np.where(np.array(all_targets))[0]  # take all slides
+                #valid_slide_indices = np.where(np.array(all_targets))[0]  # take all slides
+                valid_slide_indices = np.arange(len(all_targets))  # take all slides, corrected to allow target=0, RanS 23.1.22
 
         # Also remove slides without grid data:
         slides_without_grid = set(self.meta_data_DF.index[self.meta_data_DF['Total tiles - ' + str(
@@ -218,12 +221,13 @@ class WSI_Master_Dataset(Dataset):
         if RAM_saver:
             #randomly select 1/4 of the slides
             shuffle_factor = 4
-            #shuffle_factor = 1 #temp
             valid_slide_indices = np.random.choice(valid_slide_indices, round(len(valid_slide_indices) / shuffle_factor), replace=False)
 
         # The train set should be a combination of all sets except the test set and validation set:
         if self.DataSet == 'CAT' or self.DataSet == 'ABCTB_TCGA':
             fold_column_name = 'test fold idx breast'
+        elif self.target_kind == 'is_tel_aml_B': #RanS 4.1.22
+            fold_column_name = 'test fold idx for is_tel_aml_B'
         else:
             fold_column_name = 'test fold idx'
 
@@ -345,6 +349,8 @@ class WSI_Master_Dataset(Dataset):
                                                  basic_file_name + '--tlsz' + str(self.tile_size) + '.data')
                         with open(grid_file, 'rb') as filehandle:
                             grid_list = pickle.load(filehandle)
+                            if (self.DataSet == 'TMA') and (self.desired_magnification == 7):
+                                grid_list = [(0, 408)] #temp RanS 23.1.22, override empty grids
                             self.grid_lists.append(grid_list)
                 except FileNotFoundError:
                     raise FileNotFoundError(
@@ -373,6 +379,7 @@ class WSI_Master_Dataset(Dataset):
             for attribute in attributes_to_delete:
                 delattr(self, attribute)
 
+        self.random_shift = True if (self.train and self.DataSet != 'TMA') else False
 
     def __len__(self):
         return len(self.target) * self.factor
@@ -412,14 +419,13 @@ class WSI_Master_Dataset(Dataset):
                                                    print_timing=self.print_time,
                                                    desired_mag=self.desired_magnification,
                                                    loan=self.loan,
-                                                   random_shift=self.train)
+                                                   random_shift=self.random_shift)
 
         if not self.loan:
             if self.target_kind == 'Survival_Time':
                 label = [self.target[idx]]
                 label = torch.FloatTensor(label)
             else:
-                #label = [1] if self.target[idx] == 'Positive' else [0]
                 label = get_label(self.target[idx], self.multi_target)
                 label = torch.LongTensor(label)
 
@@ -723,29 +729,12 @@ class Infer_Dataset(WSI_Master_Dataset):
             self.slide_name = self.image_file_names[self.slide_num]
 
             #self.current_slide = self.slides[self.slide_num]
-            self.current_slide = openslide.OpenSlide(self.slides[self.slide_num]) #RanS 5.9.21, open the slides one at a time
+            #self.current_slide = openslide.OpenSlide(self.slides[self.slide_num]) #RanS 5.9.21, open the slides one at a time
+            self.current_slide = openslide.open_slide(self.slides[self.slide_num])  # RanS 25.1.22, problems with OpenSlide method, is there a difference??
 
             self.initial_num_patches = self.num_tiles[self.slide_num]
 
             if not self.presaved_tiles[self.slide_num]: #RanS 5.5.21
-                # RanS 11.3.21
-                '''desired_downsample = self.magnification[self.slide_num] / self.desired_magnification
-
-                level, best_next_level = -1, -1
-                for index, downsample in enumerate(self.current_slide.level_downsamples):
-                    if isclose(desired_downsample, downsample, rel_tol=1e-3):
-                        level = index
-                        level_downsample = 1
-                        break
-
-                    elif downsample < desired_downsample:
-                        best_next_level = index
-                        level_downsample = int(desired_downsample / self.current_slide.level_downsamples[best_next_level])
-                        
-                self.adjusted_tile_size = self.tile_size * level_downsample
-                self.best_slide_level = level if level > best_next_level else best_next_level
-                self.level_0_tile_size = int(desired_downsample) * self.tile_size'''
-
                 self.best_slide_level, self.adjusted_tile_size, self.level_0_tile_size = \
                     get_optimal_slide_level(self.current_slide, self.magnification[self.slide_num], self.desired_magnification, self.tile_size)
 
@@ -1454,7 +1443,7 @@ class WSI_Segmentation_Master_Dataset(Dataset):
                                             # Fix boundaries with scale
                                             print_timing=self.print_time,
                                             desired_mag=self.desired_magnification,
-                                            random_shift=self.train)
+                                            random_shift=self.random_shift)
 
         #label = [1] if self.target[idx] == 'Positive' else [0]
         label = get_label(self.target[idx])

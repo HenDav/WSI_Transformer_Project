@@ -27,6 +27,11 @@ import torch.nn.functional as F
 import multiprocessing
 from tqdm import tqdm
 
+#RanS 26.12.21
+from PIL import ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+
+
 #if sys.platform == 'win32':
 #    os.add_dll_directory(r'C:\ran_programs\Anaconda3\openslide_bin_ran')
 import openslide
@@ -65,11 +70,14 @@ def get_optimal_slide_level(slide, magnification, desired_mag, tile_size):
 
             elif downsample < desired_downsample:
                 best_next_level = index
-                level_downsample = int(desired_downsample / slide.level_downsamples[best_next_level])
+                #level_downsample = int(desired_downsample / slide.level_downsamples[best_next_level])
+                level_downsample = desired_downsample / slide.level_downsamples[best_next_level] #RanS 26.12.21
 
-        adjusted_tile_size = tile_size * level_downsample
+        #adjusted_tile_size = tile_size * level_downsample
+        adjusted_tile_size = int(tile_size * level_downsample) #RanS 26.12.21
         best_slide_level = level if level > best_next_level else best_next_level
-        level_0_tile_size = int(desired_downsample) * tile_size
+        #level_0_tile_size = int(desired_downsample) * tile_size
+        level_0_tile_size = int(desired_downsample * tile_size) #RanS 26.12.21
 
     return best_slide_level, adjusted_tile_size, level_0_tile_size
 
@@ -242,7 +250,11 @@ def _get_tiles(slide: openslide.OpenSlide,
             print(slide.properties['aperio.AppMag'])
             print('aa')'''
         except:
-            print('failed to read slide ' + slide._filename + ' in location ' + str(loc[1]) + ',' + str(loc[0]))
+            #print('failed to read slide ' + slide._filename + ' in location ' + str(loc[1]) + ',' + str(loc[0]))
+            print('failed to read slide ' + slide._file_arg + ' in location ' + str(loc[1]) + ',' + str(loc[0]))
+            print('best_slide_level:', str(best_slide_level))
+            print('adjusted_tile_sz:', str(adjusted_tile_sz))
+            raise Exception
             print('taking blank patch instead')
             image = Image.fromarray(np.zeros([adjusted_tile_sz, adjusted_tile_sz, 3], dtype=np.uint8))
 
@@ -375,22 +387,25 @@ def run_data(experiment: str = None,
     else:
         run_file_name = 'runs/run_data.xlsx'
 
+    if sys.platform == 'win32': #Ran's laptop
+        run_file_name = r'C:\WSI_MIL_runs\run_data.xlsx'
+
     if os.path.isfile(run_file_name):
         read_success = False
         read_attempts = 0
-        while not read_success and read_attempts < 10:
+        while (not read_success) and (read_attempts < 10):
             try:
                 run_DF = pd.read_excel(run_file_name)
                 read_success = True
             except (XLRDError, BadZipFile):
-                print('Couldn\'t open file {}'.format(run_file_name))
+                print('Couldn\'t open file {}, check if file is corrupt'.format(run_file_name))
                 return
             except ValueError:
                 print('run_data file is being used, retrying in 5 seconds')
                 read_attempts += 1
                 time.sleep(5)
         if not read_success:
-            print('Couldn\'t open file {}'.format(run_file_name))
+            print('Couldn\'t open file {} after 10 attempts'.format(run_file_name))
             return
 
         try:
@@ -817,17 +832,20 @@ def get_datasets_dir_dict(Dataset: str):
     TCGA_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/TCGA'
     ABCTB_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/ABCTB/ABCTB'
     HEROHE_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/HEROHE'
-    SHEBA_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/Sheba/SHEBA'
+    SHEBA_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/Sheba'
     ABCTB_TIF_gipdeep_path = r'/mnt/gipmed_new/Data/ABCTB_TIF'
     CARMEL_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/Carmel'
     TCGA_LUNG_gipdeep_path = r'/mnt/gipmed_new/Data/Lung/TCGA_Lung/TCGA_LUNG'
     LEUKEMIA_gipdeep_path = r'/mnt/gipmed_new/Data/BoneMarrow/LEUKEMIA'
     Ipatimup_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/Ipatimup'
     Covilha_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/Covilha'
+    TMA_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/TMA/bliss_data/02-008/HE/TMA'
+    HAEMEK_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/Haemek'
 
     TCGA_ran_path = r'C:\ran_data\TCGA_example_slides\TCGA_examples_131020_flat\TCGA'
     HEROHE_ran_path = r'C:\ran_data\HEROHE_examples'
     ABCTB_ran_path = r'C:\ran_data\ABCTB\ABCTB_examples\ABCTB'
+    TMA_ran_path = r'C:\ran_data\TMA\02-008\TMA'
 
     TCGA_omer_path = r'/Users/wasserman/Developer/WSI_MIL/All Data/TCGA'
     HEROHE_omer_path = r'/Users/wasserman/Developer/WSI_MIL/All Data/HEROHE'
@@ -935,7 +953,9 @@ def get_datasets_dir_dict(Dataset: str):
 
     elif Dataset == 'SHEBA':
         if sys.platform == 'linux':
-            dir_dict['SHEBA'] = SHEBA_gipdeep_path
+            #dir_dict['SHEBA'] = SHEBA_gipdeep_path
+            for ii in np.arange(1, 5):
+                dir_dict['SHEBA' + str(ii)] = os.path.join(SHEBA_gipdeep_path, 'Batch_' + str(ii), 'SHEBA' + str(ii))
 
     elif Dataset == 'PORTO_HE':
         if sys.platform == 'linux':
@@ -967,6 +987,17 @@ def get_datasets_dir_dict(Dataset: str):
             dir_dict['Covilha'] = Covilha_gipdeep_path
             dir_dict['HEROHE'] = HEROHE_gipdeep_path
 
+    elif Dataset == 'TMA':
+        if sys.platform == 'linux':  # GIPdeep
+            dir_dict['TMA'] = TMA_gipdeep_path
+        else:
+            dir_dict['TMA'] = TMA_ran_path
+
+    elif Dataset == 'HAEMEK':
+        if sys.platform == 'linux':  # GIPdeep
+            for ii in np.arange(1, 2):
+                dir_dict['HAEMEK' + str(ii)] = os.path.join(HAEMEK_gipdeep_path, 'Batch_' + str(ii), 'HAEMEK' + str(ii))
+            #dir_dict['HAEMEK'] = HAEMEK_gipdeep_path
     return dir_dict
 
 
@@ -976,20 +1007,22 @@ def assert_dataset_target(DataSet, target_kind):
         target_kind = [target_kind]
     target_kind = set(target_kind)
 
+    if DataSet == 'TMA' and not target_kind <= {'ER','temp'}:
+        raise ValueError('For TMA DataSet, target should be one of: ER')
     if DataSet == 'PORTO_HE' and not target_kind <= {'PDL1', 'EGFR', 'is_full_cancer'}:
         raise ValueError('For PORTO_HE DataSet, target should be one of: PDL1, EGFR')
     elif DataSet == 'PORTO_PDL1' and not target_kind <= {'PDL1'}:
         raise ValueError('For PORTO_PDL1 DataSet, target should be PDL1')
     elif (DataSet in ['TCGA', 'CAT', 'ABCTB_TCGA']) and not target_kind <= {'ER', 'PR', 'Her2', 'OR'}:
         raise ValueError('target should be one of: ER, PR, Her2, OR')
-    elif (DataSet in ['IC', 'HIC', 'HEROHE']) and not target_kind <= {'ER', 'PR', 'Her2', 'OR', 'Ki67'}:
+    elif (DataSet in ['IC', 'HIC', 'HEROHE', 'HAEMEK']) and not target_kind <= {'ER', 'PR', 'Her2', 'OR', 'Ki67'}:
         raise ValueError('target should be one of: ER, PR, Her2, OR')
     elif (DataSet == 'CARMEL') and not target_kind <= {'ER', 'PR', 'Her2', 'OR', 'Ki67', 'ER100'}:
         raise ValueError('target should be one of: ER, PR, Her2, OR')
     elif (DataSet == 'RedSquares') and not target_kind <= {'RedSquares'}:
         raise ValueError('target should be: RedSquares')
-    elif DataSet == 'SHEBA' and not target_kind <= {'Onco'}:
-        raise ValueError('for SHEBA DataSet, target should be Onco')
+    elif DataSet == 'SHEBA' and not target_kind <= {'Onco', 'onco_score_11', 'onco_score_18', 'onco_score_26', 'onco_score_31', 'onco_score_all'}:
+        raise ValueError('Invalid target for SHEBA DataSet')
     elif DataSet == 'TCGA_LUNG' and not target_kind <= {'is_cancer', 'is_LUAD', 'is_full_cancer'}:
         raise ValueError('for TCGA_LUNG DataSet, target should be is_cancer or is_LUAD')
     elif DataSet == 'LEUKEMIA' and not target_kind <= {'ALL','is_B','is_HR', 'is_over_6', 'is_over_10', 'is_over_15', 'WBC_over_20', 'WBC_over_50', 'is_HR_B', 'is_tel_aml_B', 'is_tel_aml_non_hr_B', 'MRD'}:
@@ -1589,6 +1622,8 @@ def get_label(target, multi_target=False):
             return [1]
         elif target == 'Negative':
             return [0]
+        elif isinstance(target, int) or isinstance(target, float): #RanS 17.1.22, support multiclass
+            return [int(target)]
         else: #unknown
             return [-1]
 
@@ -1846,3 +1881,37 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str, test_fo
 
 
     return All_Data_Dict[sys.platform][train_DataSet]['Fold ' + str(test_fold)][target]
+
+
+#RanS 24.1.22
+#taken from https://discuss.pytorch.org/t/check-gradient-flow-in-network/15063
+def plot_grad_flow(named_parameters):
+    '''Plots the gradients flowing through different layers in the net during training.
+    Can be used for checking for possible gradient vanishing / exploding problems.
+
+    Usage: Plug this function in Trainer class after loss.backwards() as
+    "plot_grad_flow(self.model.named_parameters())" to visualize the gradient flow'''
+    from matplotlib.lines import Line2D
+    ave_grads = []
+    max_grads = []
+    layers = []
+    for n, p in named_parameters:
+        if (p.requires_grad) and ("bias" not in n):
+            layers.append(n)
+            ave_grads.append(p.grad.abs().mean())
+            max_grads.append(p.grad.abs().max())
+    plt.bar(np.arange(len(max_grads)), max_grads, alpha=0.1, lw=1, color="c")
+    plt.bar(np.arange(len(max_grads)), ave_grads, alpha=0.1, lw=1, color="b")
+    plt.hlines(0, 0, len(ave_grads) + 1, lw=2, color="k")
+    plt.xticks(range(0, len(ave_grads), 1), layers, rotation="vertical")
+    plt.xlim(left=0, right=len(ave_grads))
+    #plt.ylim(bottom=-0.001, top=0.02)  # zoom in on the lower gradient regions
+    plt.ylim(bottom=-0.001, top=np.max(max_grads)*1.05)  # zoom in on the lower gradient regions
+    plt.xlabel("Layers")
+    plt.ylabel("average gradient")
+    plt.title("Gradient flow")
+    plt.grid(True)
+    plt.legend([Line2D([0], [0], color="c", lw=4),
+                Line2D([0], [0], color="b", lw=4),
+                Line2D([0], [0], color="k", lw=4)], ['max-gradient', 'mean-gradient', 'zero-gradient'])
+    plt.gcf().subplots_adjust(bottom=0.5)

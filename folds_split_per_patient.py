@@ -3,7 +3,7 @@ from random import shuffle
 import csv
 import pandas as pd
 
-dataset = 'HEROHE'
+dataset = 'HAEMEK'
 patient_column_name = 'patient barcode' #default
 
 if dataset == 'Carmel123':
@@ -58,11 +58,35 @@ elif dataset == 'Covilha':
     n_folds = 4  # number of cross-validation folds
     out_file = r'C:\ran_data\Covilha+Ipatimup\slides_data_Covilha_folds.xlsx'
     patient_column_name = 'ID'
+elif dataset == 'TMA':
+    in_file = r'C:\ran_data\TMA\02-008\slides_data_TMA.xlsx'
+    test_ratio = 0.25  # percentage to be marked as "test"
+    val_ratio = 0  # percentage to be marked as "validation"
+    n_folds = 5  # number of cross-validation folds
+    out_file = r'C:\ran_data\TMA\02-008\slides_data_TMA_folds.xlsx'
+elif dataset == 'SHEBA':
+    in_file = r'C:\ran_data\Sheba\slides_data_SHEBA_batch3_labeled.xlsx'
+    test_ratio = 0  # percentage to be marked as "test"
+    val_ratio = 0  # percentage to be marked as "validation"
+    n_folds = 5  # number of cross-validation folds
+    out_file = r'C:\ran_data\Sheba\slides_data_SHEBA_batch3_labeled_folds.xlsx'
+    patient_column_name = 'PatientID'
+elif dataset == 'HAEMEK':
+    in_file = r'C:\ran_data\Haemek\slides_data_HAEMEK1.xlsx'
+    test_ratio = 0  # percentage to be marked as "test"
+    val_ratio = 0  # percentage to be marked as "validation"
+    n_folds = 4  # number of cross-validation folds
+    out_file = r'C:\ran_data\Haemek\slides_data_HAEMEK1_folds.xlsx'
+    patient_column_name = 'PatientIndex'
 else:
     raise IOError('dataset unknown')
 
 slides_data = pd.read_excel(in_file)
-patients = np.unique(slides_data[patient_column_name])
+#patients = np.unique(slides_data[patient_column_name])
+patients_set = set(slides_data[patient_column_name]) #support mixture of strings and ints , to support "missing data" patients, RanS 17.1.22
+patients = np.array([patient for patient in patients_set], dtype='object')
+#note - all "Missing Data": patients will be in the same fold
+
 N_patients = patients.shape[0]
 
 fold_size = int(N_patients*(1-test_ratio - val_ratio)/n_folds)
@@ -89,7 +113,7 @@ patients_folds_df = pd.DataFrame({'patient': patients, 'fold_new': folds})
 #slides_data['new fold'] = 'Missing Data'
 #slides_data['new fold']
 
-slides_data = slides_data.merge(right=patients_folds_df, left_on=patient_column_name, right_on='patient', how='outer')
-slides_data.to_excel(out_file)
+slides_data_folds = slides_data.merge(right=patients_folds_df, left_on=patient_column_name, right_on='patient', how='outer')
+slides_data_folds.to_excel(out_file)
 
 print('finished')

@@ -358,10 +358,15 @@ def PreActResNet50_Ron(train_classifier_only=False, num_classes=2):
 
     if train_classifier_only:
         model.model_name = THIS_FILE + 'PreActResNet50_Ron(train_classifier_only=True)'
+        if num_classes != 2:  # RanS 3.1.21
+            model.model_name = model.model_name[:-1] + ', num_classes=' + str(num_classes) + ')'
         for param in model.parameters():
             param.requires_grad = False
         for param in model.linear.parameters():
             param.requires_grad = True
+
+    elif num_classes != 2: #RanS 3.1.21
+        model.model_name = model.model_name[:-1] + 'num_classes=' + str(num_classes) + ')'
 
     return model
 

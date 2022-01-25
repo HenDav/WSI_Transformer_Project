@@ -362,19 +362,38 @@ def make_grid(DataSet: str = 'TCGA',
     print('Starting Grid production...')
     print()
 
-    with multiprocessing.Pool(num_workers) as pool:
-        for tile_nums1, total_tiles1 in tqdm(pool.imap(partial(_make_grid_for_image,
-                                                               meta_data_DF=slides_meta_data_DF,
-                                                               ROOT_DIR=ROOT_DIR,
-                                                               different_SegData_path_extension=different_SegData_path_extension,
-                                                               tissue_coverage=tissue_coverage,
-                                                               tile_sz=tile_sz,
-                                                               desired_magnification=desired_magnification,
-                                                               grids_dir=grids_dir,
-                                                               grid_images_dir=grid_images_dir),
-                                                       files), total=len(files)):
+    if sys.platform == 'win32':
+        debug = True
+    else:
+        debug = False
+
+    if debug:
+        for file in tqdm(files):
+            tile_nums1, total_tiles1 = _make_grid_for_image(file=file,
+                                         meta_data_DF=slides_meta_data_DF,
+                                         ROOT_DIR=ROOT_DIR,
+                                         different_SegData_path_extension=different_SegData_path_extension,
+                                         tissue_coverage=tissue_coverage,
+                                         tile_sz=tile_sz,
+                                         desired_magnification=desired_magnification,
+                                         grids_dir=grids_dir,
+                                         grid_images_dir=grid_images_dir)
             tile_nums.append(tile_nums1)
             total_tiles.append(total_tiles1)
+    else:
+        with multiprocessing.Pool(num_workers) as pool:
+            for tile_nums1, total_tiles1 in tqdm(pool.imap(partial(_make_grid_for_image,
+                                                                   meta_data_DF=slides_meta_data_DF,
+                                                                   ROOT_DIR=ROOT_DIR,
+                                                                   different_SegData_path_extension=different_SegData_path_extension,
+                                                                   tissue_coverage=tissue_coverage,
+                                                                   tile_sz=tile_sz,
+                                                                   desired_magnification=desired_magnification,
+                                                                   grids_dir=grids_dir,
+                                                                   grid_images_dir=grid_images_dir),
+                                                           files), total=len(files)):
+                tile_nums.append(tile_nums1)
+                total_tiles.append(total_tiles1)
 
     # Adding the number of tiles to the excel file:
     #TODO - support adding grids to a half-filled excel files? (currently erases everything) RanS 26.10.20 - FIXED (but need to to complete evaluation)
@@ -412,7 +431,8 @@ def _make_grid_for_image(file, meta_data_DF, ROOT_DIR, different_SegData_path_ex
         width = int(meta_data_DF.loc[file, 'Width'])
 
         if database == 'SHEBA':
-            objective_power = 40 #temp RanS 25.3.21
+            #objective_power = 40 #temp RanS 25.3.21
+            objective_power = 10  # temp RanS 2.1.22, no magnification data is provided
         else:
             objective_power = meta_data_DF.loc[file, 'Manipulated Objective Power']
         if objective_power == 'Missing Data':
@@ -425,6 +445,9 @@ def _make_grid_for_image(file, meta_data_DF, ROOT_DIR, different_SegData_path_ex
         adjusted_tile_size_at_level_0 = int(tile_sz * (int(objective_power) / desired_magnification))
         basic_grid = [(row, col) for row in range(0, height, adjusted_tile_size_at_level_0) for col in
                       range(0, width, adjusted_tile_size_at_level_0)]
+        #if database == 'TMA':
+        #    basic_grid = [(0, 408)]
+
         total_tiles = len(basic_grid)
 
         # We now have to check, which tiles of this grid are legitimate, meaning they contain enough tissue material.
@@ -449,7 +472,8 @@ def _make_grid_for_image(file, meta_data_DF, ROOT_DIR, different_SegData_path_ex
                 thumb = np.array(Image.open(thumb_file_jpg))
             except:
                 thumb = np.array(Image.open(thumb_file_png))
-            slide = openslide.OpenSlide(os.path.join(ROOT_DIR, database, file))
+            #slide = openslide.OpenSlide(os.path.join(ROOT_DIR, database, file))
+            slide = openslide.open_slide(os.path.join(ROOT_DIR, database, file))
             thumb_downsample = slide.dimensions[0] / thumb.shape[1]  # shape is transposed
             patch_size_thumb = adjusted_tile_size_at_level_0 / thumb_downsample
 
@@ -554,12 +578,12 @@ def make_slides_xl_file(DataSet: str = 'HEROHE', ROOT_DIR: str = 'All Data', out
     META_DATA_FILE['PORTO_PDL1'] = 'LISTA COMPLETA pdl1 - Gil - V3_batch1+2.xlsx'
     #META_DATA_FILE['CARMEL'] = 'barcode_list.xlsx'
     META_DATA_FILE['ABCTB'] = 'ABCTB_Path_Data1.xlsx'  # RanS 17.2.21
-    META_DATA_FILE['SHEBA'] = 'CODED_Oncotype 5.2.21_binary.xlsx'  # RanS 25.3.21
+    #META_DATA_FILE['SHEBA'] = 'CODED_Oncotype 5.2.21_binary.xlsx'  # RanS 25.3.21
+    META_DATA_FILE['SHEBA'] = 'SHEBA ONCOTYPE 30_12_2021_Ran.xlsx'  # RanS 4.1.21
     #META_DATA_FILE['LEUKEMIA'] = 'barcode_list.xlsx'
     #META_DATA_FILE['TCGA_LUNG'] = 'barcode_list.xlsx'
 
-    #data_file = os.path.join(ROOT_DIR, SLIDES_DATA_FILE)
-    data_file = os.path.join(out_path, DataSet, SLIDES_DATA_FILE) #RanS 15.2.21
+    data_file = os.path.join(out_path, DataSet, SLIDES_DATA_FILE)
     new_file = False if os.path.isfile(data_file) else True
 
     if DataSet[:6]=='CARMEL':
@@ -611,11 +635,11 @@ def make_slides_xl_file(DataSet: str = 'HEROHE', ROOT_DIR: str = 'All Data', out
     #    meta_data_DF['bcr_patient_barcode'] = meta_data_DF['SlideID'].astype(str)  # RanS 16.12.20
     elif DataSet == 'ABCTB':
         meta_data_DF['bcr_patient_barcode'] = meta_data_DF['Image File'].astype(str) #RanS 16.12.20
-    elif DataSet == 'SHEBA':
-        meta_data_DF['bcr_patient_barcode'] = meta_data_DF['Code'].astype(str)  # RanS 16.12.20
+    #elif DataSet == 'SHEBA':
+    #    meta_data_DF['bcr_patient_barcode'] = meta_data_DF['Code'].astype(str)  # RanS 16.12.20
     elif DataSet == 'LEUKEMIA':
         meta_data_DF['bcr_patient_barcode'] = meta_data_DF['MarrowID'].astype(str)  # RanS 16.12.20
-    elif DataSet == 'TCGA_LUNG':
+    elif (DataSet == 'TCGA_LUNG') or (DataSet == 'SHEBA'):
         meta_data_DF['bcr_patient_barcode'] = meta_data_DF['PatientID'].astype(str)  # RanS 11.8.21
     elif barcode_list_format:
         meta_data_DF['bcr_patient_barcode'] = meta_data_DF['SlideID'].astype(str)  # RanS 16.12.20
@@ -689,9 +713,11 @@ def make_slides_xl_file(DataSet: str = 'HEROHE', ROOT_DIR: str = 'All Data', out
         except:
             id_dict['Height'] = 'Missing Data'
         try:
-            id_dict['Manipulated Objective Power'] = int(float(img.properties[mag_dict[data_format]]))
+            #id_dict['Manipulated Objective Power'] = int(float(img.properties[mag_dict[data_format]]))
+            id_dict['Objective Power'] = int(float(img.properties[mag_dict[data_format]])) #RanS 4.1.21, "manipulated" needs to be manual
         except:
-            id_dict['Manipulated Objective Power'] = 'Missing Data'
+            #id_dict['Manipulated Objective Power'] = 'Missing Data'
+            id_dict['Objective Power'] = 'Missing Data'
         try:
             id_dict['Scan Date'] = img.properties[date_dict[data_format]]
         except:
@@ -761,10 +787,13 @@ def make_slides_xl_file(DataSet: str = 'HEROHE', ROOT_DIR: str = 'All Data', out
 
 
 def make_segmentations(DataSet: str = 'TCGA', ROOT_DIR: str = 'All Data', rewrite: bool = False, magnification: int = 1, out_path: str = 'All Data', num_workers: int = 1):
+    #if DataSet == 'TMA': #RanS 21.12.21, avoid moving TMA folder to a subdir
+    #    data_path = ROOT_DIR
+    #    out_path_dataset = out_path
+    #else:
     data_path = os.path.join(ROOT_DIR, DataSet)
-    print('Making Segmentation Maps for each slide file at location: {}'.format(data_path))
-
     out_path_dataset = os.path.join(out_path, DataSet)
+    print('Making Segmentation Maps for each slide file at location: {}'.format(data_path))
 
     if not os.path.isdir(out_path_dataset):
         os.mkdir(out_path_dataset)
@@ -777,15 +806,12 @@ def make_segmentations(DataSet: str = 'TCGA', ROOT_DIR: str = 'All Data', rewrit
     if not os.path.isdir(os.path.join(out_path_dataset, 'SegData', 'SegImages')):
         os.mkdir(os.path.join(out_path_dataset, 'SegData', 'SegImages'))
     # Copy Code files into the segmentation directory:
-    #if False: #temp RanS 25.3.21, no permission for some reason
     if not os.path.isdir(os.path.join(out_path_dataset, 'SegData', 'Code')):
         os.mkdir(os.path.join(out_path_dataset, 'SegData', 'Code'))
         # Get all .py files in the code path:
         code_files_path = os.path.join(out_path_dataset, 'SegData', 'Code')
         py_files = glob.glob('*.py')
         for _, file in enumerate(py_files):
-            #copy2(file, code_files_path)
-            #copy2(file, os.path.join(code_files_path,os.path.basename(file)))
             copyfile(file, os.path.join(code_files_path,os.path.basename(file)))
 
     slide_files_svs = glob.glob(os.path.join(data_path, '*.svs'))
@@ -795,13 +821,14 @@ def make_segmentations(DataSet: str = 'TCGA', ROOT_DIR: str = 'All Data', rewrit
     slide_files_tiff = glob.glob(os.path.join(data_path, '*.tiff'))
     slide_files_tif = glob.glob(os.path.join(data_path, '*.tif'))
     slide_files = slide_files_svs + slide_files_ndpi + slide_files_mrxs + slide_files_jpg + slide_files_tiff + slide_files_tif
+    print('found ' + str(len(slide_files)) + ' slides')
     mag_dict = {'.svs': 'aperio.AppMag', '.ndpi': 'hamamatsu.SourceLens', '.mrxs': 'openslide.objective-power',
                 'tiff': 'tiff.Software', 'tif': 'tiff.ResolutionUnit'} #RanS 25.3.21, dummy for tiff, tif
 
     error_list = []
 
     if sys.platform == 'win32':
-        debug = True  # temp RanS 13.5.21
+        debug = True
     else:
         debug = False
 
@@ -833,6 +860,8 @@ def make_segmentations(DataSet: str = 'TCGA', ROOT_DIR: str = 'All Data', rewrit
 
 
 def _make_segmentation_for_image(file, DataSet, rewrite, out_path_dataset, mag_dict, magnification):
+    if os.path.basename(file) == 'HE_B12_v2_s13_016.jpg': #temp RanS 28.12.21
+        print('aa')
     fn, data_format = os.path.splitext(os.path.basename(file))
 
     if not rewrite:
@@ -929,8 +958,10 @@ def _make_segmentation_for_image(file, DataSet, rewrite, out_path_dataset, mag_d
             use_otsu3 = True # this helps avoid the grid
         else:
             use_otsu3 = False
-        if DataSet=='LEUKEMIA':
-            thmb_seg_map, edge_image = _calc_simple_segmentation_for_image(thumb_cropped, magnification)
+        if DataSet == 'LEUKEMIA':
+            thmb_seg_map, edge_image = _calc_simple_segmentation_for_image(thumb_cropped, magnification, white_thresh=250)
+        elif DataSet == 'TMA':
+            thmb_seg_map, edge_image = _calc_simple_segmentation_for_image(thumb_cropped, magnification, white_thresh=230)
         else:
             thmb_seg_map, edge_image = _calc_segmentation_for_image(thumb_cropped, magnification, use_otsu3=use_otsu3, is_IHC_slide=is_IHC_slide)
         slide.close()
@@ -999,7 +1030,7 @@ def _get_image_maxima(image, threshold=0.5, neighborhood_size=5):
     return xy
 
 
-def _calc_simple_segmentation_for_image(image: Image, magnification: int) -> (Image, Image):
+def _calc_simple_segmentation_for_image(image: Image, magnification: int, white_thresh: int) -> (Image, Image):
     """
     This function creates a segmentation map for an Image
     :param magnification:
@@ -1008,7 +1039,8 @@ def _calc_simple_segmentation_for_image(image: Image, magnification: int) -> (Im
 
     #RanS 3.8.21 - take all pixels that aren't (almost) completely white
     image_array = np.array(image)
-    image_is_white = np.prod(image_array, axis=2) > 250**3
+    #image_is_white = np.prod(image_array, axis=2) > 250**3
+    image_is_white = np.prod(image_array, axis=2) > white_thresh ** 3
     seg_map = np.ones_like(image_array)*255
     seg_map[image_is_white] = 0
     seg_map_PIL = Image.fromarray(seg_map)
@@ -1090,6 +1122,10 @@ def _calc_segmentation_for_image(image: Image, magnification: int, use_otsu3: bo
     seg_map_filt[seg_map_filt > th_val] = 255
     seg_map_filt[seg_map_filt <= th_val] = 0
 
+    if np.sum(seg_map_filt) == 0: # RanS 21.12.21, handling empty TMA images
+        seg_map_PIL = Image.fromarray(seg_map_filt)
+        edge_image = seg_map_PIL.convert('RGB')
+        return seg_map_PIL, edge_image
 
     if not is_IHC_slide:
         # find small contours and delete them from segmentation map
