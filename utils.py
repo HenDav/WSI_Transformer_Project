@@ -2065,9 +2065,11 @@ def send_run_data_via_mail():
 
     if 'womer' in os.getcwd().split('/'):
         filename = '/home/womer/project/runs/run_data.xlsx'
+        user = 'womer'
 
     elif 'rschley' in os.getcwd().split('/'):
         filename = '/home/rschley/code/WSI_MIL/general_try4/runs/run_data.xlsx'
+        user = 'rschley'
 
     else:
         print('This user parameters are not defined. Email will not be sent')
@@ -2076,7 +2078,7 @@ def send_run_data_via_mail():
     yag = yagmail.SMTP('gipmed.python@gmail.com')
     yag.send(
         to='gipmed.python@gmail.com',
-        subject='run_data.xlsx',
+        subject=user + ': run_data.xlsx',
         attachments=filename,
     )
 
