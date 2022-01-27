@@ -2063,13 +2063,18 @@ def send_run_data_via_mail():
     else:
         import yagmail
 
-    if 'womer' in os.getcwd().split('/'):
+    path_parts = os.getcwd().split('/')
+    if 'womer' in path_parts:
         filename = '/home/womer/project/runs/run_data.xlsx'
         user = 'womer'
 
-    elif 'rschley' in os.getcwd().split('/'):
+    elif 'rschley' in path_parts:
         filename = '/home/rschley/code/WSI_MIL/general_try4/runs/run_data.xlsx'
         user = 'rschley'
+
+    elif 'sglis' in path_parts:
+        filename = '/mnt/gipnetapp_public/sgils/ran/runs/run_data.xlsx'
+        user = 'sgils'
 
     else:
         print('This user parameters are not defined. Email will not be sent')
