@@ -1,5 +1,7 @@
 import torch
 import numpy as np
+import inspect
+import pandas as pd
 
 def Cox_loss(risk_function_results: torch.Tensor, targets: torch.Tensor, censored: torch.Tensor) -> torch.float32:
     """
@@ -34,9 +36,9 @@ def Cox_loss(risk_function_results: torch.Tensor, targets: torch.Tensor, censore
     '''
 
     # Other calculation:
-    order = reversed(np.argsort(targets.cpu()))
+    order = reversed(np.argsort(targets.cpu()))  # indices to sort targets from largest to smallest (largest risk = survive less)
 
-    risk_scores_s = risk_function_results[order]
+    risk_scores_s = risk_function_results[order]  # order the scores from smallest survival time to largest survival time
     censored_s = censored[order]
 
     cumsum_vec = torch.cumsum(torch.exp(risk_scores_s), dim=0)
@@ -44,6 +46,30 @@ def Cox_loss(risk_function_results: torch.Tensor, targets: torch.Tensor, censore
     risk_0 = risk_scores_s[censored_s == 0]
     likelihood_vec = risk_0 - torch.log(cumsum_vec_0)
     loss = torch.mean(likelihood_vec)
+
+
+    if inspect.stack()[1][3] == 'train' and torch.isnan(loss):
+        data_dict = {'Targets': list(targets.detach().cpu().numpy()),
+                     'scores(risk_scores_s)': list(torch.reshape(risk_scores_s, (18,)).detach().cpu().numpy()),
+                     'torch.exp(risk_scores_s)': list(torch.reshape(torch.exp(risk_scores_s), (18,)).detach().cpu().numpy()),
+                     'Censored': list(censored_s.detach().cpu().numpy()),
+                     'cumsum_vec_0': list(torch.reshape(cumsum_vec_0, (9,)).detach().cpu().numpy()) + [-1] * 9,
+                     'torch.log(cumsum_vec_0)': list(torch.reshape(torch.log(cumsum_vec_0), (9,)).detach().cpu().numpy()) + [-1] * 9,
+                     'risk_0': list(torch.reshape(risk_0, (9,)).detach().cpu().numpy()) + [-1] * 9
+                     }
+
+        DF = pd.DataFrame(data_dict)
+        DF.to_excel('debug_data.xlsx')
+
+        print('Loss is NaN. Here\'s some data:')
+        print('targets: {}'.format(targets))
+        print('scores(risk_scores_s): {}'.format(risk_scores_s))
+        print('torch.exp(risk_scores_s): {}'.format(torch.exp(risk_scores_s)))
+        print('Censored: {}'.format(censored_s))
+        print('cumsum_vec_0: {}'.format(cumsum_vec_0))
+        print('torch.log(cumsum_vec_0): {}'.format(torch.log(cumsum_vec_0)))
+        print('risk_0: {}'.format(risk_0))
+        raise Exception('found NANs')
 
     #print('Cox -> num of samples in use {}'.format(sum(censored_s == 0).item()))
     return -loss

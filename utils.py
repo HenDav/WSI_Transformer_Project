@@ -1124,19 +1124,20 @@ def save_code_files(args: argsNamespace, train_DataSet):
 
     # Add Grid Data:
     data_dict = args_dict
-    if type(train_DataSet) == dict:
-        train_DataSet = train_DataSet['Censored']
+    if train_DataSet is not None:
+        if type(train_DataSet) == dict:
+            train_DataSet = train_DataSet['Censored']
 
-    if train_DataSet.train_type != 'Features':
-        for _, key in enumerate(train_DataSet.dir_dict):
-            grid_meta_data_file = os.path.join(train_DataSet.dir_dict[key], 'Grids_' + str(train_DataSet.desired_magnification), 'production_meta_data.xlsx')
-            if os.path.isfile(grid_meta_data_file):
-                grid_data_DF = pd.read_excel(grid_meta_data_file)
-                grid_dict = grid_data_DF.to_dict('split')
-                grid_dict['dataset'] = key
-                grid_dict.pop('index')
-                grid_dict.pop('columns')
-                data_dict[key + '_grid'] = grid_dict
+        if train_DataSet.train_type != 'Features':
+            for _, key in enumerate(train_DataSet.dir_dict):
+                grid_meta_data_file = os.path.join(train_DataSet.dir_dict[key], 'Grids_' + str(train_DataSet.desired_magnification), 'production_meta_data.xlsx')
+                if os.path.isfile(grid_meta_data_file):
+                    grid_data_DF = pd.read_excel(grid_meta_data_file)
+                    grid_dict = grid_data_DF.to_dict('split')
+                    grid_dict['dataset'] = key
+                    grid_dict.pop('index')
+                    grid_dict.pop('columns')
+                    data_dict[key + '_grid'] = grid_dict
 
     data_DF = pd.DataFrame([data_dict]).transpose()
 
@@ -1163,7 +1164,7 @@ def extract_tile_scores_for_slide(all_features, models):
             last_layer_weights = model.classifier.weight.detach().cpu().numpy()
 
         f = last_layer_weights[1] - last_layer_weights[0]
-        mult = np.matmul(f, all_features)
+        mult = np.matmul(f, all_features.detach().cpu())
 
         if len(mult.shape) == 1:
             tile_scores_list.append(mult)
@@ -1655,6 +1656,16 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str, test_fo
                                                          'TrainSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_472-ER-TestFold_3/Inference/train_w_features',
                                                          'TestSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_472-ER-TestFold_3/Inference/test_w_features',
                                                          'REG Model Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_472-ER-TestFold_3/Model_CheckPoints/model_data_Epoch_1000.pt'
+                                                         },
+                                                  'Her2': {'DataSet Name': r'FEATURES: Exp_20114-Her2-TestFold_3',
+                                                           'TrainSet Location': r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20114-Her2-TestFold_3/Inference/train_w_features',
+                                                           'TestSet Location': r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20114-Her2-TestFold_3/Inference/test_w_features',
+                                                           'REG Model Location': r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20114-Her2-TestFold_3/Model_CheckPoints/model_data_Epoch_1000.pt'
+                                                           },
+                                                  'PR': {'DataSet Name': r'FEATURES: Exp_497-PR-TestFold_3',
+                                                         'TrainSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_497-PR-TestFold_3/Inference/train_w_features',
+                                                         'TestSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_497-PR-TestFold_3/Inference/test_w_features',
+                                                         'REG Model Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_497-PR-TestFold_3/Model_CheckPoints/model_data_Epoch_1000.pt'
                                                          }
                                                   }
                                        },
@@ -1748,6 +1759,20 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str, test_fo
                                                                  }
                                                           }
                                                },
+                               'HAEMEK': {'Fold 1': {'ER': {'DataSet Name': r'FEATURES: Model From Exp_355-ER-TestFold_1, HAEMEK ONLY Slides',
+                                                            'TestSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_355-ER-TestFold_1/Inference/HAEMEK'
+                                                            },
+                                                     'Ki67': {'DataSet Name': r'FEATURES: Exp_419-Ki67-TestFold_1, HAEMEK ONLY Slides',
+                                                              'TestSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_419-Ki67-TestFold_1/Inference/HAEMEK'
+                                                              },
+                                                     'Her2': {'DataSet Name': r'FEATURES: Model From Exp_392-Her2-TestFold_1, HAEMEK ONLY Slides',
+                                                              'TestSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_392-Her2-TestFold_1/Inference/HAEMEK'
+                                                              },
+                                                     'PR': {'DataSet Name': r'FEATURES: Model From Exp_20010-PR-TestFold_1, HAEMEK ONLY Slides',
+                                                            'TestSet Location': r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_10-PR-TestFold_1/Inference/HAEMEK'
+                                                            }
+                                                     }
+                                          },
                                'ABCTB': {'Fold 1': {'survival': {'DataSet Name': r'FEATURES: Exp_20094-survival-TestFold_1',
                                                                  'TrainSet Location': r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20094-survival-TestFold_1/Inference/train_w_features/',
                                                                  'TestSet Location': r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20094-survival-TestFold_1/Inference/test_w_features/',
@@ -1960,6 +1985,20 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str, test_fo
                                                                   }
                                                            }
                                                 },
+                                'HAEMEK': {'Fold 1': {'ER': {'DataSet Name': r'FEATURES: Model From Exp_355-ER-TestFold_1, HAEMEK ONLY Slides',
+                                                             'TestSet Location': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/Ran_Exp_355-TestFold_1/HAEMEK/'
+                                                             },
+                                                      'Ki67': {'DataSet Name': r'FEATURES: Exp_419-Ki67-TestFold_1, HAEMEK ONLY Slides',
+                                                               'TestSet Location': None
+                                                               },
+                                                      'Her2': {'DataSet Name': r'FEATURES: Model From Exp_392-Her2-TestFold_1, HAEMEK ONLY Slides',
+                                                               'TestSet Location': None
+                                                               },
+                                                      'PR': {'DataSet Name': r'FEATURES: Model From Exp_20010-PR-TestFold_1, HAEMEK ONLY Slides',
+                                                             'TestSet Location': None
+                                                             }
+                                                      }
+                                           },
                                 'TCGA_ABCTB': {'Fold 1': {'ER': {'DataSet Name': r'FEATURES: Exp_293-ER-TestFold_1',
                                                                  'TrainSet Location': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/Ran_Exp_293-TestFold_1/Train',
                                                                  'TestSet Location': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/Ran_Exp_293-TestFold_1/Test',
@@ -2016,3 +2055,29 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str, test_fo
 
 
     return All_Data_Dict[sys.platform][train_DataSet]['Fold ' + str(test_fold)][target]
+
+
+def send_run_data_via_mail():
+    if sys.platform != 'linux':  # Send mail only when running on server
+        return
+    else:
+        import yagmail
+
+    if 'womer' in os.getcwd().split('/'):
+        filename = '/home/womer/project/runs/run_data.xlsx'
+
+    elif 'rschley' in os.getcwd().split('/'):
+        filename = '/home/rschley/code/WSI_MIL/general_try4/runs/run_data.xlsx'
+
+    else:
+        print('This user parameters are not defined. Email will not be sent')
+        return
+
+    yag = yagmail.SMTP('gipmed.python@gmail.com')
+    yag.send(
+        to='gipmed.python@gmail.com',
+        subject='run_data.xlsx',
+        attachments=filename,
+    )
+
+    print('email sent to gipmed.python@gmail.com')

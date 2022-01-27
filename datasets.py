@@ -1590,6 +1590,10 @@ class Features_MILdataset(Dataset):
                 '''slides_data_DF_CARMEL = pd.read_excel('/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/slides_data_CARMEL_9_11.xlsx')
                 slides_data_DF_CARMEL.set_index('file', inplace=True)'''
 
+            elif dataset == 'HAEMEK':
+                grid_location_dict = {'HAEMEK': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/HAEMEK_Grid_data.xlsx'}
+                slide_data_DF_dict = {'HAEMEK': pd.read_excel('/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/slides_data_HAEMEK.xlsx')}
+
             elif dataset == 'CARMEL_40':
                 grid_location_dict = {
                     'CARMEL_40': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/CARMEL_40_Grid_data.xlsx'}
@@ -1620,6 +1624,10 @@ class Features_MILdataset(Dataset):
                                       }
                 #slides_data_DF_CARMEL = pd.read_excel('/home/womer/project/All Data/Ran_Features/Grid_data/slides_data_CARMEL_ALL.xlsx')
                 #slides_data_DF_CARMEL.set_index('file', inplace=True)
+
+            elif dataset == 'HAEMEK':
+                grid_location_dict = {'HAEMEK': r'/home/womer/project/All Data/Ran_Features/Grid_data/HAEMEK_Grid_data.xlsx'}
+                slide_data_DF_dict = {'HAEMEK': pd.read_excel('/home/womer/project/All Data/Ran_Features/Grid_data/slides_data_HAEMEK.xlsx')}
 
             elif dataset == 'CARMEL':
                 grid_location_dict = {'CARMEL': r'/home/womer/project/All Data/Ran_Features/Grid_data/CARMEL_Grid_data.xlsx'}
@@ -2144,6 +2152,8 @@ class Features_to_Survival(Dataset):
                  # is_per_slide: bool = False,
                  is_all_tiles: bool = False,
                  bag_size: int = 1,
+                 use_patient_features: bool = False,
+                 normalized_features: bool = False,
                  is_all_censored: bool = False,
                  is_all_not_censored: bool = False,
                  ):
@@ -2152,10 +2162,23 @@ class Features_to_Survival(Dataset):
             raise Exception('\'is_all_censored\' and \'is_all_not_censored\' CANNOT be TRUE at the same time')
 
         if sys.platform == 'darwin':
-            if is_train:
-                data_location = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/survival/Ran_Exp_20094-survival-TestFold_1/Train/'
+            if use_patient_features:
+                if is_train:
+                    data_location = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/survival/Ran_Exp_20094-survival-TestFold_1/Augmented/Train/'
+                else:
+                    data_location = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/survival/Ran_Exp_20094-survival-TestFold_1/Augmented/Test/'
+
+            elif normalized_features:
+                if is_train:
+                    data_location = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/survival/Ran_Exp_20094-survival-TestFold_1/Normalized/Train/'
+                else:
+                    data_location = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/survival/Ran_Exp_20094-survival-TestFold_1/Normalized/Test/'
+
             else:
-                data_location = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/survival/Ran_Exp_20094-survival-TestFold_1/Test/'
+                if is_train:
+                    data_location = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/survival/Ran_Exp_20094-survival-TestFold_1/Train/'
+                else:
+                    data_location = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/survival/Ran_Exp_20094-survival-TestFold_1/Test/'
 
         elif sys.platform == 'linux':
             if is_train:
@@ -2201,6 +2224,10 @@ class Features_to_Survival(Dataset):
             if dataset == 'ABCTB':
                 grid_location_dict = {'ABCTB': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/ABCTB_TIF_Grid_data.xlsx'}
                 slide_data_DF_dict = {'ABCTB': pd.read_excel('/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/slides_data_ABCTB.xlsx')}
+                patient_feature_data_dict = {'ABCTB': pd.read_excel('/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/ABCTB_Path_Data_features.xlsx')}
+                data_stat_DF = pd.read_excel(r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/Mean_and_STD_for_features.xlsx')
+                mean_vector = data_stat_DF['Mean'].to_numpy()
+                std_vector = data_stat_DF['STD'].to_numpy()
 
             else:
                 raise Exception("Need to write which dictionaries to use in this receptor case")
@@ -2215,13 +2242,17 @@ class Features_to_Survival(Dataset):
 
         grid_DF = pd.DataFrame()
         slide_data_DF = pd.DataFrame()
+        patient_feature_data_DF = pd.DataFrame()
+
         for key in grid_location_dict.keys():
             new_grid_DF = pd.read_excel(grid_location_dict[key])
             grid_DF = pd.concat([grid_DF, new_grid_DF])
             slide_data_DF = pd.concat([slide_data_DF, slide_data_DF_dict[key]])
+            patient_feature_data_DF = pd.concat([patient_feature_data_DF, patient_feature_data_dict[key]])
 
         grid_DF.set_index('file', inplace=True)
         slide_data_DF.set_index('file', inplace=True)
+        patient_feature_data_DF.set_index('Identifier', inplace=True)
 
         for file_idx, file in enumerate(tqdm(data_files)):
             with open(file, 'rb') as filehandle:
@@ -2337,7 +2368,6 @@ class Features_to_Survival(Dataset):
         print('There are {}/{} slides with \"bad number of good tile\" '.format(bad_num_of_good_tiles, total_slides))
         print('There are {}/{} slides with \"bad segmentation\" '.format(slides_with_bad_segmentation, total_slides))
 
-        # self.patient_keys = list(self.patient_data.keys())
         print('There are {}/{} slides for {}/{} patients with Inconsistent target value for same patient)'.format(
             slides_from_same_patient_with_different_target_values,
             total_slides,
@@ -2355,6 +2385,7 @@ class Features_to_Survival(Dataset):
             return len(self.slide_names) * 10
 
     def __getitem__(self, item):
+        start_time = time.time()
         if not self.is_all_tiles: # In case we're not getting all the tiles of a slide we want to fo over each slide for 10 times during each epoch
             item = item % len(self.censor)
 
@@ -2365,17 +2396,21 @@ class Features_to_Survival(Dataset):
         else:
             tile_idx = list(range(self.num_tiles[item])) if self.is_all_tiles else choices(range(self.num_tiles[item]), k=self.bag_size)
 
-        return {'Binary Target': self.binary_target[item],
-                'Time Target': self.time_target[item],
-                'Features': self.features[item][tile_idx],
-                'Censored': self.censor[item],
-                'tile scores': self.tile_scores[item][tile_idx],
-                'slide name': self.slide_names[item],
-                'num tiles': self.num_tiles[item],
-                'tile locations': self.tile_location[item][tile_idx] if hasattr(self, 'tile_location') else None,
-                'Slide belongs to Patient with Multiple Targets': self.slide_for_patient_with_multiple_targets[item],
-                'Slide Belongs to Patient': self.patient_id[item]
-                }
+        to_return = {'Binary Target': self.binary_target[item],
+                     'Time Target': self.time_target[item],
+                     'Features': self.features[item][tile_idx],
+                     'Censored': self.censor[item],
+                     'tile scores': self.tile_scores[item][tile_idx],
+                     'slide name': self.slide_names[item],
+                     'num tiles': self.num_tiles[item],
+                     'tile locations': self.tile_location[item][tile_idx] if hasattr(self, 'tile_location') else None,
+                     'Slide belongs to Patient with Multiple Targets': self.slide_for_patient_with_multiple_targets[item],
+                     'Slide Belongs to Patient': self.patient_id[item],
+                     'Time': -1
+                     }
+
+        to_return['Time'] = time.time() - start_time
+        return to_return
 
 
 class Combined_Features_for_MIL_Training_dataset(Dataset):
@@ -3233,7 +3268,6 @@ class C_Index_Test_Dataset_Original(Dataset):
         return self.data[item]
 
 
-
 class WSI_Master_Dataset_Survival(Dataset):
     def __init__(self,
                  DataSet: str = 'TCGA',
@@ -3259,6 +3293,13 @@ class WSI_Master_Dataset_Survival(Dataset):
                  is_all_censored: bool = False,
                  is_all_not_censored: bool = False):
 
+        # Support multitarget training, RanS 8.12.21
+        if len(target_kind.split('+')) > 1:
+            target_kind = target_kind.split('+')
+            N_targets = 2  # currently support only two targets!
+            self.multi_target = True
+        else:
+            self.multi_target = False
 
         # Check if the target receptor is available for the requested train DataSet:
         assert_dataset_target(DataSet, target_kind)
@@ -3279,6 +3320,11 @@ class WSI_Master_Dataset_Survival(Dataset):
         self.train_type = train_type
         self.color_param = color_param
         self.loan = loan
+
+        if is_all_censored != is_all_not_censored:  # Checking that one of those flags is true
+            self.censor_description = 'Censored' if is_all_censored else 'Not Censored'
+        else:
+            self.censor_description = 'As Is'
 
         # Get DataSets location:
         self.dir_dict = get_datasets_dir_dict(Dataset=self.DataSet)
@@ -3469,7 +3515,13 @@ class WSI_Master_Dataset_Survival(Dataset):
             self.all_image_file_names = all_image_file_names
             self.all_patient_barcodes = all_patient_barcodes
             self.all_image_ids = all_image_ids
-            self.all_targets = all_targets
+            if self.target_kind == 'survival':
+                self.all_censored = all_censored
+                self.all_time_targets = all_time_targets
+                self.all_binary_targets = all_binary_targets
+                self.all_is_excluded = all_is_excluded
+            else:
+                self.all_targets = all_targets
 
 
         self.image_file_names = []
@@ -3483,11 +3535,24 @@ class WSI_Master_Dataset_Survival(Dataset):
         self.presaved_tiles = []
 
 
-        if self.target_kind == 'survival':  # TODO: maybe i can change this ?
+        if self.target_kind == 'survival':
             self.target_binary, self.target_time, self.censored = [], [], []
 
         for _, index in enumerate(tqdm(valid_slide_indices)):
             if (self.DX and all_is_DX_cut[index]) or not self.DX:
+                if self.target_kind == 'survival':
+                    if all_censored[index] == 1:
+                        censor_status = True
+                    elif all_censored[index] == 0:
+                        censor_status = False
+                    else:
+                        pass
+                    if (is_all_not_censored and censor_status) or (is_all_censored and not censor_status):
+                        continue
+
+                    self.censored.append(censor_status)
+                    self.target_binary.append(all_binary_targets[index])
+                    self.target_time.append(all_time_targets[index])
                 self.image_file_names.append(all_image_file_names[index])
                 self.image_path_names.append(self.dir_dict[all_image_ids[index]])
                 self.in_fold.append(all_in_fold[index])
@@ -3498,19 +3563,6 @@ class WSI_Master_Dataset_Survival(Dataset):
                     self.target.append(-1)
                 else:
                     self.target.append(all_targets[index])
-
-                if self.target_kind == 'survival':
-                    if all_censored[index] == 1:
-                        censor_status = True
-                    elif all_censored[index] == 0:
-                        censor_status = False
-                    else:
-                        pass
-                    if (is_all_not_censored and censor_status) or (is_all_censored and not censor_status):
-                        continue
-                    self.censored.append(censor_status)
-                    self.target_binary.append(all_binary_targets[index])
-                    self.target_time.append(all_time_targets[index])
 
                 # Preload slides - improves speed during training.
                 grid_file = []
@@ -3675,7 +3727,9 @@ class WSI_REGdataset_Survival(WSI_Master_Dataset_Survival):
                  loan: bool = False,
                  er_eq_pr: bool = False,
                  slide_per_block: bool = False,
-                 balanced_dataset: bool = False
+                 balanced_dataset: bool = False,
+                 is_all_censored: bool = False,
+                 is_all_not_censored: bool = False
                  ):
         super(WSI_REGdataset_Survival, self).__init__(DataSet=DataSet,
                                                       tile_size=tile_size,
@@ -3692,7 +3746,9 @@ class WSI_REGdataset_Survival(WSI_Master_Dataset_Survival):
                                                       desired_slide_magnification=desired_slide_magnification,
                                                       er_eq_pr=er_eq_pr,
                                                       slide_per_block=slide_per_block,
-                                                      balanced_dataset=balanced_dataset
+                                                      balanced_dataset=balanced_dataset,
+                                                      is_all_censored=is_all_censored,
+                                                      is_all_not_censored=is_all_not_censored
                                                       )
 
         self.loan = loan
@@ -3715,14 +3771,264 @@ class WSI_REGdataset_Survival(WSI_Master_Dataset_Survival):
         X = data_dict['Data']
         X = torch.reshape(X, (3, self.tile_size, self.tile_size))
 
-        #return X, label, time_list, image_file_names, images
         return {'Data': X,
                 'Target': data_dict['Target'],
                 'Censored': data_dict['Censored'],
                 'Binary Target': data_dict['Binary Target'],
                 'Time Target': data_dict['Time Target'],
-                'Time List': data_dict['Time List'],
+                #'Time List': data_dict['Time List'],
                 'Time dict': data_dict['Time dict'],
                 'File Names': data_dict['File Names'],
                 'Images': data_dict['Images']
+                }
+
+
+class Infer_Dataset_Survival(WSI_Master_Dataset_Survival):
+    def __init__(self,
+                 DataSet: str = 'TCGA',
+                 tile_size: int = 256,
+                 tiles_per_iter: int = 500,
+                 target_kind: str = 'ER',
+                 folds: List = [1],
+                 num_tiles: int = 500,
+                 dx: bool = False,
+                 desired_slide_magnification: int = 10,
+                 resume_slide: int = 0,
+                 patch_dir: str = ''
+                 ):
+        super(Infer_Dataset_Survival, self).__init__(DataSet=DataSet,
+                                                     tile_size=tile_size,
+                                                     bag_size=None,
+                                                     target_kind=target_kind,
+                                                     test_fold=1,
+                                                     infer_folds=folds,
+                                                     train=True,
+                                                     #print_timing=False,
+                                                     #get_images=False,
+                                                     transform_type='none',
+                                                     DX=dx,
+                                                     train_type='Infer',
+                                                     desired_slide_magnification=desired_slide_magnification)
+
+        self.print_time = False
+        self.tiles_per_iter = tiles_per_iter
+        self.patch_dir = patch_dir
+        self.folds = folds
+        self.magnification = []
+        self.num_tiles = []
+        self.slide_grids = []
+        self.grid_lists = []
+        self.patient_barcode = []
+        self.slide_dataset = []
+
+        ind = 0
+        slide_with_not_enough_tiles = 0
+
+        self.valid_slide_indices = self.valid_slide_indices[resume_slide:]  # RanS 6.10.21
+        self.tissue_tiles = self.tissue_tiles[resume_slide:]  # RanS 7.10.21
+        self.image_file_names = self.image_file_names[resume_slide:]  # RanS 7.10.21
+        self.image_path_names = self.image_path_names[resume_slide:]  # RanS 7.10.21
+        self.slides = self.slides[resume_slide:]  # RanS 15.11.21
+        self.presaved_tiles = self.presaved_tiles[resume_slide:]  # RanS 15.11.21
+        self.target = self.target[resume_slide:]  # RanS 15.11.21
+
+        if self.patch_dir != '':
+            # RanS 24.10.21
+            # load patches position from excel file
+            xfile = glob(os.path.join(self.patch_dir, '*_x.csv'))
+            yfile = glob(os.path.join(self.patch_dir, '*_y.csv'))
+            if len(xfile) == 0 or len(yfile) == 0:
+                raise IOError('patch location files not found in dir!')
+            elif len(xfile) > 1 or len(yfile) > 1:
+                raise IOError('more than one patch location file in dir!')
+            self.x_pd = pd.read_csv(xfile[0])
+            self.y_pd = pd.read_csv(yfile[0])
+
+        for _, slide_num in enumerate(self.valid_slide_indices):
+            if (self.DX and self.all_is_DX_cut[slide_num]) or not self.DX:
+                if num_tiles <= self.all_tissue_tiles[slide_num] and self.all_tissue_tiles[slide_num] > 0:
+                    self.num_tiles.append(num_tiles)
+                else:
+                    self.num_tiles.append(int(self.all_tissue_tiles[slide_num]))
+                    slide_with_not_enough_tiles += 1
+                    '''print('{} Slide available tiles are less than {}'.format(self.all_image_file_names[slide_num],
+                                                                             num_tiles))'''
+
+                self.magnification.extend([self.all_magnifications[slide_num]])
+                self.patient_barcode.append(self.all_patient_barcodes[slide_num])
+                self.slide_dataset.append(self.all_image_ids[slide_num])
+                if self.patch_dir == '':
+                    which_patches = sample(range(int(self.tissue_tiles[ind])), self.num_tiles[-1])
+                else:
+                    # RanS 24.10.21
+                    which_patches = [ii for ii in range(self.num_tiles[-1])]
+
+                patch_ind_chunks = chunks(which_patches, self.tiles_per_iter)
+                self.slide_grids.extend(patch_ind_chunks)
+
+                if self.presaved_tiles[ind]:
+                    self.grid_lists.append(0)
+                else:
+                    if self.patch_dir == '':
+                        basic_file_name = '.'.join(self.image_file_names[ind].split('.')[:-1])
+                        grid_file = os.path.join(self.image_path_names[ind], 'Grids_' + str(self.desired_magnification),
+                                                 basic_file_name + '--tlsz' + str(self.tile_size) + '.data')
+                        with open(grid_file, 'rb') as filehandle:
+                            grid_list = pickle.load(filehandle)
+                            self.grid_lists.append(grid_list)
+
+                ind += 1  # RanS 29.1.21
+
+        print('There are {} slides with less than {} tiles'.format(slide_with_not_enough_tiles, num_tiles))
+
+        # The following properties will be used in the __getitem__ function
+        self.tiles_to_go = None
+        self.slide_num = -1
+        self.current_file = None
+        print(
+            'Initiation of WSI INFERENCE for {} DataSet and {} of folds {} is Complete. {} Slides, Working on Tiles of size {}^2. {} Tiles per slide, {} tiles per iteration, {} iterations to complete full inference'
+                .format(self.DataSet,
+                        self.target_kind,
+                        str(self.folds),
+                        len(self.image_file_names),
+                        self.tile_size,
+                        num_tiles,
+                        self.tiles_per_iter,
+                        self.__len__()))
+
+    def __len__(self):
+        return int(np.ceil(np.array(self.num_tiles) / self.tiles_per_iter).sum())
+
+    def __getitem__(self, idx):
+        start_getitem = time.time()
+        if self.tiles_to_go is None:
+            self.slide_num += 1  # RanS 5.5.21
+            self.tiles_to_go = self.num_tiles[self.slide_num]
+            self.slide_name = self.image_file_names[self.slide_num]
+
+            # self.current_slide = self.slides[self.slide_num]
+            self.current_slide = openslide.OpenSlide(
+                self.slides[self.slide_num])  # RanS 5.9.21, open the slides one at a time
+
+            self.initial_num_patches = self.num_tiles[self.slide_num]
+
+            if not self.presaved_tiles[self.slide_num]:  # RanS 5.5.21
+                # RanS 11.3.21
+                '''desired_downsample = self.magnification[self.slide_num] / self.desired_magnification
+
+                level, best_next_level = -1, -1
+                for index, downsample in enumerate(self.current_slide.level_downsamples):
+                    if isclose(desired_downsample, downsample, rel_tol=1e-3):
+                        level = index
+                        level_downsample = 1
+                        break
+
+                    elif downsample < desired_downsample:
+                        best_next_level = index
+                        level_downsample = int(desired_downsample / self.current_slide.level_downsamples[best_next_level])
+
+                self.adjusted_tile_size = self.tile_size * level_downsample
+                self.best_slide_level = level if level > best_next_level else best_next_level
+                self.level_0_tile_size = int(desired_downsample) * self.tile_size'''
+
+                self.best_slide_level, self.adjusted_tile_size, self.level_0_tile_size = \
+                    get_optimal_slide_level(self.current_slide, self.magnification[self.slide_num],
+                                            self.desired_magnification, self.tile_size)
+
+        # label = [1] if self.target[self.slide_num] == 'Positive' else [0]
+        label = get_label(self.target[self.slide_num], self.multi_target)
+        label = torch.LongTensor(label)
+
+        if self.target_kind == 'survival':
+            target_binary_current = self.target_binary[self.slide_num]
+            target_time_current = self.target_time[self.slide_num]
+            censor_status_current = self.censored[self.slide_num]
+        else:
+            target_binary_current, target_time_current, censor_status_current = -1, -1, -1
+
+        if self.presaved_tiles[self.slide_num]:  # RanS 5.5.21
+                idxs = self.slide_grids[idx]
+                empty_image = Image.fromarray(np.uint8(np.zeros((self.tile_size, self.tile_size, 3))))
+                tiles = [empty_image] * len(idxs)
+                for ii, tile_ind in enumerate(idxs):
+                    # tile_path = os.path.join(self.tiles_dir[idx], 'tile_' + str(tile_ind) + '.data')
+                    tile_path = os.path.join(self.slides[self.slide_num], 'tile_' + str(tile_ind) + '.data')
+                    with open(tile_path, 'rb') as fh:
+                        header = fh.readline()
+                        tile_bin = fh.read()
+                    dtype, w, h, c = header.decode('ascii').strip().split()
+                    tile = np.frombuffer(tile_bin, dtype=dtype).reshape((int(w), int(h), int(c)))
+                    tile1 = self.rand_crop(Image.fromarray(tile))
+                    tiles[ii] = tile1
+        else:
+            if self.patch_dir == '':
+                locs = [self.grid_lists[self.slide_num][loc] for loc in self.slide_grids[idx]]
+            else:
+                x_loc = [int(self.x_pd.loc[self.x_pd['slide_name'] == self.slide_name][str(loc)].item()) for loc in
+                         self.slide_grids[idx]]
+                y_loc = [int(self.y_pd.loc[self.y_pd['slide_name'] == self.slide_name][str(loc)].item()) for loc in
+                         self.slide_grids[idx]]
+                locs = [ii for ii in zip(x_loc, y_loc)]
+            tiles, time_list, _ = _get_tiles(slide=self.current_slide,
+                                             # locations=self.slide_grids[idx],
+                                             locations=locs,
+                                             tile_size_level_0=self.level_0_tile_size,
+                                             adjusted_tile_sz=self.adjusted_tile_size,
+                                             output_tile_sz=self.tile_size,
+                                             best_slide_level=self.best_slide_level,
+                                             random_shift=False)
+
+        if self.tiles_to_go <= self.tiles_per_iter:
+            self.tiles_to_go = None
+            # self.slide_num += 1 #moved RanS 5.5.21
+        else:
+            self.tiles_to_go -= self.tiles_per_iter
+
+        X = torch.zeros([len(tiles), 3, self.tile_size, self.tile_size])
+
+        start_aug = time.time()
+        for i in range(len(tiles)):
+            X[i] = self.transform(tiles[i])
+
+        aug_time = time.time() - start_aug
+        total_time = time.time() - start_getitem
+        if self.print_time:
+            time_list = (time_list[0], time_list[1], aug_time, total_time)
+        else:
+            time_list = [0]
+        if self.tiles_to_go is None:
+            last_batch = True
+        else:
+            last_batch = False
+
+        debug_patches_and_transformations = False
+        if debug_patches_and_transformations:
+            images = torch.zeros_like(X)
+            trans = transforms.Compose(
+                [transforms.CenterCrop(self.tile_size), transforms.ToTensor()])  # RanS 21.12.20
+
+            for i in range(self.tiles_per_iter):
+                images[i] = trans(tiles[i])
+            show_patches_and_transformations(X, images, tiles, self.scale_factor, self.tile_size)
+
+        # return X, label, time_list, last_batch, self.initial_num_patches, self.current_slide._filename
+        # return X, label, time_list, last_batch, self.initial_num_patches, self.image_file_names[self.slide_num] #RanS 5.5.21
+        # return X, label, time_list, last_batch, self.initial_num_patches, self.image_file_names[self.slide_num], self.patient_barcode[self.slide_num]  #Omer 24/5/21
+
+        return {'Data': X,
+                'Label': label,  # It is acutally the target and not the label
+                'Time List': time_list,
+                'Is Last Batch': last_batch,
+                'Initial Num Tiles': self.initial_num_patches,
+                # 'Slide Filename': self.image_file_names[self.slide_num],
+                # 'Patch loc index': locs_ind,
+                # 'Slide Index Size': self.equivalent_grid_size[self.slide_num],
+                # 'Slide Size': self.slide_size,
+                'Slide Filename': self.slide_name,
+                'Patient barcode': self.patient_barcode[self.slide_num],
+                'Slide DataSet': self.slide_dataset[self.slide_num],
+                'Patch Loc': locs,
+                'Censored': censor_status_current,
+                'Binary Target': target_binary_current,
+                'Time Target': target_time_current
                 }

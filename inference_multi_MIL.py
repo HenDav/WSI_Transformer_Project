@@ -11,19 +11,18 @@ from tqdm import tqdm
 import pickle
 
 parser = argparse.ArgumentParser(description='WSI_MIL Slide inference')
-parser.add_argument('-ex', '--experiment', type=int, default=[304], help='Continue train of this experiment')
-parser.add_argument('-fe', '--from_epoch', type=int, default=[1000], help='Use this epoch model for inference')
+parser.add_argument('-ex', '--experiment', type=int, default=[10547], help='Continue train of this experiment')
+parser.add_argument('-fe', '--from_epoch', type=int, default=[60], help='Use this epoch model for inference')
 parser.add_argument('-nt', '--num_tiles', type=int, default=10, help='Number of tiles to use')
-parser.add_argument('-ds', '--dataset', type=str, default='TCGA', help='DataSet to use')
-parser.add_argument('-f', '--folds', type=list, default=[3], help=' folds to infer')
+parser.add_argument('-ds', '--dataset', type=str, default='ABCTB', help='DataSet to use')
+parser.add_argument('-f', '--folds', type=list, default=[2,3,4,5], help=' folds to infer')
 parser.add_argument('-sts', '--save_tile_scores', dest='save_tile_scores', action='store_true', help='save tile scores')
 args = parser.parse_args()
 
 args.folds = list(map(int, args.folds))
 
 if sys.platform == 'darwin':
-    args.experiment = [1]
-    args.from_epoch = [1035]
+    pass
     args.save_tile_scores = True
 
 
@@ -65,12 +64,21 @@ for counter in range(len(args.from_epoch)):
         Output_Dirs.append(output_dir)
         fix_data_path = True
 
+    # fix target:
+    if args.target in ['Features_Survival_Time_Cox', 'Features_Survival_Time_L2']:
+        args.target = 'survival'
+
     if fix_data_path:
         # we need to make some root modifications according to the computer we're running at.
         if sys.platform == 'linux':
             data_path = ''
+
         elif sys.platform == 'win32':
             output_dir = output_dir.replace(r'/', '\\')
+            data_path = os.getcwd()
+
+        elif sys.platform == 'darwin':
+            output_dir = '/'.join(output_dir.split('/')[4:])
             data_path = os.getcwd()
 
         fix_data_path = False
@@ -88,19 +96,24 @@ for counter in range(len(args.from_epoch)):
     # loading model parameters from the specific epoch
     model_data_loaded = torch.load(os.path.join(data_path, output_dir, 'Model_CheckPoints',
                                                 'model_data_Epoch_' + str(epoch) + '.pt'), map_location='cpu')
+
+    # Making sure that the size of the linear layer of the loaded model, fits the basic model.
+    model.linear = torch.nn.Linear(in_features=model_data_loaded['model_state_dict']['linear.weight'].size(1),
+                                   out_features=model_data_loaded['model_state_dict']['linear.weight'].size(0))
+
     model.load_state_dict(model_data_loaded['model_state_dict'])
     model.eval()
     model.infer = True
     model.features_part = True
     models.append(model)
 
-inf_dset = datasets.Infer_Dataset(DataSet=args.dataset,
-                                  tile_size=TILE_SIZE,
-                                  tiles_per_iter=20,
-                                  target_kind=args.target,
-                                  folds=args.folds,
-                                  num_tiles=args.num_tiles,
-                                  desired_slide_magnification=desired_magnification)
+inf_dset = datasets.Infer_Dataset_Survival(DataSet=args.dataset,
+                                           tile_size=TILE_SIZE,
+                                           tiles_per_iter=20,
+                                           target_kind=args.target,
+                                           folds=args.folds,
+                                           num_tiles=args.num_tiles,
+                                           desired_slide_magnification=desired_magnification)
 
 inf_loader = DataLoader(inf_dset, batch_size=1, shuffle=False, num_workers=0, pin_memory=True)
 
@@ -132,7 +145,19 @@ if args.save_tile_scores:
         all_slides_scores_list.append({})
 
 with torch.no_grad():
-    for batch_idx, (data, target, time_list, last_batch, num_tiles, slide_name, patient_barcode) in enumerate(tqdm(inf_loader)):
+    for batch_idx, minibatch in enumerate(tqdm(inf_loader)):
+        data = minibatch['Data']
+        target = minibatch['Target']
+        last_batch = minibatch['Is Last Batch']
+        num_tiles = minibatch['Initial Num Tiles']
+        slide_name = minibatch['Slide Filename']
+        patient_barcode = minibatch['Patient barcode']
+
+        if args.target == 'survival':
+            target_time = minibatch['Time Target']
+            target_binary = minibatch['Binary Target']
+            censored = minibatch['Censored']
+
         if new_slide:
             all_patient_barcodes.append(patient_barcode[0])
             slide_names.append(slide_name)

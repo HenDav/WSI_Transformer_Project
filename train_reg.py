@@ -22,6 +22,8 @@ from datetime import datetime
 from Cox_Loss import Cox_loss
 import re
 
+utils.send_run_data_via_mail()
+
 parser = argparse.ArgumentParser(description='WSI_REG Training of PathNet Project')
 parser.add_argument('-tf', '--test_fold', default=1, type=int, help='fold to be as TEST FOLD')
 parser.add_argument('-e', '--epochs', default=1001, type=int, help='Epochs to run')
