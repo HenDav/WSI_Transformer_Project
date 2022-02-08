@@ -205,12 +205,13 @@ if multi_target:
 else:
     all_targets = []
     total_pos, total_neg = 0, 0
-    patch_scores = np.empty((NUM_SLIDES, NUM_MODELS, args.num_tiles))
     all_labels = np.zeros((NUM_SLIDES, NUM_MODELS))
     if N_classes == 2:
         all_scores = np.zeros((NUM_SLIDES, NUM_MODELS))
+        patch_scores = np.empty((NUM_SLIDES, NUM_MODELS, args.num_tiles))
     else:
         all_scores = np.zeros((NUM_SLIDES, NUM_MODELS, N_classes))
+        patch_scores = np.empty((NUM_SLIDES, NUM_MODELS, args.num_tiles, N_classes))
     correct_pos = np.zeros(NUM_MODELS)
     correct_neg = np.zeros(NUM_MODELS)
 
@@ -263,11 +264,13 @@ with torch.no_grad():
 
         if new_slide:
             n_tiles = inf_loader.dataset.num_tiles[slide_num - args.resume]
-            scores_0 = [np.zeros(n_tiles) for ii in range(NUM_MODELS)]
-            scores_1 = [np.zeros(n_tiles) for ii in range(NUM_MODELS)]
-            if multi_target:
-                scores_2 = [np.zeros(n_tiles) for ii in range(NUM_MODELS)]
-                scores_3 = [np.zeros(n_tiles) for ii in range(NUM_MODELS)]
+
+            current_slide_tile_scores = [np.zeros((n_tiles, N_classes)) for ii in range(NUM_MODELS)]
+            #scores_0 = [np.zeros(n_tiles) for ii in range(NUM_MODELS)]
+            #scores_1 = [np.zeros(n_tiles) for ii in range(NUM_MODELS)]
+            #if multi_target:
+            #    scores_2 = [np.zeros(n_tiles) for ii in range(NUM_MODELS)]
+            #    scores_3 = [np.zeros(n_tiles) for ii in range(NUM_MODELS)]
             patch_locs_1_slide = np.zeros((n_tiles, 2))
             if args.save_features:
                 feature_arr = [np.zeros((n_tiles, 512))]
@@ -280,15 +283,18 @@ with torch.no_grad():
 
         patch_locs_1_slide[slide_batch_num * tiles_per_iter: slide_batch_num * tiles_per_iter + len(data),:] = np.array(patch_locs)
 
-        for index, model in enumerate(models):
+        for model_ind, model in enumerate(models):
             model.to(DEVICE)
 
             if model._get_name() == 'PreActResNet_Ron':
                 scores, features = model(data)
-            else:
+            elif model._get_name() == 'ResNet':
                 #use resnet only for features, dump scores RanS 27.10.21
                 features = model(data)
                 scores = torch.zeros((len(data), 2))
+                print('Extracting features only for pretrained ResNet')
+            else:
+                raise IOError('Net not supported yet for feature and score exctration, implement!')
 
             if multi_target:
                 scores = torch.cat((torch.nn.functional.softmax(scores[:, :2], dim=1),
@@ -296,14 +302,15 @@ with torch.no_grad():
             else:
                 scores = torch.nn.functional.softmax(scores, dim=1)
 
-            scores_0[index][slide_batch_num * tiles_per_iter: slide_batch_num * tiles_per_iter + len(data)] = scores[:, 0].cpu().detach().numpy()
-            scores_1[index][slide_batch_num * tiles_per_iter: slide_batch_num * tiles_per_iter + len(data)] = scores[:, 1].cpu().detach().numpy()
-            if multi_target:
-                scores_2[index][slide_batch_num * tiles_per_iter: slide_batch_num * tiles_per_iter + len(data)] = scores[:, 2].cpu().detach().numpy()
-                scores_3[index][slide_batch_num * tiles_per_iter: slide_batch_num * tiles_per_iter + len(data)] = scores[:, 3].cpu().detach().numpy()
+            current_slide_tile_scores[model_ind][slide_batch_num * tiles_per_iter: slide_batch_num * tiles_per_iter + len(data), :] = scores.cpu().detach().numpy()
+            #scores_0[model_ind][slide_batch_num * tiles_per_iter: slide_batch_num * tiles_per_iter + len(data)] = scores[:, 0].cpu().detach().numpy()
+            #scores_1[model_ind][slide_batch_num * tiles_per_iter: slide_batch_num * tiles_per_iter + len(data)] = scores[:, 1].cpu().detach().numpy()
+            #if multi_target:
+            #    scores_2[model_ind][slide_batch_num * tiles_per_iter: slide_batch_num * tiles_per_iter + len(data)] = scores[:, 2].cpu().detach().numpy()
+            #    scores_3[model_ind][slide_batch_num * tiles_per_iter: slide_batch_num * tiles_per_iter + len(data)] = scores[:, 3].cpu().detach().numpy()
 
             if args.save_features:
-                if index == feature_epoch_ind:
+                if model_ind == feature_epoch_ind:
                     feature_arr[0][slide_batch_num * tiles_per_iter: slide_batch_num * tiles_per_iter + len(data), :] = features.cpu().detach().numpy()
 
         slide_batch_num += 1
@@ -318,37 +325,49 @@ with torch.no_grad():
                 total_neg += np.array((torch.squeeze(target[:, 0]).eq(0).sum().item(), torch.squeeze(target[:, 1]).eq(0).sum().item()))
             else:
                 all_targets.append(target.cpu().numpy()[0][0])
-                if target == 1:
-                    total_pos += 1
-                else:
-                    total_neg += 1
+                if N_classes == 2:
+                    if target == 1:
+                        total_pos += 1
+                    else:
+                        total_neg += 1
 
             if args.save_features:
                 features_all[slide_num % NUM_SLIDES_SAVE, 0, :len(feature_arr[0])] = feature_arr[0]
 
             patch_locs_all[slide_num, :len(patch_locs_1_slide), :] = patch_locs_1_slide
 
-            for model_num in range(NUM_MODELS):
-                if multi_target:
-                    current_slide_tile_scores = np.vstack((scores_0[model_num], scores_1[model_num], scores_2[model_num], scores_3[model_num]))
-                    predicted = np.vstack((current_slide_tile_scores[:2, :].mean(1).argmax(), current_slide_tile_scores[2:, :].mean(1).argmax()))
-                    patch_scores[slide_num, model_num, :len(scores_1[model_num]), 0] = scores_1[model_num]
-                    patch_scores[slide_num, model_num, :len(scores_3[model_num]), 1] = scores_3[model_num]
-                    all_scores[slide_num, model_num, 0] = scores_1[model_num].mean()
-                    all_scores[slide_num, model_num, 1] = scores_3[model_num].mean()
-                    correct_pos[model_num] += np.squeeze((predicted == 1) & (target_squeezed.eq(1).cpu().numpy()))
-                    correct_neg[model_num] += np.squeeze((predicted == 0) & (target_squeezed.eq(0).cpu().numpy()))
-                else:
-                    current_slide_tile_scores = np.vstack((scores_0[model_num], scores_1[model_num]))
-                    predicted = current_slide_tile_scores.mean(1).argmax()
-                    patch_scores[slide_num, model_num, :len(scores_1[model_num])] = scores_1[model_num]
-                    all_scores[slide_num, model_num] = scores_1[model_num].mean()
-                    if target == 1 and predicted == 1:
-                        correct_pos[model_num] += 1
-                    elif target == 0 and predicted == 0:
-                        correct_neg[model_num] += 1
+            for model_ind in range(NUM_MODELS):
 
-                all_labels[slide_num, model_num] = np.squeeze(predicted)
+                predicted = current_slide_tile_scores[model_ind].mean(0).argmax()
+                if multi_target:
+                    #current_slide_tile_scores = np.vstack((scores_0[model_num], scores_1[model_num], scores_2[model_num], scores_3[model_num]))
+                    #predicted = np.vstack((current_slide_tile_scores[:2, :].mean(1).argmax(), current_slide_tile_scores[2:, :].mean(1).argmax()))
+                    #patch_scores[slide_num, model_ind, :len(scores_1[model_ind]), 0] = scores_1[model_ind]
+                    #patch_scores[slide_num, model_ind, :len(scores_3[model_ind]), 1] = scores_3[model_ind]
+                    patch_scores[slide_num, model_ind, :n_tiles, 0] = current_slide_tile_scores[model_ind][:, 1]
+                    patch_scores[slide_num, model_ind, :n_tiles, 1] = current_slide_tile_scores[model_ind][:, 3]
+                    #all_scores[slide_num, model_ind, 0] = scores_1[model_ind].mean()
+                    #all_scores[slide_num, model_ind, 1] = scores_3[model_ind].mean()
+                    all_scores[slide_num, model_ind, 0] = current_slide_tile_scores[model_ind][:, 1].mean()
+                    all_scores[slide_num, model_ind, 1] = current_slide_tile_scores[model_ind][:, 3].mean()
+                    correct_pos[model_ind] += np.squeeze((predicted == 1) & (target_squeezed.eq(1).cpu().numpy()))
+                    correct_neg[model_ind] += np.squeeze((predicted == 0) & (target_squeezed.eq(0).cpu().numpy()))
+                else:
+                    # = np.vstack((scores_0[model_num], scores_1[model_num]))
+                    #predicted = current_slide_tile_scores.mean(1).argmax()
+                    #patch_scores[slide_num, model_ind, :len(scores_1[model_ind])] = scores_1[model_ind]
+                    if N_classes == 2:
+                        patch_scores[slide_num, model_ind, :n_tiles] = current_slide_tile_scores[model_ind][:, 1]
+                        all_scores[slide_num, model_ind] = current_slide_tile_scores[model_ind][:, 1].mean()
+                        if target == 1 and predicted == 1:
+                            correct_pos[model_ind] += 1
+                        elif target == 0 and predicted == 0:
+                            correct_neg[model_ind] += 1
+                    else: #multiclass
+                        patch_scores[slide_num, model_ind, :n_tiles, :] = current_slide_tile_scores[model_ind]
+                        all_scores[slide_num, model_ind, :] = current_slide_tile_scores[model_ind].mean(0)
+
+                all_labels[slide_num, model_ind] = np.squeeze(predicted)
                 all_slide_names[slide_num] = slide_file[0]
                 all_slide_datasets[slide_num] = slide_dataset[0]
 

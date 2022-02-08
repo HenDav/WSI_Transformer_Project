@@ -2,10 +2,10 @@ import os
 import re, glob
 inference_files = {}
 
-exp = 20157
-fold = '1'
-target = 'onco_score_26'
-dataset = 'SHEBA'
+exp = 542
+fold = '4'
+target = 'ER'
+dataset = 'CAT'
 subdir = ''
 is_other = False
 
@@ -16,7 +16,7 @@ else:
     patient_level = True
 save_csv = True
 
-patient_level = False #temp
+#patient_level = False #temp
 
 if is_other:
     inference_dir = os.path.join(r'C:\Pathnet_results\MIL_general_try4', dataset + '_runs', 'other', 'exp' + str(exp), 'Inference')

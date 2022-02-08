@@ -23,7 +23,9 @@ from datetime import datetime
 from Cox_Loss import Cox_loss
 import re
 import matplotlib.pyplot as plt
+import logging
 
+DEFAULT_BATCH_SIZE = 18
 parser = argparse.ArgumentParser(description='WSI_REG Training of PathNet Project')
 parser.add_argument('-tf', '--test_fold', default=1, type=int, help='fold to be as TEST FOLD')
 parser.add_argument('-e', '--epochs', default=1001, type=int, help='Epochs to run')
@@ -40,7 +42,7 @@ parser.add_argument('--lr', default=1e-5, type=float, help='learning rate')
 parser.add_argument('--weight_decay', default=5e-5, type=float, help='L2 penalty')
 parser.add_argument('-balsam', '--balanced_sampling', dest='balanced_sampling', action='store_true', help='balanced_sampling')
 parser.add_argument('--transform_type', default='rvf', type=str, help='none / flip / wcfrs (weak color+flip+rotate+scale)')
-parser.add_argument('--batch_size', default=18, type=int, help='size of batch')
+parser.add_argument('--batch_size', default=DEFAULT_BATCH_SIZE, type=int, help='size of batch')
 parser.add_argument('--model', default='PreActResNets.PreActResNet50_Ron()', type=str, help='net to use')
 #parser.add_argument('--model', default='nets.ResNet50(pretrained=True)', type=str, help='net to use')
 parser.add_argument('--bootstrap', action='store_true', help='use bootstrap to estimate test AUC error')
@@ -59,6 +61,21 @@ parser.add_argument('-tl', '--transfer_learning', default='', type=str, help='us
 args = parser.parse_args()
 
 EPS = 1e-7
+
+def start_log(args):
+    logfile = os.path.join(args.output_dir, 'log.txt')
+    os.makedirs(args.output_dir, exist_ok=True)
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(logging.INFO)
+    logging.basicConfig(format='%(message)s',
+                        level=logging.INFO,
+                        handlers=[stream_handler,
+                                  logging.FileHandler(filename=logfile)])
+    logging.info('*** START ARGS ***')
+    for k, v in vars(args).items():
+        logging.info('{}: {}'.format(k, v))
+    logging.info('*** END ARGS ***')
+
 
 def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader, DEVICE, optimizer, print_timing: bool=False):
     """
@@ -109,11 +126,15 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
         train_loss, total = 0, 0
 
         slide_names = []
-        print('Epoch {}:'.format(e))
+        #print('Epoch {}:'.format(e))
+        logging.info('Epoch {}:'.format(e)) #RanS 31.1.22
 
         # RanS 11.7.21
         process = psutil.Process(os.getpid())
-        print('RAM usage:', np.round(process.memory_info().rss/1e9), 'GB, time: ', datetime.now(), ', exp: ', str(experiment))
+        #print('RAM usage:', np.round(process.memory_info().rss/1e9), 'GB, time: ', datetime.now(), ', exp: ', str(experiment))
+        logging.info('RAM usage: {} GB, time: {}, exp: {}'.format(np.round(process.memory_info().rss/1e9),
+                                                                  datetime.now(),
+                                                                  str(experiment)))
 
         model.train()
         model.to(DEVICE)
@@ -219,9 +240,10 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                     time_writer.add_scalar('Time/Avg to Extract Tile [Sec]', time_list[:, 0].mean().item(), time_stamp)
                     time_writer.add_scalar('Time/Augmentation [Sec]', time_list[:, 1].mean().item(), time_stamp)
                     time_writer.add_scalar('Time/Total To Collect Data [Sec]', time_list[:, 2].mean().item(), time_stamp)
-        time_epoch = (time.time() - time_epoch_start) / 60
+        #time_epoch = (time.time() - time_epoch_start) / 60
+        time_epoch = (time.time() - time_epoch_start) #sec
         if print_timing:
-            time_writer.add_scalar('Time/Full Epoch [min]', time_epoch, e)
+            time_writer.add_scalar('Time/Full Epoch [min]', time_epoch / 60, e)
 
 
         train_acc = 100 * correct_labeling / total
@@ -262,12 +284,19 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             all_writer.add_scalar('Train/Roc-Auc', roc_auc_train, e)
             all_writer.add_scalar('Train/Accuracy', train_acc, e)
         all_writer.add_scalar('Train/Loss Per Epoch', train_loss, e)
-        print('Finished Epoch: {}, Loss: {:.2f}, Loss Delta: {:.3f}, Train AUC per patch: {:.2f} , Time: {:.0f} m'
+        '''print('Finished Epoch: {}, Loss: {:.2f}, Loss Delta: {:.3f}, Train AUC per patch: {:.2f} , Time: {:.0f} m'
               .format(e,
                       train_loss,
                       previous_epoch_loss - train_loss,
                       roc_auc_train if roc_auc_train.size == 1 else roc_auc_train[0],
-                      time_epoch))
+                      time_epoch))'''
+        logging.info('Finished Epoch: {}, Loss: {:.2f}, Loss Delta: {:.3f}, Train AUC per patch: {:.2f} , Time: {:.0f} m {:.0f} s'
+              .format(e,
+                      train_loss,
+                      previous_epoch_loss - train_loss,
+                      roc_auc_train if roc_auc_train.size == 1 else roc_auc_train[0],
+                      time_epoch // 60,
+                      time_epoch % 60))
         previous_epoch_loss = train_loss
 
         # Update 'Last Epoch' at run_data.xlsx file:
@@ -317,7 +346,8 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                         'tile_size': TILE_SIZE,
                         'tiles_per_bag': 1},
                        os.path.join(args.output_dir, 'Model_CheckPoints', 'model_data_Epoch_' + str(e) + '.pt'))
-            print('saved checkpoint to', args.output_dir) #RanS 23.6.21
+            #print('saved checkpoint to', args.output_dir) #RanS 23.6.21
+            logging.info('saved checkpoint to {}'.format(args.output_dir))
 
         if (args.dataset == 'TMA') and (args.mag == 7): #temp RanS 24.1.22
             scheduler.step()
@@ -492,9 +522,11 @@ def check_accuracy(model: nn.Module, data_loader: DataLoader, all_writer, DEVICE
                 all_writer.add_scalar('Test/slide AUC', roc_auc_slide, epoch)
 
             if args.n_patches_test > 1:
-                print('Slide AUC of {:.2f} over Test set'.format(roc_auc_slide))
+                #print('Slide AUC of {:.2f} over Test set'.format(roc_auc_slide))
+                logging.info('Slide AUC of {:.2f} over Test set'.format(roc_auc_slide))
             else:
-                print('Tile AUC of {:.2f} over Test set'.format(roc_auc))
+                #print('Tile AUC of {:.2f} over Test set'.format(roc_auc))
+                logging.info('Tile AUC of {:.2f} over Test set'.format(roc_auc))
     model.train()
     return acc, bacc, roc_auc
 
@@ -531,15 +563,20 @@ if __name__ == '__main__':
     else:
         run_data_output = utils.run_data(experiment=args.experiment)
         args.output_dir, args.test_fold, args.transform_type, TILE_SIZE, tiles_per_bag, \
-        args.batch_size, args.dx, args.dataset, args.target, prev_model_name, args.mag =\
+        batch_size_saved, args.dx, args.dataset, args.target, prev_model_name, args.mag =\
             run_data_output['Location'], run_data_output['Test Fold'], run_data_output['Transformations'], run_data_output['Tile Size'],\
             run_data_output['Tiles Per Bag'], run_data_output['Num Bags'], run_data_output['DX'], run_data_output['Dataset Name'],\
             run_data_output['Receptor'], run_data_output['Model Name'], run_data_output['Desired Slide Magnification']
 
+        # if batch size is not default, override the saved value
+        # this is necessary when switching nodes
+        if args.batch_size == DEFAULT_BATCH_SIZE:
+            args.batch_size = batch_size_saved
+
         #args.model = prev_model_name #temp cancelled RanS 3.1.21
         print('args.dataset:', args.dataset)
         print('args.target:', args.target)
-        print('args.args.batch_size:', args.batch_size)
+        print('args.batch_size:', args.batch_size)
         print('args.output_dir:', args.output_dir)
         print('args.test_fold:', args.test_fold)
         print('args.transform_type:', args.transform_type)
@@ -547,17 +584,21 @@ if __name__ == '__main__':
 
         experiment = args.experiment
 
+    start_log(args)
+
     # Get number of available CPUs and compute number of workers:
     cpu_available = utils.get_cpu()
     num_workers = cpu_available
     #num_workers = cpu_available * 2 #temp RanS 9.8.21
     #num_workers = cpu_available//2  # temp RanS 9.8.21
-    #num_workers = 4 #temp RanS 24.3.21
+    #num_workers = 10 #temp RanS
 
     if sys.platform == 'win32':
         num_workers = 0 #temp RanS 3.5.21
 
-    print('num workers = ', num_workers)
+    #print('num workers = ', num_workers)
+    logging.info('num CPUs = {}'.format(cpu_available))
+    logging.info('num workers = {}'.format(num_workers))
 
     # Get data:
     train_dset = datasets.WSI_REGdataset(DataSet=args.dataset,

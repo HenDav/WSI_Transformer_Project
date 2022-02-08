@@ -356,7 +356,7 @@ class WSI_Master_Dataset(Dataset):
                     raise FileNotFoundError(
                         'Couldn\'t open slide {} or its Grid file {}'.format(image_file, grid_file))
 
-        #self.tile_size = 64 #temp RanS 31.10.21!
+        #self.tile_size = 64 #temp for speed experiments, RanS 31.10.21
 
         # Setting the transformation:
         self.transform = define_transformations(transform_type, self.train, self.tile_size, self.color_param)

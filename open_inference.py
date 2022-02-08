@@ -19,8 +19,6 @@ custom_cycler = (cycler(color=['#377eb8', '#ff7f00', '#4daf4a',
                       cycler(linestyle=['solid', 'dashed', 'dotted',
                                         'dashdot', 'solid', 'dashed',
                                         'dotted', 'dashdot', 'dashed']))
-fig1, ax1 = plt.subplots()
-ax1.set_prop_cycle(custom_cycler)
 
 infer_type = 'REG'
 
@@ -44,7 +42,6 @@ def auc_for_n_patches(patch_scores, n, all_targets):
     return auc_res
 
 
-legend_labels = []
 roc_auc = []
 slide_score_all = []
 
@@ -75,6 +72,37 @@ for ind, key in enumerate(inference_files.keys()):
         else:
             IOError('inference data is of unsupported size!')
 
+        if ind == 0: #define figure and axes
+            if all_scores.ndim == 2:
+                N_classes = all_scores.shape[1]
+                fig_list, ax_list, legend_labels = [], [], []
+                if patient_level:
+                    fig_list_patient, ax_list_patient, legend_labels_patient = [], [], []
+                for i_thresh in range(N_classes - 1):
+                    fig1, ax1 = plt.subplots()
+                    fig_list.append(fig1)
+                    ax_list.append(ax1)
+                    ax_list[i_thresh].set_prop_cycle(custom_cycler)
+                    ax_list[i_thresh].set_title('Threshold ' + str(i_thresh))
+                    legend_labels.append([])
+                    if patient_level:
+                        fig1, ax1 = plt.subplots()
+                        fig_list_patient.append(fig1)
+                        ax_list_patient.append(ax1)
+                        ax_list_patient[i_thresh].set_prop_cycle(custom_cycler)
+                        ax_list_patient[i_thresh].set_title('Threshold ' + str(i_thresh))
+                        legend_labels_patient.append([])
+
+            else:
+                N_classes = 2
+                fig1, ax1 = plt.subplots()
+                ax1.set_prop_cycle(custom_cycler)
+                legend_labels = []
+                if patient_level:
+                    fig1_patient, ax1_patient = plt.subplots()
+                    ax1_patient.set_prop_cycle(custom_cycler)
+                    legend_labels_patient = []
+
         #RanS 9.12.21, auc per dataset
         Temp = False
         if Temp:
@@ -89,13 +117,21 @@ for ind, key in enumerate(inference_files.keys()):
             roc_auc5 = roc_auc_score(np.array(q[q['test fold idx breast'] == 5]['slide_label']), np.array(q[q['test fold idx breast'] == 5]['slide_score']))
 
         if save_csv:
-            patch_scores_df = pd.DataFrame(patch_scores)
-            patch_scores_df.insert(0, "slide_name", all_slide_names)
-            patch_scores_df.insert(0, "dataset", all_slide_datasets)
-            patch_scores_df.insert(0, "slide_label", all_targets)
-            patch_scores_df.insert(0, "slide_score", all_scores)
-            patch_scores_df.to_csv(os.path.join(inference_dir, key + '_patch_scores.csv'))
-
+            if N_classes == 2:
+                patch_scores_df = pd.DataFrame(patch_scores)
+                patch_scores_df.insert(0, "slide_name", all_slide_names)
+                patch_scores_df.insert(0, "dataset", all_slide_datasets)
+                patch_scores_df.insert(0, "slide_label", all_targets)
+                patch_scores_df.insert(0, "slide_score", all_scores)
+                patch_scores_df.to_csv(os.path.join(inference_dir, key + '_patch_scores.csv'))
+            else:
+                for i_class in range(N_classes):
+                    patch_scores_df = pd.DataFrame(patch_scores[:, :, i_class])
+                    patch_scores_df.insert(0, "slide_name", all_slide_names)
+                    patch_scores_df.insert(0, "dataset", all_slide_datasets)
+                    patch_scores_df.insert(0, "slide_label", all_targets)
+                    patch_scores_df.insert(0, "slide_score", all_scores[:, i_class])
+                    patch_scores_df.to_csv(os.path.join(inference_dir, key + '_patch_scores_class' + str(i_class) +  '.csv'))
             try:
                 patch_x_df = pd.DataFrame(patch_locs[:, :, 0])
                 patch_x_df.insert(0, "slide_name", all_slide_names)
@@ -116,8 +152,21 @@ for ind, key in enumerate(inference_files.keys()):
             my_targets = np.array(all_targets)
             my_scores = my_scores[my_targets >= 0]
             my_targets = my_targets[my_targets >= 0]
-            fpr, tpr, _ = roc_curve(my_targets, my_scores)
-            roc_auc.append(roc_auc_score(my_targets, my_scores))
+            if N_classes == 2:
+                fpr, tpr, _ = roc_curve(my_targets, my_scores)
+                roc_auc.append(roc_auc_score(my_targets, my_scores))
+            else: #multiclass
+                for i_thresh in range(N_classes - 1):
+                    roc_auc_per_thresh = np.float64(np.nan)
+                    N_pos = np.sum(my_targets >= (i_thresh + 1))  # num of positive targets
+                    N_neg = np.sum(my_targets < (i_thresh + 1))  # num of negative targets
+                    if (N_pos > 0) and (N_neg > 0):  # more than one label
+                        scores_thresh = np.sum(my_scores[:, i_thresh + 1:], axis=1)
+                        true_targets_thresh = my_targets >= (i_thresh + 1)
+                        fpr, tpr, _ = roc_curve(true_targets_thresh, scores_thresh)
+                        roc_auc = auc(fpr, tpr)
+                        ax_list[i_thresh].plot(fpr, tpr)
+                        legend_labels[i_thresh].append(key + ' (AUC=' + str(round(roc_auc, 3)) + ')')
         else:
             if multi_target:
                 for i_target in range(2):
@@ -127,18 +176,24 @@ for ind, key in enumerate(inference_files.keys()):
                     my_targets = my_targets[my_targets >= 0]
                     fpr, tpr, _ = roc_curve(my_targets, my_scores)
                     roc_auc.append(roc_auc_score(my_targets, my_scores))
-                    plt.plot(fpr, tpr)
+                    #plt.plot(fpr, tpr)
+                    ax1.plot(fpr, tpr)
                     legend_labels.append(key + ' ' + target_names[i_target] + ' (AUC=' + str(round(roc_auc[-1], 3)) + ')')
             else:
                 roc_auc.append(auc(fpr, tpr))
+                #plt.plot(fpr, tpr)
+                ax1.plot(fpr, tpr)
+                legend_labels.append(key + ' (AUC=' + str(round(roc_auc[-1], 3)) + ')')
         # RanS 18.1.21
         #temp fix RanS 4.2.21
         #if patch_scores.ndim == 3:
         #    patch_scores = np.squeeze(patch_scores[:, ind,:])
         # all_scores = np.max(patch_scores, axis=1) #maxpool - temp! RanS 20.1.21
-        slide_score_mean = np.array([np.nanmean(patch_scores[ii, patch_scores[ii, :] > 0]) for ii in range(patch_scores.shape[0])])
-        slide_score_std = np.array([np.nanstd(patch_scores[ii, patch_scores[ii, :] > 0]) for ii in range(patch_scores.shape[0])])
-
+        if N_classes == 2:
+            slide_score_mean = np.array([np.nanmean(patch_scores[ii, patch_scores[ii, :] > 0]) for ii in range(patch_scores.shape[0])])
+            #slide_score_std = np.array([np.nanstd(patch_scores[ii, patch_scores[ii, :] > 0]) for ii in range(patch_scores.shape[0])])
+        else:
+            slide_score_mean = all_scores
         slide_score_all.append(slide_score_mean)
 
         #results per patient
@@ -150,6 +205,16 @@ for ind, key in enumerate(inference_files.keys()):
             elif (dataset == 'CAT') or (dataset == 'CARMEL'):
                 slides_data_file = r'C:\ran_data\Carmel_Slides_examples\add_ki67_labels\ER100_labels\slides_data_CARMEL_labeled_merged.xlsx'
                 slides_data = pd.read_excel(slides_data_file)
+            elif (dataset == 'HAEMEK'):
+                slides_data_file = r'C:\ran_data\Haemek\slides_data_HAEMEK1.xlsx'
+                slides_data = pd.read_excel(slides_data_file)
+            elif (dataset == 'SHEBA'):
+                slides_data_file = r'C:\ran_data\Sheba\slides_data_SHEBA_labeled_merged.xlsx'
+                slides_data = pd.read_excel(slides_data_file)
+
+            #temp RanS 27.1.22
+            '''slides_data_file = r'C:\ran_data\Haemek\slides_data_HAEMEK1.xlsx'
+            slides_data = pd.read_excel(slides_data_file)'''
 
             #for name in all_slide_names:
             for name, slide_dataset in zip(all_slide_names, all_slide_datasets):
@@ -157,17 +222,50 @@ for ind, key in enumerate(inference_files.keys()):
                     patient_all.append(name[8:12])
                 elif slide_dataset == 'ABCTB': #ABCTB files
                     patient_all.append(name[:9])
-                elif slide_dataset[:-1] == 'CARMEL':  # CARMEL files
+                elif slide_dataset[:6] == 'CARMEL':  # CARMEL files
                     patient_all.append(slides_data[slides_data['file'] == name]['patient barcode'].item())
-                elif dataset == 'LEUKEMIA':
+                elif dataset == 'LEUKEMIA' or dataset == 'SHEBA':
                     patient_all.append(slides_data[slides_data['file'] == name]['PatientID'].item())
+                elif slide_dataset[:6] == 'HAEMEK':  # HAEMEK files
+                    patient_all.append(slides_data[slides_data['file'] == name]['PatientIndex'].item())
 
-            #patient_all = [all_slide_names[i][8:12] for i in range(all_slide_names.shape[0])] #only TCGA!
-            patch_df = pd.DataFrame({'patient': patient_all, 'scores': slide_score_mean, 'targets': all_targets})
+            if N_classes == 2:
+                patch_df = pd.DataFrame({'patient': patient_all, 'scores': slide_score_mean, 'targets': all_targets})
+            else:
+                patch_df = pd.DataFrame({'patient': patient_all, 'targets': all_targets})
+                for i_class in range(N_classes):
+                    patch_df['scores_' + str(i_class)] = slide_score_mean[:, i_class]
+
+            #RanS 27.1.22, remove patients with multiple targets
+            patient_std_df = patch_df.groupby('patient').std()
+            invalid_patients = patient_std_df[patient_std_df['targets'] > 0].index
+            print('number of patients removed due to multiple targets: ' + str(len(invalid_patients)))
+            for invalid_patient in invalid_patients:
+                patch_df = patch_df[patch_df.patient != invalid_patient]
             patient_mean_score_df = patch_df.groupby('patient').mean()
-            roc_auc_patient = roc_auc_score(patient_mean_score_df['targets'].astype(int), patient_mean_score_df['scores'])
-            fpr_patient, tpr_patient, thresholds_patient = roc_curve(patient_mean_score_df['targets'].astype(int),
-                                                                     patient_mean_score_df['scores'])
+
+            if N_classes == 2:
+                #roc_auc_patient = roc_auc_score(patient_mean_score_df['targets'].astype(int), patient_mean_score_df['scores'])
+                roc_auc_patient = roc_auc_score(patient_mean_score_df['targets'], patient_mean_score_df['scores'])
+                fpr_patient, tpr_patient, _ = roc_curve(patient_mean_score_df['targets'].astype(int),
+                                                                         patient_mean_score_df['scores'])
+                #plt.plot(fpr_patient, tpr_patient)
+                ax1_patient.plot(fpr_patient, tpr_patient)
+                legend_labels_patient.append(key + ' (patient AUC=' + str(round(roc_auc_patient, 3)) + ')')
+            else:
+                my_scores_patient = np.array([patient_mean_score_df['scores_' + str(i_class)] for i_class in range(N_classes)]).T
+                for i_thresh in range(N_classes - 1):
+                    roc_auc_per_thresh = np.float64(np.nan)
+                    N_pos = np.sum(patient_mean_score_df['targets'] >= (i_thresh + 1))  # num of positive targets
+                    N_neg = np.sum(patient_mean_score_df['targets'] < (i_thresh + 1))  # num of negative targets
+                    if (N_pos > 0) and (N_neg > 0):  # more than one label
+                        patient_scores_thresh = np.sum(my_scores_patient[:, i_thresh + 1:], axis=1)
+                        patient_true_targets_thresh = patient_mean_score_df['targets'] >= (i_thresh + 1)
+                        fpr_patient, tpr_patient, _ = roc_curve(patient_true_targets_thresh, patient_scores_thresh)
+                        roc_auc_patient = auc(fpr_patient, tpr_patient)
+                        ax_list_patient[i_thresh].plot(fpr_patient, tpr_patient)
+                        #legend_labels_patient.append(key + ' (patient AUC=' + str(round(roc_auc_patient, 3)) + ')')
+                        legend_labels_patient[i_thresh].append(key + ' (patient AUC=' + str(round(roc_auc_patient, 3)) + ')')
 
         test_n_patches = False
         if test_n_patches:
@@ -187,7 +285,7 @@ for ind, key in enumerate(inference_files.keys()):
 
     EPS = 1e-7
     print(key)
-    if not multi_target:
+    if not (multi_target) and (N_classes == 2):
         print('{} / {} correct classifications'.format(int(len(all_labels) - np.abs(np.array(all_targets) - np.array(all_labels)).sum()), len(all_labels)))
         balanced_acc = 100. * ((true_pos + EPS) / (total_pos + EPS) + (true_neg + EPS) / (total_neg + EPS)) / 2
         print('roc_auc:', roc_auc[-1])
@@ -236,18 +334,10 @@ for ind, key in enumerate(inference_files.keys()):
         p_value_patient = np.sum(roc_auc_patient <= rand_roc_auc) / n_iter
 
 
-    if patient_level:
-        plt.plot(fpr_patient, tpr_patient)
-        legend_labels.append(key + ' (patient AUC=' + str(round(roc_auc_patient, 3)) + ')')
-    else:
-        if not multi_target:
-            plt.plot(fpr, tpr)
-            legend_labels.append(key + ' (AUC=' + str(round(roc_auc[-1], 3)) +')')
-
 #combine several models, RanS 11.4.21
-slide_score_mean_all = np.mean(np.array(slide_score_all), axis=0)
 combine_all_models = False
 if patient_level and combine_all_models:
+    slide_score_mean_all = np.mean(np.array(slide_score_all), axis=0)
     #patient_all = [all_slide_names[i][8:12] for i in range(all_slide_names.shape[0])]  # only TCGA!
     patch_all_df = pd.DataFrame({'patient': patient_all, 'scores': slide_score_mean_all, 'targets': all_targets})
     patient_mean_score_all_df = patch_all_df.groupby('patient').mean()
@@ -261,21 +351,53 @@ plt.xlabel('False Positive Rate')
 plt.ylabel('True Positive Rate')
 #plt.legend(legend_labels)
 
-box = ax1.get_position()
-ax1.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+if N_classes > 2:
+    for ax_i in range(N_classes - 1):
+        box = ax_list[ax_i].get_position()
+        ax_list[ax_i].set_position([box.x0, box.y0, box.width * 0.8, box.height])
+        if patient_level:
+            box = ax_list_patient[ax_i].get_position()
+            ax_list_patient[ax_i].set_position([box.x0, box.y0, box.width * 0.8, box.height])
+else:
+    box = ax1.get_position()
+    ax1.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    if patient_level:
+        box = ax1_patient.get_position()
+        ax1_patient.set_position([box.x0, box.y0, box.width * 0.8, box.height])
 
 # Put a legend to the right of the current axis
-ax1.legend(legend_labels, loc='center left', bbox_to_anchor=(1, 0.5))
-plt.xlim(0, 1)
-plt.ylim(0, 1)
-plt.grid(b=True)
-
-if patient_level:
-    print('average AUC per patient: ' + str(np.round(np.mean(roc_auc_patient), 3)))
-    plt.savefig(os.path.join(inference_dir, inference_name + '_inference_patient.png'), bbox_inches="tight")
+if (N_classes == 2) or (multi_target):
+    ax1.legend(legend_labels, loc='center left', bbox_to_anchor=(1, 0.5))
+    ax1.set_xlim(0, 1)
+    ax1.set_ylim(0, 1)
+    ax1.grid(b=True)
+    if patient_level:
+        ax1_patient.legend(legend_labels_patient, loc='center left', bbox_to_anchor=(1, 0.5))
+        ax1_patient.set_xlim(0, 1)
+        ax1_patient.set_ylim(0, 1)
+        ax1_patient.grid(b=True)
 else:
-    print('average AUC per slide: ' + str(np.round(np.mean(roc_auc), 3)))
-    plt.savefig(os.path.join(inference_dir, inference_name + '_inference.png'), bbox_inches="tight")
+    for i_thresh in range(N_classes-1):
+        ax_list[i_thresh].legend(legend_labels[i_thresh], loc='center left', bbox_to_anchor=(1, 0.5))
+        ax_list[i_thresh].set_xlim(0, 1)
+        ax_list[i_thresh].set_ylim(0, 1)
+        ax_list[i_thresh].grid(b=True)
+        if patient_level:
+            ax_list_patient[i_thresh].legend(legend_labels_patient[i_thresh], loc='center left', bbox_to_anchor=(1, 0.5))
+            ax_list_patient[i_thresh].set_xlim(0, 1)
+            ax_list_patient[i_thresh].set_ylim(0, 1)
+            ax_list_patient[i_thresh].grid(b=True)
+
+if N_classes == 2 or multi_target:
+    fig1.savefig(os.path.join(inference_dir, inference_name + '_inference.png'), bbox_inches="tight")
+    if patient_level:
+        fig1_patient.savefig(os.path.join(inference_dir, inference_name + '_inference_patient.png'), bbox_inches="tight")
+else:
+    for i_thresh in range(N_classes - 1):
+        fig_list[i_thresh].savefig(os.path.join(inference_dir, inference_name + '_thresh' + str(i_thresh) + '_inference.png'), bbox_inches="tight")
+        if patient_level:
+            fig_list_patient[i_thresh].savefig(os.path.join(inference_dir, inference_name + '_thresh' + str(i_thresh) + '_inference_patient.png'),bbox_inches="tight")
+
 print('finished')
 #plt.show()
 

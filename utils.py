@@ -424,7 +424,7 @@ def run_data(experiment: str = None,
         else:
             experiment = 1
 
-        location = os.path.join(os.path.abspath(os.getcwd()),'runs', 'Exp_' + str(experiment) + '-' + Receptor + '-TestFold_' + str(test_fold))
+        location = os.path.join(os.path.abspath(os.getcwd()), 'runs', 'Exp_' + str(experiment) + '-' + Receptor + '-TestFold_' + str(test_fold))
         if type(DataSet_name) is not list:
             DataSet_name = [DataSet_name]
 
@@ -464,6 +464,17 @@ def run_data(experiment: str = None,
 
         run_DF.to_excel(run_file_name)
         print('Created a new Experiment (number {}). It will be saved at location: {}'.format(experiment, location))
+
+        #backup for run_data
+        backup_dir = os.path.join(os.path.abspath(os.getcwd()), 'runs', 'run_data_backup')
+        print(backup_dir)
+        if not os.path.isdir(backup_dir):
+            os.mkdir(backup_dir)
+            print('backup dir created')
+        try:
+            run_DF.to_excel(os.path.join(backup_dir, 'run_data_exp' + str(experiment) + '.xlsx'))
+        except:
+            raise IOError('failed to back up run_data, please check there is enough storage')
 
         #return location, experiment
         return {'Location': location,
@@ -841,6 +852,7 @@ def get_datasets_dir_dict(Dataset: str):
     Covilha_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/Covilha'
     TMA_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/TMA/bliss_data/02-008/HE/TMA'
     HAEMEK_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/Haemek'
+    CARMEL_BENIGN_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/Carmel/Benign'
 
     TCGA_ran_path = r'C:\ran_data\TCGA_example_slides\TCGA_examples_131020_flat\TCGA'
     HEROHE_ran_path = r'C:\ran_data\HEROHE_examples'
@@ -998,6 +1010,15 @@ def get_datasets_dir_dict(Dataset: str):
             for ii in np.arange(1, 2):
                 dir_dict['HAEMEK' + str(ii)] = os.path.join(HAEMEK_gipdeep_path, 'Batch_' + str(ii), 'HAEMEK' + str(ii))
             #dir_dict['HAEMEK'] = HAEMEK_gipdeep_path
+
+    elif Dataset == 'CARMEL+BENIGN':
+        if sys.platform == 'linux':  # GIPdeep
+            for ii in np.arange(1, 9):
+                dir_dict['CARMEL' + str(ii)] = os.path.join(CARMEL_gipdeep_path, 'Batch_' + str(ii), 'CARMEL' + str(ii))
+
+            for ii in np.arange(1, 4):
+                dir_dict['BENIGN' + str(ii)] = os.path.join(CARMEL_BENIGN_gipdeep_path, 'Batch_' + str(ii), 'BENIGN' + str(ii))
+
     return dir_dict
 
 
@@ -1029,6 +1050,8 @@ def assert_dataset_target(DataSet, target_kind):
         raise ValueError('for LEUKEMIA DataSet, target should be ALL, is_B, is_HR, is_over_6, is_over_10, is_over_15, WBC_over_20, WBC_over_50, is_HR_B, is_tel_aml_B, is_tel_aml_non_hr_B, MRD')
     elif (DataSet in ['ABCTB', 'ABCTB_TIF']) and not target_kind <= {'ER', 'PR', 'Her2', 'survival', 'Survival_Time', 'Survival_Binary'}:
         raise ValueError('target should be one of: ER, PR, Her2, survival, Survival_Time, Survival_Binary')
+    elif (DataSet == 'CARMEL+BENIGN') and not target_kind <= {'is_cancer'}:
+        raise ValueError('target should be is_cancer')
 
 def show_patches_and_transformations(X, images, tiles, scale_factor, tile_size):
     fig1, fig2, fig3, fig4, fig5 = plt.figure(), plt.figure(), plt.figure(), plt.figure(), plt.figure()
