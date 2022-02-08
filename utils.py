@@ -799,6 +799,8 @@ def define_transformations(transform_type, train, tile_size, color_param=0.1):
                     #transforms.functional.crop(top=0, left=0, height=tile_size, width=tile_size)
                     # fix boundary when scaling<1
                 ])
+        else:  # custom transform
+            return transform_type
 
         transform = transforms.Compose([transform1, final_transform])
     else:
