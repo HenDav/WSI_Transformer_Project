@@ -24,8 +24,8 @@ parser = argparse.ArgumentParser(description='WSI_MIL Training of PathNet Projec
 #parser.add_argument('-diffslides', dest='different_slides', action='store_true', help='Use more than one slide in each bag')
 #parser.add_argument('--mag', type=int, default=10, help='desired magnification of patches')
 #parser.add_argument('--c_param', default=0.1, type=float, help='color jitter parameter')
-parser.add_argument('-ds', '--dataset', type=str, default='CAT', help='DataSet to use')
-parser.add_argument('-tar', '--target', type=str, default='ER', help='Target to train for')
+parser.add_argument('-ds', '--dataset', type=str, default='CARMEL', help='DataSet to use')
+parser.add_argument('-tar', '--target', type=str, default='Ki67', help='Target to train for')
 parser.add_argument('-tf', '--test_fold', default=2, type=int, help='fold to be as TEST FOLD')
 parser.add_argument('-e', '--epochs', default=2, type=int, help='Epochs to run')
 parser.add_argument('-ex', '--experiment', type=int, default=0, help='Continue train of this experiment')
@@ -51,11 +51,12 @@ args = parser.parse_args()
 
 EPS = 1e-7
 
+'''
 def norm_img(img):
     img -= img.min()
     img /= img.max()
     return img
-
+'''
 
 def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader, DEVICE, optimizer, print_timing: bool=False):
     """

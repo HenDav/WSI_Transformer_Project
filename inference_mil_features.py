@@ -14,9 +14,11 @@ import matplotlib.pyplot as plt
 from cycler import cycler
 
 parser = argparse.ArgumentParser(description='WSI_MIL Features Slide inference')
-parser.add_argument('-ex', '--experiment', type=int, default=10472, help='Use this model gor inference')
+parser.add_argument('-ex', '--experiment', type=int, default=10416, help='Use this model for inference')
 parser.add_argument('-fe', '--from_epoch', type=int, default=[500], help='Use this epoch model for inference')
 parser.add_argument('-sts', '--save_tile_scores', dest='save_tile_scores', action='store_true', help='save tile scores')
+parser.add_argument('--carmel_test_set', dest='carmel_test_set', action='store_true', help='run inference over carmel batch 9-11 ?')
+parser.add_argument('--haemek_test_set', dest='haemek_test_set', action='store_true', help='run inference over HAEMEK ?')
 #parser.add_argument('-nt', '--num_tiles', type=int, default=500, help='Number of tiles to use')
 #parser.add_argument('-ds', '--dataset', type=str, default='HEROHE', help='DataSet to use')
 #parser.add_argument('-f', '--folds', type=list, default=[2], help=' folds to infer')
@@ -24,6 +26,11 @@ parser.add_argument('-sts', '--save_tile_scores', dest='save_tile_scores', actio
 args = parser.parse_args()
 
 EPS = 1e-7
+if type(args.from_epoch) == int:
+    args.from_epoch = [args.from_epoch]
+
+args.carmel_test_set = False
+args.haemek_test_set = True
 
 custom_cycler = (cycler(color=['#377eb8', '#ff7f00', '#4daf4a',
                                     '#f781bf', '#a65628', '#984ea3',
@@ -50,70 +57,56 @@ run_data_output = utils.run_data(experiment=args.experiment)
 output_dir, test_fold, dataset, target, model_name, free_bias, CAT_only =\
     run_data_output['Location'], run_data_output['Test Fold'], run_data_output['Dataset Name'], run_data_output['Receptor'],\
     run_data_output['Model Name'], run_data_output['Free Bias'], run_data_output['CAT Only']
+
 if sys.platform == 'darwin':
     # fix output_dir:
     if output_dir.split('/')[1] == 'home':
         output_dir = '/'.join(output_dir.split('/')[-2:])
 
-    # if target in ['ER', 'ER_Features']:
-    #if test_fold == 1:
-    #elif test_fold == 2:
-    if dataset == 'FEATURES: Exp_293-ER-TestFold_1':
-        dset = 'TCGA_ABCTB'
-        test_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/Fold_1/Test'
 
-    elif dataset == 'FEATURES: Exp_299-ER-TestFold_2':
-        dset = 'TCGA_ABCTB'
-        test_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/ran_299-Fold_2/Test'
+CAT_dsets = [r'FEATURES: Exp_355-ER-TestFold_1', r'FEATURES: Exp_392-Her2-TestFold_1', r'FEATURES: Exp_10-PR-TestFold_1',
+             r'FEATURES: Exp_393-ER-TestFold_2', r'FEATURES: Exp_20063-PR-TestFold_2', r'FEATURES: Exp_412-Her2-TestFold_2',
+             r'FEATURES: Exp_472-ER-TestFold_3']
+CARMEL_dsets = [r'FEATURES: Exp_419-Ki67-TestFold_1', r'FEATURES: Exp_490-Ki67-TestFold_2']
+ABCTB_dsets = [r'FEATURES: Exp_20094-survival-TestFold_1']
 
-    # elif target in ['PR', 'PR_Features']:
-    #if test_fold == 1:
-    elif dataset == 'FEATURES: Exp_309-PR-TestFold_1':
-        dset = 'TCGA_ABCTB'
-        test_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/PR/Fold_1/Test'
+if run_data_output['Dataset Name'] in CAT_dsets:
+    dset = 'CAT'
+elif run_data_output['Dataset Name'] in CARMEL_dsets:
+    dset = 'CARMEL'
+elif run_data_output['Dataset Name'] in ABCTB_dsets:
+    dset = 'ABCTB'
+else:
+    dset = None
 
-    # elif target in ['Her2', 'Her2_Features']:
-    # if test_fold == 1:
-    elif dataset == 'FEATURES: Exp_308-Her2-TestFold_1':
-        dset = 'TCGA_ABCTB'
-        test_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Her2/Fold_1/Test'
-
-    #if test_fold == 1:
-    elif dataset == 'FEATURES: Exp_355-ER-TestFold_1':
-        dset = 'CAT'
-        test_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/Ran_Exp_355-TestFold_1/Test'
-
-    elif dataset == 'FEATURES: Exp_358-ER-TestFold_1':
-        dset = 'CARMEL'
-        test_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/Ran_Exp_358-TestFold_1/Test'
-
-    elif dataset == 'FEATURES: Exp_381-ER-TestFold_1':
-        dset = 'CARMEL_40'
-        test_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/Ran_Exp_381-TestFold_1/Test'
-
-    elif dataset == 'FEATURES: Exp_393-ER-TestFold_2':
-        dset = 'CAT'
-        test_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/Ran_Exp_393-TestFold_2/Test'
-
-    args.save_tile_scores = True
-    is_per_patient = False
-    #is_per_patient = False if args.save_tile_scores else True
-    carmel_only = False
-
-Carmel_True_Test = True
-if Carmel_True_Test:  # TODO: Enable this for batch 9-11
-    targetless_inference_data_dir = {
-        'Carmel 9': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/Ran_Exp_355-TestFold_1/Carmel9',
-        'Carmel 10': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/Ran_Exp_355-TestFold_1/Carmel10',
-        'Carmel 11': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/Ran_Exp_355-TestFold_1/Carmel11'}
-
-    key = 'Carmel 11'  # TODO: Modify this
-    test_data_dir = targetless_inference_data_dir[key]
+if args.carmel_test_set:
     dset = 'CARMEL 9-11'
+
+if args.haemek_test_set:
+    dset = 'HAEMEK'
+
+if dset == None:
+    raise Exception('Dataset must be chosen')
+
+data_4_inference = utils.get_RegModel_Features_location_dict(train_DataSet=dset,
+                                                             target=run_data_output['Receptor'].split('_')[0],
+                                                             test_fold=run_data_output['Test Fold'])
+test_data_dir = data_4_inference['TestSet Location']
+
+args.save_tile_scores = True
+is_per_patient = False
+#is_per_patient = False if args.save_tile_scores else True
+carmel_only = False
+
+if args.carmel_test_set:
+    key = 'Carmel 9'  # TODO: Modify this
+    test_data_dir = test_data_dir[key]
+
+elif args.haemek_test_set:
+    key = 'HAEMEK'
 
 else:
     key = ''
-
 
 # Get data:
 if dataset == 'Combined Features':
@@ -144,7 +137,7 @@ else:
 
 inf_loader = DataLoader(inf_dset, batch_size=1, shuffle=False, num_workers=0, pin_memory=True)
 
-if not Carmel_True_Test:
+if not (args.carmel_test_set or args.haemek_test_set):
     fig1, ax1 = plt.subplots()
     ax1.set_prop_cycle(custom_cycler)
     legend_labels = []
@@ -232,7 +225,7 @@ for model_num, model_epoch in enumerate(args.from_epoch):
 
             outputs, weights_after_sftmx, weights_before_sftmx = model(x=None, H=data)
 
-            if not Carmel_True_Test:  # This is fםr use in CARMEL Batch 9-11 where the targets are unknown and where given -1
+            if not (args.carmel_test_set or args.haemek_test_set):  # This is fםr use in CARMEL Batch 9-11 where the targets are unknown and where given -1
                 minibatch_loss = criterion(outputs, target)
                 total_loss += minibatch_loss
 
@@ -337,7 +330,7 @@ for model_num, model_epoch in enumerate(args.from_epoch):
                     all_slides_scores_list[model_num][slide_name[0]] = outputs[:, 1].cpu().detach().numpy()
 
             scores_mil = np.concatenate((scores_mil, outputs[:, 1].cpu().detach().numpy()))
-            if not Carmel_True_Test:  # We dont care about targets when doing true tests (on carmel 9-11)
+            if not (args.carmel_test_set or args.haemek_test_set):  # We dont care about targets when doing true tests (on carmel 9-11)
                 true_targets = np.concatenate((true_targets, target.cpu().detach().numpy()))
 
                 total += target.size(0)
@@ -363,7 +356,7 @@ for model_num, model_epoch in enumerate(args.from_epoch):
                                               all_slides_weights_before_sftmx_list, all_slides_weights_after_sftmx_list,
                                               [model], output_dir, args.from_epoch, '', true_test_path=key)
 
-    if not Carmel_True_Test:  # We can skip this part when working with true test
+    if not (args.carmel_test_set or args.haemek_test_set):  # We can skip this part when working with true test
         if model_num == 0:
             if dataset in ['Combined Features', 'Combined Features - Multi Resolution']:
                 fpr_reg, tpr_reg, roc_auc_reg = {}, {}, {}
@@ -389,27 +382,24 @@ for model_num, model_epoch in enumerate(args.from_epoch):
 
             label_MIL = 'Model' + str(model_epoch) + ': MIL Per ' + postfix + ' AUC='
 
-
-
-        #acc = 100 * correct_labeling / total
-        #balanced_acc = 100 * (correct_pos / (total_pos + EPS) + correct_neg / (total_neg + EPS)) / 2
-
         fpr_mil, tpr_mil, _ = roc_curve(true_targets, scores_mil)
         roc_auc_mil = auc(fpr_mil, tpr_mil)
         plt.plot(fpr_mil, tpr_mil)
         legend_labels.append(label_MIL + str(round(roc_auc_mil * 100, 2)) + '%)')
 
-if not Carmel_True_Test:
+if not (args.carmel_test_set or args.haemek_test_set):
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
     plt.legend(legend_labels)
     plt.xlim(0, 1)
     plt.ylim(0, 1)
     plt.grid(b=True)
-    title = 'Inference Per {} for Model {}, Loss: {}, Per {} Tiles'.format('Patient' if is_per_patient else 'Slide',
-                                                                           args.experiment,
-                                                                           total_loss,
-                                                                           total_tiles_infered)
+    title = 'Per {}, Model {}.'.format('Patient' if is_per_patient else 'Slide',
+                                       args.experiment
+                                       )
+    if is_per_patient:
+        title += ' Removed {}/{} Patients.'.format(len(inf_dset.bad_patient_list), len(inf_dset.patient_set))
+
     plt.title(title)
 
     if is_per_patient:

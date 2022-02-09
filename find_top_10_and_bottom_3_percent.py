@@ -6,10 +6,23 @@ import numpy as np
 from scipy.io import savemat, loadmat
 
 compute_highest_and_lowest = True
+is_all_tiles = True
+dset = 'CARMEL 9-11'
+target = 'ER'
+tf = 1
+which_carmel = 9
+
+filename_extension = dset + ' ' + target + ' TestFold_' + str(tf)
 if compute_highest_and_lowest:
-    data_dir_dict = utils.get_RegModel_Features_location_dict(train_DataSet='CAT with Location', target='ResNet34', test_fold=1)
-    original_dset = datasets.Features_MILdataset(dataset='CAT',
-                                                 data_location=data_dir_dict['TestSet Location'],
+    #data_dir_dict = utils.get_RegModel_Features_location_dict(train_DataSet='CAT with Location', target='ER', test_fold=1)
+    data_dir_dict = utils.get_RegModel_Features_location_dict(train_DataSet=dset, target=target, test_fold=tf)
+    if dset == 'CARMEL 9-11':
+        data_location = data_dir_dict['TestSet Location']['Carmel ' + str(which_carmel)]
+    else:
+        data_location = data_dir_dict['TestSet Location']
+
+    original_dset = datasets.Features_MILdataset(dataset=dset,
+                                                 data_location=data_location,
                                                  is_per_patient=False,
                                                  is_all_tiles=True,
                                                  target='ER',
@@ -58,9 +71,12 @@ if compute_highest_and_lowest:
     sorted_tile_targets = all_tile_targets[sort_idx]
     sorted_tile_features = all_tile_features[sort_idx]
 
-    # Picking top 10% and bottom 3%:
-    num_top_10_percent = int(90 * len(all_slide_names)/100)
-    num_bottom_3_percent = int(3 * len(all_slide_names)/100)
+    if is_all_tiles:
+        num_top_10_percent = 0
+    else:
+        # Picking top 10% and bottom 3%:
+        num_top_10_percent = int(90 * len(all_slide_names) / 100)
+        num_bottom_3_percent = int(3 * len(all_slide_names) / 100)
 
     highest_10_percent_slide_names = sorted_slide_names[num_top_10_percent:]
     highest_10_percent_tile_scores = sorted_tile_scores[num_top_10_percent:]
@@ -68,11 +84,12 @@ if compute_highest_and_lowest:
     highest_10_percent_tile_targets = sorted_tile_targets[num_top_10_percent:]
     highest_10_percent_tile_features = sorted_tile_features[num_top_10_percent:]
 
-    lowest_3_percent_slide_names = sorted_slide_names[:num_bottom_3_percent]
-    lowest_3_percent_tile_scores = sorted_tile_scores[:num_bottom_3_percent]
-    lowest_3_percent_tile_locations = sorted_tile_locations[:num_bottom_3_percent]
-    lowest_3_percent_tile_targets = sorted_tile_targets[:num_bottom_3_percent]
-    lowest_3_percent_tile_features = sorted_tile_features[:num_bottom_3_percent]
+    if not is_all_tiles:
+        lowest_3_percent_slide_names = sorted_slide_names[:num_bottom_3_percent]
+        lowest_3_percent_tile_scores = sorted_tile_scores[:num_bottom_3_percent]
+        lowest_3_percent_tile_locations = sorted_tile_locations[:num_bottom_3_percent]
+        lowest_3_percent_tile_targets = sorted_tile_targets[:num_bottom_3_percent]
+        lowest_3_percent_tile_features = sorted_tile_features[:num_bottom_3_percent]
 
     # Saving the data:
     save_as_multiple_files = False
@@ -116,26 +133,37 @@ if compute_highest_and_lowest:
             savemat('/Users/wasserman/Developer/WSI_MIL/Data For Gil/lowest_3_file_' + str(file_num) + '.mat', lowest)
 
     else:
-        highest = {'Slide_Names': highest_10_percent_slide_names,
-                   'Tile_Scores': highest_10_percent_tile_scores,
-                   'Tile_Locations': highest_10_percent_tile_locations,
-                   'Tile_Targets': highest_10_percent_tile_targets,
-                   'Features': highest_10_percent_tile_features
-                   }
+        if is_all_tiles:
+            highest = {'Slide_Names': highest_10_percent_slide_names,
+                       'Tile_Scores': highest_10_percent_tile_scores,
+                       'Tile_Locations': highest_10_percent_tile_locations,
+                       'Tile_Targets': highest_10_percent_tile_targets
+                       }
 
-        lowest = {'Slide_Names': lowest_3_percent_slide_names,
-                  'Tile_Scores': lowest_3_percent_tile_scores,
-                  'Tile_Locations': lowest_3_percent_tile_locations,
-                  'Tile_Targets': lowest_3_percent_tile_targets,
-                  'Features': lowest_3_percent_tile_features
-                  }
+        else:
+            highest = {'Slide_Names': highest_10_percent_slide_names,
+                       'Tile_Scores': highest_10_percent_tile_scores,
+                       'Tile_Locations': highest_10_percent_tile_locations,
+                       'Tile_Targets': highest_10_percent_tile_targets,
+                       'Features': highest_10_percent_tile_features
+                       }
 
-        savemat('/Users/wasserman/Developer/WSI_MIL/Data For Gil/highest_10.mat', highest)
-        savemat('/Users/wasserman/Developer/WSI_MIL/Data For Gil/lowest_3.mat', lowest)
+            lowest = {'Slide_Names': lowest_3_percent_slide_names,
+                      'Tile_Scores': lowest_3_percent_tile_scores,
+                      'Tile_Locations': lowest_3_percent_tile_locations,
+                      'Tile_Targets': lowest_3_percent_tile_targets,
+                      'Features': lowest_3_percent_tile_features
+                      }
+
+        if is_all_tiles:
+            savemat('/Users/wasserman/Developer/WSI_MIL/Data For Gil/all_tiles_no_features_' + filename_extension + '.mat', highest)
+        else:
+            savemat('/Users/wasserman/Developer/WSI_MIL/Data For Gil/highest_10_' + filename_extension + '.mat', highest)
+            savemat('/Users/wasserman/Developer/WSI_MIL/Data For Gil/lowest_3_' + filename_extension + '.mat', lowest)
 
 else:
-    highest = loadmat(r'/Users/wasserman/Developer/WSI_MIL/Data For Gil/highest_10.mat')
-    lowest = loadmat(r'/Users/wasserman/Developer/WSI_MIL/Data For Gil/lowest_3.mat')
+    highest = loadmat(r'/Users/wasserman/Developer/WSI_MIL/Data For Gil/highest_10_' + filename_extension + '.mat')
+    lowest = loadmat(r'/Users/wasserman/Developer/WSI_MIL/Data For Gil/lowest_3_' + filename_extension + '.mat')
 
 
 print('Done')

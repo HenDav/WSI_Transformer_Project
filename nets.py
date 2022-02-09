@@ -5,7 +5,10 @@ import torchvision.models as models
 from torchvision.models import resnet, resnet50, resnet34
 from torchvision.models.resnet import ResNet
 import os
-from torchvision.models.utils import load_state_dict_from_url
+try:
+    from torchvision.models.utils import load_state_dict_from_url
+except ImportError:
+    from torch.hub import load_state_dict_from_url
 
 THIS_FILE = os.path.basename(os.path.realpath(__file__)).split('.')[0] + '.'
 

@@ -164,6 +164,7 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             not_censored_indices = np.where(np.array(all_censored) == False)
             relevant_targets = np.array(all_targets)[not_censored_indices]
             relevant_outputs = np.array(all_outputs)[not_censored_indices]
+
             fpr_train, tpr_train, _ = roc_curve(relevant_targets, - relevant_outputs)
             roc_auc_train = auc(fpr_train, tpr_train)
 
