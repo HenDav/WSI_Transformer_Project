@@ -212,7 +212,7 @@ for ind, key in enumerate(inference_files.keys()):
                 slides_data_file = r'C:\ran_data\Sheba\slides_data_SHEBA_labeled_merged.xlsx'
                 slides_data = pd.read_excel(slides_data_file)
 
-            #temp RanS 27.1.22
+            #temp RanS 27.1.22 for HAEMEK inference on CAT models
             '''slides_data_file = r'C:\ran_data\Haemek\slides_data_HAEMEK1.xlsx'
             slides_data = pd.read_excel(slides_data_file)'''
 

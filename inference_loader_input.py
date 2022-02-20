@@ -2,9 +2,9 @@ import os
 import re, glob
 inference_files = {}
 
-exp = 542
+exp = 20201
 fold = '4'
-target = 'ER'
+target = 'Her2'
 dataset = 'CAT'
 subdir = ''
 is_other = False

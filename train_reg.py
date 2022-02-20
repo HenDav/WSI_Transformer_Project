@@ -140,12 +140,30 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
 
         model.train()
         model.to(DEVICE)
-        #for batch_idx, (data, target, time_list, f_names, _) in enumerate(tqdm(dloader_train)):
-        for batch_idx, minibatch in enumerate(tqdm(dloader_train)):  # Omer 7 Nov 2021
+
+        # temp RanS 13.2.22
+        import sys
+        '''if (sys.platform == 'win32') and (e == 0):
+            path = r'C:\ran_data\TMA\02-008\single_image\model\9_0.61_0.65.pt'
+            checkpoint = torch.load(path, map_location=torch.device('cpu'))
+            model.load_state_dict(checkpoint['model_state_dict'], strict=False)
+            model.net_dropout.p = 0
+        elif (args.dataset == 'TMA') and (args.mag == 7) and (e == 0):
+            path = r'/mnt/gipmed_new/Data/Breast/TMA/temp_for_debug/single_image/model/9_0.61_0.65.pt'
+            checkpoint = torch.load(path, map_location=torch.device('cpu'))
+            model.load_state_dict(checkpoint['model_state_dict'], strict=False)
+            model.net_dropout.p = 0'''
+
+        '''logging.info('before epoch: model._final_1x1_conv.weight)[:,:5]:\n {0}'.format(
+            torch.squeeze(model._final_1x1_conv.weight)[:, :5].cpu().detach().numpy()))  # temp RanS 15.2.22'''
+
+        for batch_idx, minibatch in enumerate(tqdm(dloader_train)):
             data = minibatch['Data']
             target = minibatch['Target']
             time_list = minibatch['Time List']
             f_names = minibatch['File Names']
+
+
 
             temp_plot = False
             if temp_plot:
@@ -163,6 +181,11 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             train_start = time.time()
             data, target = data.to(DEVICE), target.to(DEVICE).squeeze(1)
 
+            '''if (args.dataset == 'TMA') and (args.mag == 7):
+                logging.info('f_names:\n {0}'.format(f_names))  # temp RanS 15.2.22
+                logging.info('targets:\n {0}'.format(target))  # temp RanS 15.2.22
+                logging.info('data[0][:,250,250]: {}'.format(data[0][:, 250, 250]))'''
+
             optimizer.zero_grad()
             if print_timing:
                 time_fwd_start = time.time()
@@ -172,9 +195,12 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             temp_plot = False
             if temp_plot: # RanS 24.1.22
                 import matplotlib.pyplot as plt
-                plt.imshow(torch.squeeze(data[0, :, :, :].permute(1, 2, 0))) #normalized image looks bad (color truncation at 0)
-                plt.imshow(torch.squeeze(data[0, 1, :, :])) #red color only
-                plt.colorbar()
+                fig1, ax1 = plt.subplots(1,4)
+                for ii in range(4):
+                    #ax1[ii].imshow(torch.squeeze(data[ii, :, :, :].permute(1, 2, 0))) #normalized image looks bad (color truncation at 0)
+                    q1 = ax1[ii].imshow(torch.squeeze(data[ii, 1, :, :])) #red color only
+                    plt.colorbar(q1, ax=ax1[ii])
+                #fig1.colorbar()
 
             if print_timing:
                 time_fwd = time.time() - time_fwd_start
@@ -223,7 +249,13 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
 
                 loss.backward()
                 #utils.plot_grad_flow(model.named_parameters()) #temp RanS 24.1.22
+
                 optimizer.step()
+
+                '''if (args.dataset == 'TMA') and (args.mag == 7):
+                    logging.info('after step: model._final_1x1_conv.weight)[:,:5]:\n {0}'.format(
+                        torch.squeeze(model._final_1x1_conv.weight)[:, :5].cpu().detach().numpy()))  # temp RanS 15.2.22'''
+
                 train_loss += loss.item()
 
                 if print_timing:
@@ -257,11 +289,12 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                     time_writer.add_scalar('Time/Augmentation [Sec]', time_list[:, 1].mean().item(), time_stamp)
                     time_writer.add_scalar('Time/Total To Collect Data [Sec]', time_list[:, 2].mean().item(), time_stamp)
         #time_epoch = (time.time() - time_epoch_start) / 60
+
         time_epoch = (time.time() - time_epoch_start) #sec
         if print_timing:
             time_writer.add_scalar('Time/Full Epoch [min]', time_epoch / 60, e)
 
-
+        train_loss /= len(dloader_train) #normalize loss
         train_acc = 100 * correct_labeling / total
         balanced_acc_train = 100. * ((correct_pos + EPS) / (total_pos_train + EPS) + (correct_neg + EPS) / (total_neg_train + EPS)) / 2
 
@@ -306,7 +339,7 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                       previous_epoch_loss - train_loss,
                       roc_auc_train if roc_auc_train.size == 1 else roc_auc_train[0],
                       time_epoch))'''
-        logging.info('Finished Epoch: {}, Loss: {:.2f}, Loss Delta: {:.3f}, Train AUC per patch: {:.2f} , Time: {:.0f} m {:.0f} s'
+        logging.info('Finished Epoch: {}, Loss: {:.4f}, Loss Delta: {:.3f}, Train AUC per patch: {:.2f} , Time: {:.0f} m {:.0f} s'
               .format(e,
                       train_loss,
                       previous_epoch_loss - train_loss,
@@ -662,6 +695,10 @@ if __name__ == '__main__':
         do_shuffle = False  # the sampler shuffles
         sampler = torch.utils.data.sampler.WeightedRandomSampler(weights=weights.squeeze(), num_samples=len(train_dset))
 
+    '''if (args.dataset == 'TMA') and (args.mag == 7):
+        train_loader = DataLoader(train_dset, batch_size=args.batch_size,
+                                  num_workers=num_workers, pin_memory=True, sampler=torch.utils.data.SequentialSampler(train_dset)) #temp RanS 16.2.22
+    else:'''
     train_loader = DataLoader(train_dset, batch_size=args.batch_size, shuffle=do_shuffle,
                               num_workers=num_workers, pin_memory=True, sampler=sampler)
     test_loader  = DataLoader(test_dset, batch_size=args.batch_size*2, shuffle=False,
@@ -747,7 +784,10 @@ if __name__ == '__main__':
         multi_target = False
 
     if DEVICE.type == 'cuda':
-        model = torch.nn.DataParallel(model) #DataParallel, RanS 1.8.21
+        if (args.dataset == 'TMA') and (args.mag == 7): #temp cancelled RanS 15.2.22
+            pass
+        else:
+            model = torch.nn.DataParallel(model) #DataParallel, RanS 1.8.21.
         cudnn.benchmark = True
 
         # RanS 28.1.21

@@ -1,6 +1,6 @@
 import subprocess
 
-infer = True
+infer = False
 
 if infer:
     subprocess.run(['python', 'inference_Multi_REG.py',
@@ -51,7 +51,8 @@ else:
                     #'--bootstrap',
                     #'--transform_type', 'aug_receptornet',
                     #'--transform_type', 'rvf',
-                    '--transform_type', 'pcbnfrsc',
+                    #'--transform_type', 'pcbnfrsc',
+                    '--transform_type', 'none',
                     '--mag', '7',
                     '--eval_rate', '10',
                     #'-tl', 'ex321,epoch16',
@@ -63,6 +64,8 @@ else:
                     #'-baldat'
                     #'--slide_per_block'
                     #'--RAM_saver'
+                    '--lr', '1e-2',
+                    '--weight_decay', '1e-6'
                 ])
 
 #train_reg.py --test_fold 1 --epochs 2 --dataset LUNG --target PDL1 --batch_size 5 --n_patches_test 10 --n_patches_train 10 --model resnet50_3FC --transform_type aug_receptornet

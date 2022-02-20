@@ -20,7 +20,7 @@ from nets_mil import ResNet50_GN_GatedAttention, ReceptorNet
 import nets
 from math import isclose
 from argparse import Namespace as argsNamespace
-from shutil import copy2, copyfile
+from shutil import copyfile
 from datetime import date
 import inspect
 import torch.nn.functional as F
@@ -29,7 +29,7 @@ from tqdm import tqdm
 from pathlib import Path
 from PIL import ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
-
+import cv2 # temp RanS 17.2.22
 
 #if sys.platform == 'win32':
 #    os.add_dll_directory(r'C:\ran_programs\Anaconda3\openslide_bin_ran')
@@ -240,14 +240,11 @@ def _get_tiles(slide: openslide.OpenSlide,
             #image = slide.read_region(location=(49000, 33000), level=best_slide_level, size=(adjusted_tile_sz, adjusted_tile_sz)).convert('RGB')
 
             # When reading from OpenSlide the locations is as follows (col, row)
+            #temp RanS 13.2.22
+            if adjusted_tile_sz == 1462:
+                adjusted_tile_sz = 1440 #RanS 14.2.22, use exact image size
+
             image = slide.read_region((new_loc_init['Left'], new_loc_init['Top']), best_slide_level, (adjusted_tile_sz, adjusted_tile_sz)).convert('RGB')
-            #temp RanS 12.7.21
-            '''import matplotlib.pyplot as plt
-            q = slide.read_region((new_loc_init['Left'], new_loc_init['Top']), 0, (adjusted_tile_sz, adjusted_tile_sz)).convert('RGB')
-            plt.imshow(q)
-            print(slide.properties['aperio.MPP'])
-            print(slide.properties['aperio.AppMag'])
-            print('aa')'''
         except:
             print('failed to read slide ' + slide._filename + ' in location ' + str(loc[1]) + ',' + str(loc[0]))
             print('taking blank patch instead')
@@ -288,8 +285,14 @@ def _get_tiles(slide: openslide.OpenSlide,
         if temp_plot1:
             plt.imshow(image)
 
-        if adjusted_tile_sz != output_tile_sz:
-            image = image.resize((output_tile_sz, output_tile_sz))
+        #temp RanS 13.2.22, not sure if this matters
+        if adjusted_tile_sz == 1440:
+            image = cv2.resize(np.array(image), dsize=(output_tile_sz, output_tile_sz), interpolation=cv2.INTER_LINEAR)
+            image = Image.fromarray(image)
+        else:
+            if adjusted_tile_sz != output_tile_sz:
+                image = image.resize((output_tile_sz, output_tile_sz))
+
 
         tiles_PIL[idx] = image
 
@@ -687,22 +690,26 @@ class MyMeanPixelRegularization:
         return x
 
 
-def define_transformations(transform_type, train, tile_size, color_param=0.1):
+def define_transformations(transform_type, train, tile_size, color_param=0.1, use_amir_norm=False):
 
     MEAN = {'TCGA': [58.2069073 / 255, 96.22645279 / 255, 70.26442606 / 255],
             'HEROHE': [224.46091564 / 255, 190.67338568 / 255, 218.47883547 / 255],
             'Ron': [0.8998, 0.8253, 0.9357],
-            'Imagenet': [0.485, 0.456, 0.406]
+            'Imagenet': [0.485, 0.456, 0.406],
+            'Amir': [0.9357, 0.8253, 0.8998]
             }
 
     STD = {'TCGA': [40.40400300279664 / 255, 58.90625962739444 / 255, 45.09334057330417 / 255],
            'HEROHE': [np.sqrt(1110.25292532) / 255, np.sqrt(2950.9804851) / 255, np.sqrt(1027.10911208) / 255],
            'Ron': [0.1125, 0.1751, 0.0787],
-           'Imagenet': [0.229, 0.224, 0.225]
+           'Imagenet': [0.229, 0.224, 0.225],
+           'Amir': [0.0787, 0.1751, 0.1125]
            }
 
     if False: #TODO RanS, implement imagenet normalization where needed
         norm_type = 'Imagenet'
+    elif use_amir_norm:
+        norm_type = 'Amir'  # temp RanS 14.2.22
     else:
         norm_type = 'Ron'
 
@@ -850,6 +857,7 @@ def get_datasets_dir_dict(Dataset: str):
     Ipatimup_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/Ipatimup'
     Covilha_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/Covilha'
     TMA_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/TMA/bliss_data/02-008/HE/TMA'
+    #TMA_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/TMA/temp_for_debug/single_image/TMA' #temp RanS 15.2.22
     HAEMEK_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/Haemek'
     CARMEL_BENIGN_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/Carmel/Benign'
 
@@ -857,6 +865,7 @@ def get_datasets_dir_dict(Dataset: str):
     HEROHE_ran_path = r'C:\ran_data\HEROHE_examples'
     ABCTB_ran_path = r'C:\ran_data\ABCTB\ABCTB_examples\ABCTB'
     TMA_ran_path = r'C:\ran_data\TMA\02-008\TMA'
+    #TMA_ran_path = r'C:\ran_data\TMA\02-008\single_image\TMA' #temp RanS 13.2.22
 
     TCGA_omer_path = r'/Users/wasserman/Developer/WSI_MIL/All Data/TCGA'
     HEROHE_omer_path = r'/Users/wasserman/Developer/WSI_MIL/All Data/HEROHE'
@@ -1034,7 +1043,7 @@ def assert_dataset_target(DataSet, target_kind):
         target_kind = [target_kind]
     target_kind = set(target_kind)
 
-    if DataSet == 'TMA' and not target_kind <= {'ER','temp'}:
+    if DataSet == 'TMA' and not target_kind <= {'ER', 'temp'}:
         raise ValueError('For TMA DataSet, target should be one of: ER')
     if DataSet == 'PORTO_HE' and not target_kind <= {'PDL1', 'EGFR', 'is_full_cancer'}:
         raise ValueError('For PORTO_HE DataSet, target should be one of: PDL1, EGFR')
