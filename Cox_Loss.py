@@ -76,7 +76,7 @@ def Cox_loss(risk_function_results: torch.Tensor, targets: torch.Tensor, censore
 
 
 def L2_Loss(model_outputs: torch.Tensor, targets: torch.Tensor, censored: torch.Tensor) -> torch.float32:
-    # in case the model outputs has 2 channels it means that it came from a binary model. We need to turn iא into 1
+    # in case the model outputs has 2 channels it means that it came from a binary model. We need to turn it into 1
     # channel by softmaxing and taking the second channel
     if model_outputs.size(1) == 2:
         new_model_outputs = torch.nn.functional.softmax(model_outputs, dim=1)[:, 1]
@@ -86,7 +86,6 @@ def L2_Loss(model_outputs: torch.Tensor, targets: torch.Tensor, censored: torch.
     '''for i in range(num_samples):
         if not censored[i] or (censored[i] and new_model_outputs[i] < targets[i]):
             loss_1 += (new_model_outputs[i] - targets[i]) ** 2'''
-
 
     valid_indices_1 = np.where(censored == False)[0]
     valid_indices_2 = np.where(new_model_outputs[:, 0].cpu() < targets.cpu())[0]
@@ -98,7 +97,20 @@ def L2_Loss(model_outputs: torch.Tensor, targets: torch.Tensor, censored: torch.
     return loss
 
 
-def Combined_loss(model_outputs: torch.Tensor, targets_time: torch.Tensor, targets_binary: torch.Tensor,censored: torch.Tensor, weights: list = [1, 1, 1]):
+def Combined_loss(model_outputs: torch.Tensor, targets_time: torch.Tensor, targets_binary: torch.Tensor, censored: torch.Tensor, weights: list = [1, 1, 1]):
+
+    '''
+    # Check that the model outputs and the targets are on the same device:
+    is_cuda_model_outputs = model_outputs.is_cuda
+    is_cuda_targets_time = targets_time.is_cuda
+    is_cuda_targets_binary = targets_binary.is_cuda
+
+    if is_cuda_model_outputs != is_cuda_targets_time:
+        targets_time = targets_time.to('cuda')
+    if is_cuda_model_outputs != is_cuda_targets_binary:
+        targets_binary = targets_binary.to('cuda')
+    '''
+
     # Compute Cox loss:
     loss_cox = Cox_loss(risk_function_results=model_outputs[:, 0], targets=targets_time, censored=censored)
 
@@ -106,12 +118,20 @@ def Combined_loss(model_outputs: torch.Tensor, targets_time: torch.Tensor, targe
     loss_L2 = L2_Loss(model_outputs=torch.reshape(model_outputs[:, 1], (model_outputs[:, 1].size(0), 1)), targets=targets_time, censored=censored)
     # Compute Cross Entropy loss:
     valid_indices = targets_binary != -1
+    if len(valid_indices.size()) == 2:
+        valid_indices = torch.reshape(valid_indices, (valid_indices.size(0),))
+
     outputs_for_binary = model_outputs[valid_indices][:, 2:]
-    loss_cross_entropy = torch.nn.functional.cross_entropy(outputs_for_binary, targets_binary[valid_indices])
+
+    targets_for_cross_entropy_calculation = targets_binary[valid_indices]
+    if len(targets_for_cross_entropy_calculation.size()) == 2:
+        targets_for_cross_entropy_calculation = torch.reshape(targets_for_cross_entropy_calculation, (targets_for_cross_entropy_calculation.size(0),))
+
+    loss_cross_entropy = torch.nn.functional.cross_entropy(outputs_for_binary, targets_for_cross_entropy_calculation)
     # Combine together:
-    total_loss = weights[0] * loss_cox +\
-                 weights[1] * loss_L2 +\
-                 weights[2] * loss_cross_entropy
+    total_loss = weights[0] * loss_cox\
+                 + weights[1] * loss_L2\
+                 + weights[2] * loss_cross_entropy
 
     return total_loss, loss_cox,  loss_L2, loss_cross_entropy
 

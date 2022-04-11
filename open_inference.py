@@ -57,7 +57,11 @@ for ind, key in enumerate(inference_files.keys()):
         key = key[:-9]
 
     if infer_type == 'REG':
-        if len(inference_data) == 14: #current format
+        if len(inference_data) == 17: # survival format
+            fpr, tpr, all_labels, all_targets, all_scores, total_pos, true_pos, total_neg, true_neg, \
+            num_slides, patch_scores, all_slide_names, all_slide_datasets, patch_locs,\
+            binary_targets_arr, time_targets_arr, censored_arr = inference_data
+        elif len(inference_data) == 14: #current format
             fpr, tpr, all_labels, all_targets, all_scores, total_pos, true_pos, total_neg, true_neg, \
             num_slides, patch_scores, all_slide_names, all_slide_datasets, patch_locs = inference_data
         elif len(inference_data) == 13: #old format, before locations
@@ -73,7 +77,7 @@ for ind, key in enumerate(inference_files.keys()):
             IOError('inference data is of unsupported size!')
 
         if ind == 0: #define figure and axes
-            if all_scores.ndim == 2:
+            if all_scores.ndim == 2 and target != 'survival':
                 N_classes = all_scores.shape[1]
                 fig_list, ax_list, legend_labels = [], [], []
                 if patient_level:

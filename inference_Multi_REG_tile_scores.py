@@ -22,8 +22,8 @@ import torchvision
 import pandas as pd
 
 parser = argparse.ArgumentParser(description='WSI_REG Slide inference')
-parser.add_argument('-ex', '--experiment', nargs='+', type=int, default=[10547], help='Use models from this experiment')
-parser.add_argument('-fe', '--from_epoch', nargs='+', type=int, default=[60], help='Use this epoch models for inference')
+parser.add_argument('-ex', '--experiment', nargs='+', type=int, default=[10607], help='Use models from this experiment')
+parser.add_argument('-fe', '--from_epoch', nargs='+', type=int, default=[960], help='Use this epoch models for inference')
 parser.add_argument('-nt', '--num_tiles', type=int, default=60, help='Number of tiles to use')
 parser.add_argument('-ds', '--dataset', type=str, default='ABCTB', help='DataSet to use')
 parser.add_argument('-f', '--folds', type=list, nargs="+", default=1, help=' folds to infer')
@@ -81,7 +81,7 @@ for counter in range(len(args.from_epoch)):
         fix_data_path = True
 
     # fix target:
-    if args.target in ['Features_Survival_Time_Cox', 'Features_Survival_Time_L2']:
+    if args.target in ['Features_Survival_Time_Cox', 'Features_Survival_Time_L2', 'Survival_Time_Cox']:
         args.target = 'survival'
         survival_kind = 'Time'
         target_for_file_name = args.target + '_' + survival_kind
@@ -179,6 +179,7 @@ inf_dset = datasets.Infer_Dataset_Survival(DataSet=args.dataset,
                                            resume_slide=slide_num,
                                            patch_dir=args.patch_dir
                                            )
+
 inf_loader = DataLoader(inf_dset, batch_size=1, shuffle=False, num_workers=0, pin_memory=True)
 
 new_slide = True
@@ -240,7 +241,7 @@ with torch.no_grad():
             if survival_kind != 'Time':
                 scores = torch.nn.functional.softmax(scores, dim=1)
 
-            if survival_kind == 'Time':
+            if survival_kind == 'Time':  # TODO: This can be changed to else and connected to the if statement above
                 # The value inside scores_1 is later saved as the score for the tile, so in the case of only 1 score per
                 # tile, we'll save it's value.
                 tile_scores[slide_batch_num * tiles_per_iter: slide_batch_num * tiles_per_iter + len(data)] = scores[:, 0].cpu().detach().numpy()
@@ -258,7 +259,7 @@ with torch.no_grad():
             if args.target == 'survival':
                 target_dict[slide_file[0]] = {'Patient': patient,
                                               'Time': target_time.item(),
-                                              'Binary': target_binary[0],
+                                              'Binary': target_binary[0].detach().cpu().numpy(),
                                               'Censored': censored.item()}
 
             slide_num += 1
