@@ -871,7 +871,16 @@ class MIL_PreActResNet50_Ron_MultiBag(nn.Module):
 
 class MIL_Feature_Attention_MultiBag(nn.Module):
     def __init__(self,
-                 tiles_per_bag: int = 500):
+                 tiles_per_bag: int = 500,
+                 is_tumor_train_mode: int = -1):
+
+        """
+        is_tumor_train_mode options:
+        0 - train on receptor features only (the first 512 features of the data) - This is similar to the regular MIL.
+        1 - compute attention weights using is_tumor features only (features 512-1023) and scores using receptor features (0-511).
+        2 - compute attention weights using all features (0-1023) and scores using receptor features (0:511).
+        """
+
         super(MIL_Feature_Attention_MultiBag, self).__init__()
 
         self.model_name = THIS_FILE + 'MIL_Feature_Attention_MultiBag()'
@@ -883,8 +892,13 @@ class MIL_Feature_Attention_MultiBag(nn.Module):
 
         self.tiles_per_bag = tiles_per_bag
         self.M = 512
+        self.M_classifier = self.M
         self.L = 128
         self.K = 1  # in the paper referred a 1.
+
+        self.is_tumor_train_mode = is_tumor_train_mode
+        if self.is_tumor_train_mode == 2:
+            self.M = 1024
 
         if not self.features_only:  # if we're working only on features than we don't need the conv net
             self.feat_ext_part1 = PreActResNets.MIL_PreActResNet50_Ron()
@@ -901,7 +915,7 @@ class MIL_Feature_Attention_MultiBag(nn.Module):
 
         self.attention_weights = nn.Linear(self.L, self.K)
 
-        self.classifier = nn.Linear(self.M * self.K, 2)
+        self.classifier = nn.Linear(self.M_classifier * self.K, 2)
         '''self.classifier = nn.Sequential(
             # nn.Linear(self.M * self.K, 1),
             # nn.Sigmoid()
@@ -932,9 +946,26 @@ class MIL_Feature_Attention_MultiBag(nn.Module):
                 if x != None:
                     raise Exception('Model in features only mode expects to get x=None and H=features')
 
-            A_V = self.attention_V(H)  # NxL
-            A_U = self.attention_U(H)  # NxL
-            A = self.attention_weights(A_V * A_U)  # element wise multiplication # NxK
+            if self.is_tumor_train_mode in [-1, 0]:
+                if self.is_tumor_train_mode == 0:
+                    H = H[:, :, :512]
+
+                A_V = self.attention_V(H)  # NxL
+                A_U = self.attention_U(H)  # NxL
+                A = self.attention_weights(A_V * A_U)  # element wise multiplication # NxK
+
+            elif self.is_tumor_train_mode in [1, 2]:
+                if self.is_tumor_train_mode == 1:
+                    H_attention = H[:, :, 512:]
+
+                elif self.is_tumor_train_mode == 2:
+                    H_attention = H
+
+                H = H[:, :, :512]
+
+                A_V = self.attention_V(H_attention)  # NxL
+                A_U = self.attention_U(H_attention)  # NxL
+                A = self.attention_weights(A_V * A_U)  # element wise multiplication # NxK
 
             if DividedSlides_Flag:  # DividedSlides_Flag tells if all the feature from all slides are gathered together in the same dimension or divided between dimensions
                 A = torch.transpose(A, 2, 1)
@@ -1009,6 +1040,22 @@ class MIL_Feature_Attention_MultiBag(nn.Module):
                 out = self.classifier(M)
 
                 return out, A_after_sftmx
+
+    def set_isTumor_train_mode(self, isTumor_train_mode: int):
+        self.is_tumor_train_mode = isTumor_train_mode
+        if isTumor_train_mode == 2:
+            self.is_tumor_train_mode = 2
+            self.M = 1024
+            self.attention_V = nn.Sequential(
+                nn.Linear(self.M, self.L),
+                nn.Tanh()
+            )
+
+            self.attention_U = nn.Sequential(
+                nn.Linear(self.M, self.L),
+                nn.Sigmoid()
+            )
+
 
 
 class Combined_MIL_Feature_Attention_MultiBag(nn.Module):

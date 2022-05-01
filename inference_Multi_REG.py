@@ -16,10 +16,10 @@ import nets, PreActResNets, resnet_v2
 import torchvision
 
 parser = argparse.ArgumentParser(description='WSI_REG Slide inference')
-parser.add_argument('-ex', '--experiment', nargs='+', type=int, default=[241], help='Use models from this experiment')
-parser.add_argument('-fe', '--from_epoch', nargs='+', type=int, default=[1395, 1390], help='Use this epoch models for inference')
+parser.add_argument('-ex', '--experiment', nargs='+', type=int, default=[10607], help='Use models from this experiment')
+parser.add_argument('-fe', '--from_epoch', nargs='+', type=int, default=[960], help='Use this epoch models for inference')
 parser.add_argument('-nt', '--num_tiles', type=int, default=10, help='Number of tiles to use')
-parser.add_argument('-ds', '--dataset', type=str, default='TCGA', help='DataSet to use')
+parser.add_argument('-ds', '--dataset', type=str, default='ABCTB', help='DataSet to use')
 parser.add_argument('-f', '--folds', type=list, nargs="+", default=1, help=' folds to infer')
 parser.add_argument('--mag', type=int, default=10, help='desired magnification of patches') #RanS 8.2.21
 parser.add_argument('-mp', '--model_path', type=str, default='', help='fixed path of rons model') #RanS 16.3.21 r'/home/rschley/Pathnet/results/fold_1_ER_large/checkpoint/ckpt_epoch_1467.pth'
@@ -88,12 +88,25 @@ for counter in range(len(args.from_epoch)):
         Output_Dirs.append(output_dir)
         fix_data_path = True
 
+    # fix target:
+    if args.target in ['Features_Survival_Time_Cox', 'Features_Survival_Time_L2', 'Survival_Time_Cox']:
+        args.target = 'survival'
+        survival_kind = 'Time'
+        target_for_file_name = args.target + '_' + survival_kind
+    else:
+        survival_kind = 'Binary'
+
     if fix_data_path:
         # we need to make some root modifications according to the computer we're running at.
         if sys.platform == 'linux':
             data_path = ''
+
         elif sys.platform == 'win32':
             output_dir = output_dir.replace(r'/', '\\')
+            data_path = os.getcwd()
+
+        elif sys.platform == 'darwin':
+            output_dir = '/'.join(output_dir.split('/')[4:])
             data_path = os.getcwd()
 
         fix_data_path = False
@@ -115,6 +128,9 @@ for counter in range(len(args.from_epoch)):
     # loading model parameters from the specific epoch
     model_data_loaded = torch.load(os.path.join(data_path, output_dir, 'Model_CheckPoints',
                                                 'model_data_Epoch_' + str(epoch) + '.pt'), map_location='cpu')
+    # Making sure that the size of the linear layer of the loaded model, fits the basic model.
+    model.linear = torch.nn.Linear(in_features=model_data_loaded['model_state_dict']['linear.weight'].size(1),
+                                   out_features=model_data_loaded['model_state_dict']['linear.weight'].size(0))
     model.load_state_dict(model_data_loaded['model_state_dict'])
     model.eval()
     models.append(model)

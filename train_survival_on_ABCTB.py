@@ -20,6 +20,7 @@ import psutil
 from datetime import datetime
 from itertools import cycle
 from random import shuffle
+import pandas as pd
 
 
 utils.send_run_data_via_mail()
@@ -37,7 +38,14 @@ parser.add_argument('--lr', default=1e-5, type=float, help='learning rate')
 parser.add_argument('-wd', '--weight_decay', default=5e-5, type=float, help='L2 penalty')
 parser.add_argument('-time', dest='time', action='store_true', help='save train timing data ?')
 parser.add_argument('-cr', '--censored_ratio', type=float, default=0.5, help='ratio of censored samples in each minibatch')
+parser.add_argument('-se', '--save_every', default=20, type=int, help='duration to save models (in epochs)')
+parser.add_argument('-sxl', '--save_xl_every', default=5, type=int, help='duration to save excel file (in epochs)')
+
+parser.add_argument('--debug', action='store_true', help='debug ?')
 args = parser.parse_args()
+
+if sys.platform == 'darwin':
+    args.debug = True
 
 args.loss = args.loss if args.target == 'Time' else ''  # This modification is needed only to fix the data written in the code files (run parameters)
 
@@ -56,19 +64,18 @@ elif args.censored_ratio < 0:
     print('Dataset will be initiated as is (without any manipulations of censored/ not censored number of samples in the minibatch)')
 
 
-
 def train(from_epoch: int = 0, epochs: int = 2, data_loader=None):
     if args.time:
         times = {}
 
-    model.train()
-    model.to(DEVICE)
-
     num_minibatch = len(data_loader['Not Censored']) if type(data_loader['Censored']) == cycle else len(data_loader['Censored'])
 
     for e in range(from_epoch, from_epoch + epochs):
+        model.train()
+        model.to(DEVICE)
         print('Epoch {}:'.format(e))
         all_target_time, all_target_binary, all_outputs, all_censored = [], [], [], []
+        targets_binary_xl, targets_time_xl, scores_xl, slides_xl, censored_xl = [], [], [], [], []  # FIXME: These are debug variables
         train_loss = 0
         dLoss__d_outputs = 0
         nan_count = 0
@@ -82,41 +89,24 @@ def train(from_epoch: int = 0, epochs: int = 2, data_loader=None):
             if args.time:
                 time_start = time.time()
 
-            if minibatch[1] == 0:  # There is 1 combined dataset that includes all samples
-                minibatch = minibatch[0]
-
-            else:  # There are 2 dataset, one for Censored samples and one for not censored samples. Those 2 datasets need to be combined
-                # The data in the combined dataset is divided into censored and not censored.
-                #  We'll shuffle it:
-                indices = list(range(minibatch[0]['Censored'].size(0) + minibatch[1]['Censored'].size(0)))
-                shuffle(indices)
-
-                temp_minibatch = {}
-                for key in minibatch[0].keys():
-                    if type(minibatch[0][key]) == torch.Tensor:
-                        temp_minibatch[key] = torch.cat([minibatch[0][key], minibatch[1][key]], dim=0)[indices]
-
-                    elif type(minibatch[0][key]) == list:
-                        minibatch[0][key].extend(minibatch[1][key])
-                        minibatch[0][key] = [minibatch[0][key][i] for i in indices]
-
-                    elif type(minibatch[0][key]) == dict:
-                        for inside_key in minibatch[0][key].keys():
-                            minibatch[0][key][inside_key] = torch.cat([minibatch[0][key][inside_key], minibatch[1][key][inside_key]], dim=0)[indices]
-
-                    else:
-                        raise Exception('Could not find the type for this data')
-
-                minibatch = temp_minibatch
+            minibatch = utils.concatenate_minibatch(minibatch, is_shuffle=True)
 
             data = minibatch['Data']
             target_time = minibatch['Time Target']
             target_binary = minibatch['Binary Target']
             censored = minibatch['Censored']
 
+            # TODO: DEBUG - save data to be saved later on in xl file
+            slide_names = minibatch['File Names']
+            targets_binary_xl.extend(target_binary[:, 0].detach().cpu().numpy())
+            targets_time_xl.extend(target_time.detach().cpu().numpy())
+            slides_xl.extend(slide_names)
+            censored_xl.extend(censored.detach().cpu().numpy())
+
             censored_ratio = len(np.where(censored == True)[0]) / len(censored)
-            if (args.censored_ratio > 0 and censored_ratio != args.censored_ratio) or len(censored) != args.mini_batch_size:
-                print('Censored Ration is {}, MB Size is {}'.format(censored_ratio, len(censored)))
+            #if (args.censored_ratio > 0 and censored_ratio != args.censored_ratio) or len(censored) != args.mini_batch_size:
+            if args.censored_ratio > 0 and (censored_ratio != args.censored_ratio or len(censored) != args.mini_batch_size):
+                print('Censored Ratio is {}, MB Size is {}'.format(censored_ratio, len(censored)))
                 raise Exception('Problem occured in batch size or censored ratio')
 
             all_writer.add_scalar('Train/Censored Ratio per Minibatch', censored_ratio, time_stamp)
@@ -142,6 +132,9 @@ def train(from_epoch: int = 0, epochs: int = 2, data_loader=None):
 
             outputs, _ = model(data)
             outputs.retain_grad()
+
+            # TODO: DEBUG - save data to be save in xl file
+            scores_xl.extend(outputs[:, 0].detach().cpu().numpy())
 
             if args.time:
                 times['Forward Pass'] = time.time() - time_start_fwd_pass
@@ -222,6 +215,20 @@ def train(from_epoch: int = 0, epochs: int = 2, data_loader=None):
         fpr_train, tpr_train, _ = roc_curve(relevant_binary_targets, relevant_outputs)
         auc_train = auc(fpr_train, tpr_train)
 
+        #print('(Train) C-index: {}, AUC: {}'.format(c_index, auc_train))
+        #print(len(scores_xl), len(slides_xl), len(targets_binary_xl), len(targets_time_xl), len(censored_xl))
+
+        if e % args.save_xl_every == 0:
+            xl_dict = {'Scores': scores_xl,
+                       'Slide Names': slides_xl,
+                       'Targets Binary': targets_binary_xl,
+                       'Targets Time': targets_time_xl,
+                       'Censored': censored_xl}
+
+            xl_DF = pd.DataFrame(xl_dict)
+            xl_DF.to_excel(os.path.join(args.output_dir, 'debug_outputs_epoch_' + str(e) + '.xlsx'))
+
+
         if args.time:
             all_writer.add_scalar('Time/Performance calc time', time.time() - time_start_performance_calc, e)
 
@@ -233,8 +240,8 @@ def train(from_epoch: int = 0, epochs: int = 2, data_loader=None):
         all_writer.add_scalar('Train/AUC Per Epoch', auc_train, e)
         all_writer.add_scalar('Train/d_Loss/d_outputs Per Epoch', dLoss__d_outputs, e)
 
-        if e % 20 == 0:
-            print('Loss: {}, C-index: {}, AUC: {}'.format(train_loss, c_index, auc_train))
+        print('(Train) Loss: {}, C-index: {}, AUC: {}'.format(train_loss, c_index, auc_train))
+        if e % args.save_every == 0:
             # Run validation:
             test(e, test_loader)
 
@@ -244,15 +251,21 @@ def train(from_epoch: int = 0, epochs: int = 2, data_loader=None):
                 model_state_dict = model.module.state_dict()
             except AttributeError:
                 model_state_dict = model.state_dict()
+
             torch.save({'epoch': e,
                         'model_state_dict': model_state_dict
                         },
                        os.path.join(args.output_dir, 'Model_CheckPoints', 'model_data_Epoch_' + str(e) + '.pt'))
 
+        if args.debug:
+            test(e, train_loader_debug, debug=True)
+            test(e, train_loader, debug=True)
+
 
     all_writer.close()
 
-def test(current_epoch, test_data_loader):
+
+def test(current_epoch, test_data_loader, debug: bool = False):
     model.eval()
     model.to(DEVICE)
 
@@ -261,6 +274,9 @@ def test(current_epoch, test_data_loader):
 
     with torch.no_grad():
         for batch_idx, minibatch in enumerate(test_data_loader):
+            if type(test_data_loader) != torch.utils.data.dataloader.DataLoader:
+                minibatch = utils.concatenate_minibatch(minibatch, is_shuffle=False)
+
             data = minibatch['Data']
             target_time = minibatch['Time Target']
             target_binary = minibatch['Binary Target']
@@ -307,106 +323,20 @@ def test(current_epoch, test_data_loader):
         fpr_test, tpr_test, _ = roc_curve(relevant_binary_targets, relevant_outputs)
         auc_test = auc(fpr_test, tpr_test)
 
-        print('Validation set Performance. C-index: {}, AUC: {}'.format(c_index, auc_test))
-        all_writer.add_scalar('Test/Loss Per Sample (Per Epoch)', test_loss / len(test_data_loader), current_epoch)
-        all_writer.add_scalar('Test/C-index Per Epoch', c_index, current_epoch)
-        all_writer.add_scalar('Test/AUC Per Epoch', auc_test, current_epoch)
+        if debug:
+            print('Debug set Performance. C-index: {}, AUC: {}'.format(c_index, auc_test))
+        else:
+            print('Validation set Performance. C-index: {}, AUC: {}'.format(c_index, auc_test))
+        if not debug:
+            all_writer.add_scalar('Test/Loss Per Sample (Per Epoch)', test_loss / len(test_data_loader), current_epoch)
+            all_writer.add_scalar('Test/C-index Per Epoch', c_index, current_epoch)
+            all_writer.add_scalar('Test/AUC Per Epoch', auc_test, current_epoch)
 
     model.train()
 
-########################################################################################################################
-########################################################################################################################
 
-if __name__ == '__main__':
-
-    DEVICE = utils.device_gpu_cpu()
-    num_workers = utils.get_cpu()
-
-    if DEVICE.type == 'cuda':
-        import nvidia_smi
-        nvidia_smi.nvmlInit()
-        handle = nvidia_smi.nvmlDeviceGetHandleByIndex(0)
-
-    # Model definition:
-    model = PreActResNet50_Ron()
-    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-
-
-    if args.target == 'Time':
-        model.linear = nn.Linear(model.linear.in_features, 1)
-        if args.loss == 'Cox':
-            criterion = Cox_loss
-            flip_outputs = False
-
-        elif args.loss == 'L2':
-            criterion = L2_Loss
-            flip_outputs = True
-
-        else:
-            Exception('No valid loss function defined')
-    
-    elif args.target == 'Binary':
-        criterion = nn.CrossEntropyLoss()
-        flip_outputs = True
-
-    TILE_SIZE = 128 if sys.platform == 'darwin' else 256
-
-    # Getting the receptor name:
-    receptor = 'Survival_' + args.target
-    if args.target == 'Time':
-        receptor += '_' + args.loss
-
-    if args.experiment == 0:
-        run_data_results = utils.run_data(test_fold=args.test_fold,
-                                          transform_type=args.transform_type,
-                                          tile_size=TILE_SIZE,
-                                          tiles_per_bag=1,
-                                          DataSet_name='ABCTB',
-                                          Receptor=receptor,
-                                          num_bags=args.mini_batch_size,
-                                          learning_rate=args.lr)
-
-        args.output_dir, experiment = run_data_results['Location'], run_data_results['Experiment']
-
-    else:
-        run_data_output = utils.run_data(experiment=args.experiment)
-        args.output_dir, args.test_fold, args.transform_type, TILE_SIZE, tiles_per_bag, \
-        args.batch_size, args.dx, args.dataset, args.target, args.model, args.mag = \
-            run_data_output['Location'], run_data_output['Test Fold'], run_data_output['Transformations'], \
-            run_data_output['Tile Size'], run_data_output['Tiles Per Bag'], run_data_output['Num Bags'],\
-            run_data_output['DX'], run_data_output['Dataset Name'], run_data_output['Receptor'],\
-            run_data_output['Model Name'], run_data_output['Desired Slide Magnification']
-
-        if args.target == 'Survival_Binary':
-            args.target = 'Binary'
-        elif args.target in ['Survival_Time', 'Features_Survival_Time_Cox']:
-            args.target = 'Time'
-
-        print('args.dataset:', args.dataset)
-        print('args.target:', args.target)
-        print('args.args.batch_size:', args.batch_size)
-        print('args.output_dir:', args.output_dir)
-        print('args.test_fold:', args.test_fold)
-        print('args.transform_type:', args.transform_type)
-        print('args.dx:', args.dx)
-
-        experiment = args.experiment
-
-    # Continue train from previous epoch:
-    if args.from_epoch != 0:
-        print('Loading pre-saved model...')
-        model_data_loaded = torch.load(os.path.join(args.output_dir, 'Model_CheckPoints',
-                                                    'model_data_Epoch_' + str(args.from_epoch) + '.pt'),
-                                       map_location='cpu')
-
-        from_epoch = args.from_epoch + 1
-        model.load_state_dict(model_data_loaded['model_state_dict'])
-
-    else:
-        from_epoch = 0
-
-    # Initializing Datasets and DataLoaders:
-    if args.censored_ratio < 0:  # We're using the data as is and not manipulating the amount of censored/not censored samples in each minibatch
+def initialize_trainset(censor_ratio):
+    if censor_ratio < 0:  # We're using the data as is and not manipulating the amount of censored/not censored samples in each minibatch
         train_dset = WSI_REGdataset_Survival(train=True,
                                              DataSet='ABCTB',
                                              tile_size=TILE_SIZE,
@@ -427,7 +357,7 @@ if __name__ == '__main__':
                         'Not Censored': loader_not_censored
                         }
 
-    elif args.censored_ratio == 0:  # All samples are NOT censored
+    elif censor_ratio == 0:  # All samples are NOT censored
         train_dset = WSI_REGdataset_Survival(train=True,
                                              DataSet='ABCTB',
                                              tile_size=TILE_SIZE,
@@ -449,7 +379,7 @@ if __name__ == '__main__':
                         'Not Censored': loader_not_censored
                         }
 
-    elif args.censored_ratio > 0 and args.censored_ratio < 1:
+    elif censor_ratio > 0 and censor_ratio < 1:
         train_dset_censored = WSI_REGdataset_Survival(train=True,
                                                       DataSet='ABCTB',
                                                       tile_size=TILE_SIZE,
@@ -491,6 +421,106 @@ if __name__ == '__main__':
                         'Not Censored': loader_not_censored
                         }
 
+########################################################################################################################
+########################################################################################################################
+
+if __name__ == '__main__':
+
+    DEVICE = utils.device_gpu_cpu()
+    num_workers = utils.get_cpu()
+
+    if DEVICE.type == 'cuda':
+        import nvidia_smi
+        nvidia_smi.nvmlInit()
+        handle = nvidia_smi.nvmlDeviceGetHandleByIndex(0)
+
+    TILE_SIZE = 128 if sys.platform == 'darwin' else 256
+
+    # Getting the receptor name:
+    receptor = 'Survival_' + args.target
+    if args.target == 'Time':
+        receptor += '_' + args.loss
+
+    if args.experiment == 0:
+        run_data_results = utils.run_data(test_fold=args.test_fold,
+                                          transform_type=args.transform_type,
+                                          tile_size=TILE_SIZE,
+                                          tiles_per_bag=1,
+                                          DataSet_name='ABCTB',
+                                          Receptor=receptor,
+                                          num_bags=args.mini_batch_size,
+                                          learning_rate=args.lr,
+                                          censored_ratio=args.censored_ratio)
+
+        args.output_dir, experiment = run_data_results['Location'], run_data_results['Experiment']
+
+    else:
+        run_data_output = utils.run_data(experiment=args.experiment)
+        args.output_dir, args.test_fold, args.transform_type, TILE_SIZE, tiles_per_bag, \
+        args.batch_size, args.dx, args.dataset, args.target, args.model, args.mag = \
+            run_data_output['Location'], run_data_output['Test Fold'], run_data_output['Transformations'], \
+            run_data_output['Tile Size'], run_data_output['Tiles Per Bag'], run_data_output['Num Bags'],\
+            run_data_output['DX'], run_data_output['Dataset Name'], run_data_output['Receptor'],\
+            run_data_output['Model Name'], run_data_output['Desired Slide Magnification']
+
+        if args.target == 'Survival_Binary':
+            args.target = 'Binary'
+        elif args.target in ['Features_Survival_Time_Cox', 'Survival_Time_Cox', 'Survival_Time_L2']:
+            args.target = 'Time'
+            if args.target in ['Features_Survival_Time_Cox', 'Survival_Time_Cox']:
+                args.loss = 'Cox'
+            elif args.target == 'Survival_Time_L2':
+                args.loss = 'L2'
+
+        print('args.dataset:', args.dataset)
+        print('args.target:', args.target)
+        print('args.args.batch_size:', args.batch_size)
+        print('args.output_dir:', args.output_dir)
+        print('args.test_fold:', args.test_fold)
+        print('args.transform_type:', args.transform_type)
+        print('args.dx:', args.dx)
+        if args.target == 'Time':
+            print('args.loss:', args.loss)
+
+        experiment = args.experiment
+
+    # Model definition:
+    model = PreActResNet50_Ron()
+
+    if args.target == 'Time':
+        model.linear = nn.Linear(model.linear.in_features, 1)
+        if args.loss == 'Cox':
+            criterion = Cox_loss
+            flip_outputs = False
+
+        elif args.loss == 'L2':
+            criterion = L2_Loss
+            flip_outputs = True
+
+        else:
+            Exception('No valid loss function defined')
+
+    elif args.target == 'Binary':
+        criterion = nn.CrossEntropyLoss()
+        flip_outputs = True
+
+    # Continue train from previous epoch:
+    if args.from_epoch != 0:
+        print('Loading pre-saved model...')
+        model_data_loaded = torch.load(os.path.join(args.output_dir, 'Model_CheckPoints',
+                                                    'model_data_Epoch_' + str(args.from_epoch) + '.pt'),
+                                       map_location='cpu')
+
+        from_epoch = args.from_epoch + 1
+        model.load_state_dict(model_data_loaded['model_state_dict'])
+
+    else:
+        from_epoch = 0
+
+    # Initializing Datasets and DataLoaders:
+    censored_train_loader, not_censored_train_loader = initialize_trainset(censor_ratio=0.5)
+
+
     test_dset = WSI_REGdataset_Survival(train=False,
                                         DataSet='ABCTB',
                                         tile_size=TILE_SIZE,
@@ -500,6 +530,18 @@ if __name__ == '__main__':
                                         )
 
     test_loader = DataLoader(test_dset, batch_size=args.mini_batch_size * 2, shuffle=False, num_workers=num_workers, pin_memory=True)
+
+    if args.debug:  # create another train set
+        train_dset_debug = WSI_REGdataset_Survival(train=True,
+                                                   DataSet='ABCTB',
+                                                   tile_size=TILE_SIZE,
+                                                   target_kind='survival',
+                                                   test_fold=args.test_fold,
+                                                   transform_type=args.transform_type
+                                                   )
+
+        train_loader_debug = DataLoader(train_dset_debug, batch_size=args.mini_batch_size * 2, shuffle=False, num_workers=num_workers, pin_memory=True)
+
 
     # Save transformation data to 'run_data.xlsx'
     train_dset_to_check = train_dset if 'train_dset' in locals() else train_dset_censored
@@ -519,7 +561,7 @@ if __name__ == '__main__':
     if not os.path.isdir(os.path.join(args.output_dir, 'Model_CheckPoints')):
         Path(os.path.join(args.output_dir, 'Model_CheckPoints')).mkdir(parents=True)
 
-
+    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     train(from_epoch=from_epoch, epochs=args.epochs, data_loader=train_loader)
 
     print('Done')

@@ -334,17 +334,32 @@ class PreActResNet_Ron(nn.Module):
             out = self.layer2(out)
             out = self.layer3(out)
             out = self.layer4(out)
-            # The following lines (commented) are needed when trying to plot the model graph using summarywriter
-            '''print(type(out.shape[3]), out.shape[3])
-            print(type(out.shape))
-            if type(out.shape[3]) == torch.Tensor:
-                out = F.avg_pool2d(out, int(out.shape[3]))
-            else:'''
+
             out = F.avg_pool2d(out, out.shape[3])
             out = out.view(out.size(0), -1)
             features = out
             #out = self.linear(self.dropout(out))
             out = self.linear(out)
+
+            if self.training and torch.any(torch.isnan(out)):
+                import pandas as pd
+                print('Model: Found NaN in Score')
+                scores_dict = {'Scores': list(torch.reshape(out, (18,)).detach().cpu().numpy())}
+                scores_DF = pd.DataFrame(scores_dict).transpose()
+                scores_DF.to_excel('debug_data_scores_from_model.xlsx')
+
+                weights = list(torch.reshape(self.linear.weight, (512,)).detach().cpu().numpy())
+                bias = list(self.linear.bias.detach().cpu().numpy()) + [-1] * 511
+
+                linear_layer_dict = {'Weights': weights,
+                                     'Bias': bias}
+                linear_layer_DF = pd.DataFrame(linear_layer_dict).transpose()
+                linear_layer_DF.to_excel('debug_data_models_linear_layer.xlsx')
+
+                features_DF = pd.DataFrame(features.detach().cpu().numpy())
+                features_DF.to_excel('debug_data_features_from_models.xlsx')
+
+                print('Finished saving 3 debug files from model code')
 
             #return out
             return out, features #RanS 1.7.21
