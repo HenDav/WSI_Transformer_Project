@@ -109,7 +109,7 @@ class ResNet50(nn.Module):
             state_dict = load_state_dict_from_url('https://download.pytorch.org/models/resnet50-19c8e357.pth')
             self.basic_resnet.load_state_dict(state_dict)
 
-        self.linear_layer = nn.Linear(1000, num_classes)
+        self.linear = nn.Linear(1000, num_classes)
 
 
     def forward(self, x):
@@ -117,9 +117,11 @@ class ResNet50(nn.Module):
             num_of_bags, tiles_amount, _, tiles_size, _ = x.shape
             x = torch.reshape(x, (num_of_bags * tiles_amount, 3, tiles_size, tiles_size))
 
-        x = self.linear_layer(self.basic_resnet(x))
+        #x = self.linear(self.basic_resnet(x))
+        features = self.basic_resnet(x) #RanS 7.3.22
+        x = self.linear(self.basic_resnet(x))
         #x = torch.nn.functional.softmax(x, dim=1) #cancelled RanS 11.4.21
-        return x
+        return x, features
 
 
 
@@ -160,11 +162,11 @@ class ResNet34_GN(nn.Module):
                                         groups=1, width_per_group=64, replace_stride_with_dilation=None,
                                         norm_layer=MyGroupNorm)
 
-        self.linear_layer = nn.Linear(in_features=1000, out_features=2)
+        self.linear = nn.Linear(in_features=1000, out_features=2)
 
     def forward(self, x):
         x = x.squeeze()
-        x = self.linear_layer(self.con_layers(x))
+        x = self.linear(self.con_layers(x))
         #x = torch.nn.functional.softmax(x, dim=1) #cancelled RanS 11.4.21
         return x
 
@@ -180,11 +182,11 @@ class ResNet50_GN(nn.Module):
                                         groups=1, width_per_group=64, replace_stride_with_dilation=None,
                                         norm_layer=MyGroupNorm)
 
-        self.linear_layer = nn.Linear(in_features=1000, out_features=2)
+        self.linear = nn.Linear(in_features=1000, out_features=2)
 
     def forward(self, x):
         x = x.squeeze()
-        x = self.linear_layer(self.con_layers(x))
+        x = self.linear(self.con_layers(x))
         #x = torch.nn.functional.softmax(x, dim=1) #cancelled RanS 11.4.21
         return x
 

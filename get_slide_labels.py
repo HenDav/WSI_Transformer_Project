@@ -6,13 +6,14 @@ import pandas as pd
 parser = argparse.ArgumentParser(description='Slide inspector')
 #parser.add_argument('--in_dir', default=r'C:\ran_data\Carmel_Slides_examples\folds_labels', type=str, help='input dir')
 #parser.add_argument('--in_dir', default=r'C:\ran_data\Carmel_Slides_examples\add_ki67_labels', type=str, help='input dir')
-parser.add_argument('--in_dir', default=r'C:\ran_data\Haemek', type=str, help='input dir')
+#parser.add_argument('--in_dir', default=r'C:\ran_data\Haemek', type=str, help='input dir')
+parser.add_argument('--in_dir', default=r'C:\ran_data\Benign', type=str, help='input dir')
+parser.add_argument('--dataset', default=r'BENIGN', type=str, help='name of dataset') #CARMEL, HAEMEK, BENIGN
 args = parser.parse_args()
 
 in_dir = args.in_dir
 
-is_carmel = False
-if is_carmel:
+if args.dataset == 'CARMEL':
     batches = np.arange(1, 9, 1)
     ignore_list_file = r'C:\ran_data\Carmel_Slides_examples\folds_labels\Slides_to_discard.xlsx'
     ignore_list_DF = pd.read_excel(ignore_list_file)
@@ -24,12 +25,21 @@ if is_carmel:
 
     # labels_data_file = os.path.join(in_dir, 'Carmel_annotations_04-07-2021.xlsx')
     labels_data_file = os.path.join(in_dir, 'Carmel_annotations_25-10-2021.xlsx')
-else: #haemek
+
+elif args.dataset == 'HAEMEK':
     batches = np.arange(1, 2, 1)
     ignore_list = []
     ignore_list_blur = []
-
     labels_data_file = os.path.join(in_dir, 'Afula_annotations_13-01-22.xlsx')
+
+elif args.dataset == 'BENIGN':
+    batches = np.arange(1, 4, 1)
+    ignore_list_file = r'C:\ran_data\Benign\Slides_to_discard.xlsx'
+    ignore_list_DF = pd.read_excel(ignore_list_file)
+    ignore_list = list(ignore_list_DF['Slides to discard'])
+    ignore_list_blur = []
+    labels_data_file = os.path.join(in_dir, 'Carmel_annotations_Benign_merged_09-01_22.xlsx')
+
 
 label_data_DF = pd.read_excel(labels_data_file)
 #data_field = ['ER status', 'PR status', 'Her2 status', 'TissueType', 'PatientIndex']
@@ -39,14 +49,16 @@ label_data_DF = pd.read_excel(labels_data_file)
 #data_field = ['ER100 status'] #RanS 14.11.21
 #binary_data_fields = ['ER100 status']
 data_field = label_data_DF.keys().to_list() #take all fields, RanS 16.1.22
-binary_data_fields = ['ER status', 'PR status', 'Her2 status', 'Ki67 status'] #fields which should be translated from 0,1 to Negative, Positive
+#binary_data_fields = ['ER status', 'PR status', 'Her2 status', 'Ki67 status'] #fields which should be translated from 0,1 to Negative, Positive
+binary_data_fields = [] #fields which should be translated from 0,1 to Negative, Positive
 
 for batch in batches:
     print('batch ', str(batch))
-    if is_carmel:
+    if args.dataset == 'CARMEL':
         meta_data_file = os.path.join(in_dir, 'slides_data_Carmel' + str(batch) + '.xlsx')
     else:
-        meta_data_file = os.path.join(in_dir, 'slides_data_HAEMEK' + str(batch) + '.xlsx')
+        meta_data_file = os.path.join(in_dir, 'slides_data_' + args.dataset + str(batch) + '.xlsx')
+
     meta_data_DF = pd.read_excel(meta_data_file)
     meta_data_DF['slide barcode'] = [fn[:-5] for fn in meta_data_DF['file']]
     #for ind, slide in enumerate(meta_data_DF['patient barcode']):
@@ -100,29 +112,21 @@ for batch in batches:
         meta_data_DF[field] = meta_data_DF[field].replace(1, 'Positive', regex=True)
         meta_data_DF[field] = meta_data_DF[field].replace(0, 'Negative', regex=True)
 
-    if is_carmel:
-        meta_data_DF.to_excel(os.path.join(in_dir, 'slides_data_CARMEL' + str(batch) + '_labeled.xlsx'))
-    else:
-        meta_data_DF.to_excel(os.path.join(in_dir, 'slides_data_HAEMEK' + str(batch) + '_labeled.xlsx'))
+    meta_data_DF.to_excel(os.path.join(in_dir, 'slides_data_' + args.dataset + str(batch) + '_labeled.xlsx'))
 
-#create merged files. implemented only for carmel
-if is_carmel:
-    df_list = []
-    df_list2 = []
-
-    for batch in batches:
-        meta_data_file = os.path.join(in_dir, 'slides_data_Carmel' + str(batch) + '.xlsx')
-        meta_data_DF = pd.read_excel(meta_data_file)
-        df_list.append(meta_data_DF)
-
-        meta_data_file2 = os.path.join(in_dir, 'slides_data_Carmel' + str(batch) + '_labeled.xlsx')
-        meta_data_DF2 = pd.read_excel(meta_data_file2)
-        df_list2.append(meta_data_DF2)
-
-    merged_DF = pd.concat(df_list)
-    merged_DF2 = pd.concat(df_list2)
-
-    merged_DF.to_excel(os.path.join(in_dir, 'slides_data_CARMEL_merged.xlsx'))
-    merged_DF2.to_excel(os.path.join(in_dir, 'slides_data_CARMEL_labeled_merged.xlsx'))
+#create merged files
+df_list = []
+df_list2 = []
+for batch in batches:
+    meta_data_file = os.path.join(in_dir, 'slides_data_' + args.dataset + str(batch) + '.xlsx')
+    meta_data_DF = pd.read_excel(meta_data_file)
+    df_list.append(meta_data_DF)
+    meta_data_file2 = os.path.join(in_dir, 'slides_data_' + args.dataset + str(batch) + '_labeled.xlsx')
+    meta_data_DF2 = pd.read_excel(meta_data_file2)
+    df_list2.append(meta_data_DF2)
+merged_DF = pd.concat(df_list)
+merged_DF2 = pd.concat(df_list2)
+merged_DF.to_excel(os.path.join(in_dir, 'slides_data_' + args.dataset + '_merged.xlsx'))
+merged_DF2.to_excel(os.path.join(in_dir, 'slides_data_' + args.dataset + '_labeled_merged.xlsx'))
 
 print('finished')

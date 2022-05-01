@@ -9,7 +9,6 @@ import glob
 import argparse
 import re, sys
 
-
 def get_slide_name(file):
     start = re.search("Inference_Full_Slide_", file)
     end = re.search("_ScoreHeatMap.xlsx", file)
@@ -32,6 +31,7 @@ if sys.platform == 'win32':
     dn = r'C:\ran_data\TCGA_lung\heatmaps\test'
     file_list = [
         r'C:\ran_data\TCGA_lung\heatmaps\300821\is_cancer_BatchOfSlides_Exp_375_Epoch_400_Inference_Full_Slide_TCGA-05-5420-11A-01-TS1.062c76b9-163d-4a4a-963d-ca2d56bddaa7.svs_ScoreHeatMap.xlsx']
+    #file_list = glob.glob(os.path.join(dn, '*._ScoreHeatMap.xlsx'))
     slides_dir = r'C:\ran_data\TCGA_lung\TCGA_LUNG'
     calib = False
     binary = False
@@ -85,7 +85,8 @@ for file in file_list:
         objective_pwr = int(float(slide.properties[mag_dict[data_format]]))
         if slide_name[-5:] == '.mrxs':
             objective_pwr = 20  # RanS 7.12.21, value in slide is wrong
-        magnification = 10
+        #magnification = 10
+        magnification = 3 #RanS 14.3.22
         ds = objective_pwr // magnification
         height_ds = int(height / ds)
         width_ds = int(width / ds)
@@ -135,6 +136,5 @@ for file in file_list:
                     fig.savefig(os.path.join(dn, 'out', slide_name, str(i_x) + '_' + str(i_y) + '.jpg'),
                                 bbox_inches='tight', dpi=1000)
                     plt.close(fig)
-                print(1)
 
     print('Finished file ' + slide_name)

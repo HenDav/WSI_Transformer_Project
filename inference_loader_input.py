@@ -2,8 +2,8 @@ import os
 import re, glob
 inference_files = {}
 
-exp = 20201
-fold = '4'
+exp = 20228
+fold = '5'
 target = 'Her2'
 dataset = 'CAT'
 subdir = ''

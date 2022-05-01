@@ -403,6 +403,7 @@ def make_grid(DataSet: str = 'TCGA',
     meta_data_DF.loc[files, 'Legitimate tiles - ' + str(tile_sz) + ' compatible @ X' + str(desired_magnification)] = tile_nums
     meta_data_DF.loc[files, 'Total tiles - ' + str(tile_sz) + ' compatible @ X' + str(desired_magnification)] = total_tiles
     meta_data_DF.loc[files, 'Slide tile usage [%] (for ' + str(tile_sz) + '^2 Pix/Tile) @ X' + str(desired_magnification)] = slide_usage
+    meta_data_DF.loc[files, 'bad segmentation'] = ''
 
     meta_data_DF.to_excel(os.path.join(grids_dir, 'Grid_data.xlsx'))
 
@@ -430,11 +431,13 @@ def _make_grid_for_image(file, meta_data_DF, ROOT_DIR, different_SegData_path_ex
         height = int(meta_data_DF.loc[file, 'Height'])
         width = int(meta_data_DF.loc[file, 'Width'])
 
-        if database == 'SHEBA':
+        #if database == 'SHEBA':
+        if False:
             #objective_power = 40 #temp RanS 25.3.21
             objective_power = 10  # temp RanS 2.1.22, no magnification data is provided
         else:
             objective_power = meta_data_DF.loc[file, 'Manipulated Objective Power']
+        objective_power = meta_data_DF.loc[file, 'Manipulated Objective Power']
         if objective_power == 'Missing Data':
             print('Grid was not computed for file {}'.format(file))
             print('objective power was not found')
@@ -588,6 +591,8 @@ def make_slides_xl_file(DataSet: str = 'HEROHE', ROOT_DIR: str = 'All Data', out
 
     if DataSet[:6]=='CARMEL':
         DataSet_key = 'CARMEL'
+    elif DataSet[:5]=='SHEBA':
+        DataSet_key = 'SHEBA'
     else:
         DataSet_key = DataSet
 
@@ -822,8 +827,12 @@ def make_segmentations(DataSet: str = 'TCGA', ROOT_DIR: str = 'All Data', rewrit
     slide_files_tif = glob.glob(os.path.join(data_path, '*.tif'))
     slide_files = slide_files_svs + slide_files_ndpi + slide_files_mrxs + slide_files_jpg + slide_files_tiff + slide_files_tif
     print('found ' + str(len(slide_files)) + ' slides')
-    mag_dict = {'.svs': 'aperio.AppMag', '.ndpi': 'hamamatsu.SourceLens', '.mrxs': 'openslide.objective-power',
-                'tiff': 'tiff.Software', 'tif': 'tiff.ResolutionUnit'} #RanS 25.3.21, dummy for tiff, tif
+    '''mag_dict = {'.svs': 'aperio.AppMag', '.ndpi': 'hamamatsu.SourceLens', '.mrxs': 'openslide.objective-power',
+                'tiff': 'tiff.Software', 'tif': 'tiff.ResolutionUnit'} #RanS 25.3.21, dummy for tiff, tif'''
+
+    slides_data_file = os.path.join(data_path, 'slides_data_' + DataSet + '.xlsx')
+    slides_meta_data_DF = pd.read_excel(slides_data_file)
+    slides_meta_data_DF.set_index('file', inplace=True)
 
     error_list = []
 
@@ -834,7 +843,7 @@ def make_segmentations(DataSet: str = 'TCGA', ROOT_DIR: str = 'All Data', rewrit
 
     if debug:
         for file in tqdm(slide_files):
-            error1 = _make_segmentation_for_image(file, DataSet, rewrite, out_path_dataset, mag_dict, magnification)
+            error1 = _make_segmentation_for_image(file, DataSet, rewrite, out_path_dataset, slides_meta_data_DF, magnification)
             if error1 != []:
                 error_list.append(error1)
     else:
@@ -842,7 +851,7 @@ def make_segmentations(DataSet: str = 'TCGA', ROOT_DIR: str = 'All Data', rewrit
             for error1 in tqdm(pool.imap(partial(_make_segmentation_for_image,
                                                            DataSet=DataSet,
                                                            magnification=magnification,
-                                                           mag_dict=mag_dict,
+                                                           slides_meta_data_DF=slides_meta_data_DF,
                                                            rewrite=rewrite,
                                                            out_path_dataset=out_path_dataset),
                                                     slide_files), total=len(slide_files)):
@@ -859,9 +868,7 @@ def make_segmentations(DataSet: str = 'TCGA', ROOT_DIR: str = 'All Data', rewrit
         print('Segmentation Process finished without exceptions!')
 
 
-def _make_segmentation_for_image(file, DataSet, rewrite, out_path_dataset, mag_dict, magnification):
-    if os.path.basename(file) == 'HE_B12_v2_s13_016.jpg': #temp RanS 28.12.21
-        print('aa')
+def _make_segmentation_for_image(file, DataSet, rewrite, out_path_dataset, slides_meta_data_DF, magnification):
     fn, data_format = os.path.splitext(os.path.basename(file))
 
     if not rewrite:
@@ -882,7 +889,9 @@ def _make_segmentation_for_image(file, DataSet, rewrite, out_path_dataset, mag_d
 
     if slide is not None:
         # Get a thumbnail image to create the segmentation for:
-        if os.path.splitext(file)[-1] != '.jpg':
+        objective_pwr = slides_meta_data_DF.loc[os.path.basename(file), 'Manipulated Objective Power']
+
+        '''if os.path.splitext(file)[-1] != '.jpg':
             try:
                 if DataSet == 'SHEBA':
                     #objective_pwr = 40 #temp RanS 25.3.21, no magnification data is provided
@@ -903,7 +912,7 @@ def _make_segmentation_for_image(file, DataSet, rewrite, out_path_dataset, mag_d
                 return error_dict
 
         else:
-            objective_pwr = 20
+            objective_pwr = 20'''
 
         height = slide.dimensions[1]
         width = slide.dimensions[0]

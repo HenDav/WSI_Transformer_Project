@@ -1,49 +1,45 @@
 import pandas as pd
-import numpy as np
 import os
 
-dir_name = r'C:\ran_data\Sheba'
-#fn = r'SHEBA ONCOTYPE 30_12_2021.xlsx'
-fn = r'SHEBA ONCOTYPE 160122_Ran.xlsx'
-out_fn = r'SHEBA ONCOTYPE 30_12_2021_Ran_out.xlsx'
-barcode_list_fn = r'barcode_list_full.xlsx'
 
-df = pd.read_excel(os.path.join(dir_name, fn))
+def save_metadata_file(df, dir_name, fn):
+    out_fn = os.path.splitext(fn)[0] + '_out.xlsx'
+    df.to_excel(os.path.join(dir_name, out_fn))
 
-barcode_list_df = pd.read_excel(os.path.join(dir_name, barcode_list_fn))
-barcode_array = np.array(barcode_list_df['file'])
-new_df = pd.DataFrame()
-missing_in_metadata = []
-missing_in_barcode_list = []
-for row in df.iterrows():
-    code_list = row[1]['Code'].split(';')
-    for code in code_list:
-        code_strip = code.strip()
-        if not code_strip + '.tiff' in barcode_array:
-            missing_in_barcode_list.append(code_strip)
-        new_row = row[1]
-        new_row['Code'] = code_strip
-        #new_row['file'] = code.strip() + '.tiff'
-        new_row['PatientID'] = row[0]
-        new_df = new_df.append(new_row)
 
-print('missing in barcode list:')
-print(missing_in_barcode_list)
+def add_new_row_to_metadata(df, code, metadata_row, column_name):
+    code_strip = code.strip()
+    new_row = metadata_row[1]
+    new_row[column_name] = code_strip
+    new_row['PatientID'] = metadata_row[0]
+    df = df.append(new_row)
+    return df
 
-#look for slides that do not have metadata
-code_array = np.array(new_df['Code'])
-for barcode in barcode_array:
-    if not os.path.splitext(barcode)[0] in code_array:
-        missing_in_metadata.append(barcode)
 
-print('missing in metadata file:')
-print(missing_in_metadata)
+def parse_metadata_slides_to_separate_lines(dir_name, fn, column_name='CODE'):
+    df = pd.read_excel(os.path.join(dir_name, fn))
+    new_metadata_df = pd.DataFrame()
+    for row in df.iterrows():
+        code_list = row[1][column_name].split(';')
+        for code in code_list:
+            new_metadata_df = add_new_row_to_metadata(new_metadata_df, code, row, column_name)
 
-missing_in_metadata_df = pd.DataFrame(missing_in_metadata)
-missing_in_metadata_df.to_excel(os.path.join(dir_name, 'missing_in_metadata.xlsx'))
+    save_metadata_file(new_metadata_df, dir_name, fn)
 
-missing_in_barcode_list_df = pd.DataFrame(missing_in_barcode_list)
-missing_in_barcode_list_df.to_excel(os.path.join(dir_name, 'missing_in_barcode_list.xlsx'))
 
-#new_df.to_excel(os.path.join(dir_name, out_fn))
-print('finished')
+def reversed_sheba_code(code):
+    code_no_zeros = code.replace("-0", "-")
+    reversed_code = code_no_zeros[::-1]
+    reversed_code_numeral = reversed_code.replace("/", "").replace("-", "")
+    return reversed_code_numeral
+
+
+def decode_sheba_codes(dir_name, fn, column_name='CODE'):
+    df = pd.read_excel(os.path.join(dir_name, fn))
+    new_column_name = column_name + "_reversed"
+    reversed_code_list = []
+    for row in df.iterrows():
+        code = row[1][column_name]
+        reversed_code_list.append(reversed_sheba_code(code))
+    df[new_column_name] = reversed_code_list
+    save_metadata_file(df, dir_name, fn)

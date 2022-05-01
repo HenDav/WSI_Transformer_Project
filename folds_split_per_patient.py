@@ -3,7 +3,7 @@ from random import shuffle
 import csv
 import pandas as pd
 
-dataset = 'HAEMEK'
+dataset = 'BENIGN'
 patient_column_name = 'patient barcode' #default
 
 if dataset == 'Carmel123':
@@ -77,6 +77,13 @@ elif dataset == 'HAEMEK':
     val_ratio = 0  # percentage to be marked as "validation"
     n_folds = 4  # number of cross-validation folds
     out_file = r'C:\ran_data\Haemek\slides_data_HAEMEK1_folds.xlsx'
+    patient_column_name = 'PatientIndex'
+elif dataset == 'BENIGN':
+    in_file = r'C:\ran_data\Benign\slides_data_BENIGN_labeled_merged.xlsx'
+    test_ratio = 0.2  # percentage to be marked as "test"
+    val_ratio = 0  # percentage to be marked as "validation"
+    n_folds = 5  # number of cross-validation folds
+    out_file = r'C:\ran_data\Benign\slides_data_BENIGN_folds.xlsx'
     patient_column_name = 'PatientIndex'
 else:
     raise IOError('dataset unknown')

@@ -29,7 +29,6 @@ from tqdm import tqdm
 from pathlib import Path
 from PIL import ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
-import cv2 # temp RanS 17.2.22
 
 #if sys.platform == 'win32':
 #    os.add_dll_directory(r'C:\ran_programs\Anaconda3\openslide_bin_ran')
@@ -240,9 +239,6 @@ def _get_tiles(slide: openslide.OpenSlide,
             #image = slide.read_region(location=(49000, 33000), level=best_slide_level, size=(adjusted_tile_sz, adjusted_tile_sz)).convert('RGB')
 
             # When reading from OpenSlide the locations is as follows (col, row)
-            #temp RanS 13.2.22
-            if adjusted_tile_sz == 1462:
-                adjusted_tile_sz = 1440 #RanS 14.2.22, use exact image size
 
             image = slide.read_region((new_loc_init['Left'], new_loc_init['Top']), best_slide_level, (adjusted_tile_sz, adjusted_tile_sz)).convert('RGB')
         except:
@@ -285,14 +281,8 @@ def _get_tiles(slide: openslide.OpenSlide,
         if temp_plot1:
             plt.imshow(image)
 
-        #temp RanS 13.2.22, not sure if this matters
-        if adjusted_tile_sz == 1440:
-            image = cv2.resize(np.array(image), dsize=(output_tile_sz, output_tile_sz), interpolation=cv2.INTER_LINEAR)
-            image = Image.fromarray(image)
-        else:
-            if adjusted_tile_sz != output_tile_sz:
-                image = image.resize((output_tile_sz, output_tile_sz))
-
+        if adjusted_tile_sz != output_tile_sz:
+            image = image.resize((output_tile_sz, output_tile_sz))
 
         tiles_PIL[idx] = image
 
@@ -690,7 +680,7 @@ class MyMeanPixelRegularization:
         return x
 
 
-def define_transformations(transform_type, train, tile_size, color_param=0.1, use_amir_norm=False):
+def define_transformations(transform_type, train, tile_size, color_param=0.1, norm_type='Ron'):
 
     MEAN = {'TCGA': [58.2069073 / 255, 96.22645279 / 255, 70.26442606 / 255],
             'HEROHE': [224.46091564 / 255, 190.67338568 / 255, 218.47883547 / 255],
@@ -705,13 +695,6 @@ def define_transformations(transform_type, train, tile_size, color_param=0.1, us
            'Imagenet': [0.229, 0.224, 0.225],
            'Amir': [0.0787, 0.1751, 0.1125]
            }
-
-    if False: #TODO RanS, implement imagenet normalization where needed
-        norm_type = 'Imagenet'
-    elif use_amir_norm:
-        norm_type = 'Amir'  # temp RanS 14.2.22
-    else:
-        norm_type = 'Ron'
 
     # Setting the transformation:
     if transform_type == 'aug_receptornet':
@@ -887,6 +870,14 @@ def get_datasets_dir_dict(Dataset: str):
         elif sys.platform == 'darwin':  # Omer
             dir_dict['CARMEL'] = CARMEL_omer_path
 
+    elif Dataset == 'CARMEL+BENIGN':
+        if sys.platform == 'linux':  # GIPdeep
+            for ii in np.arange(1, 9):
+                dir_dict['CARMEL' + str(ii)] = os.path.join(CARMEL_gipdeep_path, 'Batch_' + str(ii), 'CARMEL' + str(ii))
+
+            for ii in np.arange(1, 4):
+                dir_dict['BENIGN' + str(ii)] = os.path.join(CARMEL_BENIGN_gipdeep_path, 'Batch_' + str(ii), 'BENIGN' + str(ii))
+
     elif Dataset == 'Carmel 9-11':
         if sys.platform == 'linux':  # GIPdeep
             for ii in np.arange(9, 12):
@@ -900,6 +891,11 @@ def get_datasets_dir_dict(Dataset: str):
             dir_dict[Dataset] = os.path.join(CARMEL_gipdeep_path, 'Batch_' + batch_num, 'CARMEL' + batch_num)
         elif sys.platform == 'win32':  # Ran local
             dir_dict[Dataset] = TCGA_ran_path #temp for debug only
+
+    elif (Dataset[:6] == 'BENIGN') and (len(Dataset) > 6):
+        batch_num = Dataset[6:]
+        if sys.platform == 'linux':  # GIPdeep
+            dir_dict[Dataset] = os.path.join(CARMEL_BENIGN_gipdeep_path, 'Batch_' + batch_num, 'BENIGN' + batch_num)
 
     elif Dataset == 'CAT':
         if sys.platform == 'linux':  # GIPdeep
@@ -1026,14 +1022,6 @@ def get_datasets_dir_dict(Dataset: str):
                 dir_dict['HAEMEK' + str(ii)] = os.path.join(HAEMEK_gipdeep_path, 'Batch_' + str(ii), 'HAEMEK' + str(ii))
             #dir_dict['HAEMEK'] = HAEMEK_gipdeep_path
 
-    elif Dataset == 'CARMEL+BENIGN':
-        if sys.platform == 'linux':  # GIPdeep
-            for ii in np.arange(1, 9):
-                dir_dict['CARMEL' + str(ii)] = os.path.join(CARMEL_gipdeep_path, 'Batch_' + str(ii), 'CARMEL' + str(ii))
-
-            for ii in np.arange(1, 4):
-                dir_dict['BENIGN' + str(ii)] = os.path.join(CARMEL_BENIGN_gipdeep_path, 'Batch_' + str(ii), 'BENIGN' + str(ii))
-
     return dir_dict
 
 
@@ -1043,13 +1031,13 @@ def assert_dataset_target(DataSet, target_kind):
         target_kind = [target_kind]
     target_kind = set(target_kind)
 
-    if DataSet == 'TMA' and not target_kind <= {'ER', 'temp'}:
-        raise ValueError('For TMA DataSet, target should be one of: ER')
+    if DataSet == 'TMA' and not target_kind <= {'ER', 'temp', 'binary_dist', 'binary_live', 'binary_any'}:
+        raise ValueError('For TMA DataSet, target should be one of: ER, binary_dist, binary_live, binary_any')
     if DataSet == 'PORTO_HE' and not target_kind <= {'PDL1', 'EGFR', 'is_full_cancer'}:
         raise ValueError('For PORTO_HE DataSet, target should be one of: PDL1, EGFR')
     elif DataSet == 'PORTO_PDL1' and not target_kind <= {'PDL1'}:
         raise ValueError('For PORTO_PDL1 DataSet, target should be PDL1')
-    elif (DataSet in ['TCGA', 'CAT', 'ABCTB_TCGA']) and not target_kind <= {'ER', 'PR', 'Her2', 'OR'}:
+    elif (DataSet in ['TCGA', 'CAT', 'ABCTB_TCGA']) and not target_kind <= {'ER', 'PR', 'Her2', 'OR', 'is_cancer'}:
         raise ValueError('target should be one of: ER, PR, Her2, OR')
     elif (DataSet in ['IC', 'HIC', 'HEROHE', 'HAEMEK']) and not target_kind <= {'ER', 'PR', 'Her2', 'OR', 'Ki67'}:
         raise ValueError('target should be one of: ER, PR, Her2, OR')
@@ -1665,7 +1653,7 @@ def get_label(target, multi_target=False):
             return [1]
         elif target == 'Negative':
             return [0]
-        elif isinstance(target, int) or isinstance(target, float): #RanS 17.1.22, support multiclass
+        elif (isinstance(target, int) or isinstance(target, float)) and not np.isnan(target): #RanS 17.1.22, support multiclass
             return [int(target)]
         else: #unknown
             return [-1]

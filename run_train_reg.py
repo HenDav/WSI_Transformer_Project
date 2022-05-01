@@ -1,6 +1,6 @@
 import subprocess
 
-infer = False
+infer = True
 
 if infer:
     subprocess.run(['python', 'inference_Multi_REG.py',
@@ -18,6 +18,7 @@ if infer:
                     '--from_epoch', '0',
                     #'--from_epoch', '16',
                     #'--patch_dir', r'C:\Users\User\Dropbox\Technion work 2020\Code\WSI_MIL\WSI_MIL\runs\Exp_321-ER-TestFold_2\Inference',
+                    '--patch_dir', r'C:\Pathnet_results\MIL_general_try4\CAT_runs\Her2\exp392\Inference\test_w_locs\temp',
                     #'--save_features',
                     #'--model_path', 'torchvision.models.resnet34(pretrained=True)',
                     #'--resume', '1'
@@ -44,10 +45,11 @@ else:
                     '--n_patches_test', '1',
                     '--n_patches_train', '1',
                     #'--model', 'PreActResNets.PreActResNet50_Ron()',
-                    '--model', "StereoSphereRes(512, input_channels=3, sphereface_size=12, train_ae=0, multi_inputs_depth=0, bm=True)",
+                    #'--model', "StereoSphereRes(512, input_channels=3, sphereface_size=12, train_ae=0, multi_inputs_depth=0, bm=True)",
                     #'--model', 'PreActResNets.PreActResNet50_Ron(train_classifier_only=True)',
                     #'--model', 'PreActResNets.PreActResNet50_Ron(num_classes=5)',
                     #'--model', 'nets.MyResNet34(train_classifier_only=True)',
+                    '--model', "nets.ResNet50()",
                     #'--bootstrap',
                     #'--transform_type', 'aug_receptornet',
                     #'--transform_type', 'rvf',

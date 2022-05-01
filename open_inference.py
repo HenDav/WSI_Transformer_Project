@@ -48,6 +48,15 @@ slide_score_all = []
 if len(inference_files) == 0:
     raise IOError('No inference files found!')
 
+# read is_cancer values from experiment 627, temp RanS 13.3.22
+is_cancer_improv = False
+if is_cancer_improv:
+    is_cancer_inference_path = r'C:\Pathnet_results\MIL_general_try4\BENIGN_runs\is_cancer\exp627\Inference\CAT_Her2_fold1_patches_inference\Model_Epoch_500-Folds_[1]_is_cancer-Tiles_500.data'
+    #is_cancer_inference_path = r'C:\Pathnet_results\MIL_general_try4\BENIGN_runs\is_cancer\exp627\Inference\CAT_PR_fold1_patches_inference\Model_Epoch_500-Folds_[1]_is_cancer-Tiles_500.data'
+    with open(os.path.join(inference_dir, is_cancer_inference_path), 'rb') as filehandle:
+        inference_data_is_cancer = pickle.load(filehandle)
+        _, _, _, _, _, _, _, _, _, num_slides_is_cancer, patch_scores_is_cancer, all_slide_names_is_cancer, _, patch_locs_is_cancer = inference_data_is_cancer
+
 for ind, key in enumerate(inference_files.keys()):
     with open(os.path.join(inference_dir, inference_files[key]), 'rb') as filehandle:
         print(key)
@@ -71,6 +80,14 @@ for ind, key in enumerate(inference_files.keys()):
             num_slides, patch_scores, all_slide_names, patch_locs, patch_locs_inds, all_slide_size, all_slide_size_ind = inference_data
         else:
             IOError('inference data is of unsupported size!')
+
+
+        if is_cancer_improv: #validate patches are the same
+            test1 = num_slides_is_cancer == num_slides
+            test2 = np.all(all_slide_names == all_slide_names_is_cancer)
+            test3 = np.nanmax(patch_locs - patch_locs_is_cancer) == 0
+            if (not test1) or (not test2) or (not test3):
+                raise IOError('mismatch between is_cancer patches and inference patches')
 
         if ind == 0: #define figure and axes
             if all_scores.ndim == 2:
@@ -180,7 +197,21 @@ for ind, key in enumerate(inference_files.keys()):
                     ax1.plot(fpr, tpr)
                     legend_labels.append(key + ' ' + target_names[i_target] + ' (AUC=' + str(round(roc_auc[-1], 3)) + ')')
             else:
-                roc_auc.append(auc(fpr, tpr))
+                if is_cancer_improv:
+                    #patch_scores_with_is_cancer = patch_scores * patch_scores_is_cancer
+                    #tot_score_is_cancer = np.nansum(patch_scores_is_cancer,axis=1).reshape((patch_scores_is_cancer.shape[0],1))
+                    #patch_scores_with_is_cancer = patch_scores * patch_scores_is_cancer / tot_score_is_cancer
+                    patch_scores_is_cancer1 = patch_scores_is_cancer
+                    #patch_scores_is_cancer1[patch_scores_is_cancer1 < 0.995] = np.nan
+                    patch_scores_is_cancer1[patch_scores_is_cancer1 < 0.9] = np.nan
+                    patch_scores_with_is_cancer = patch_scores * patch_scores_is_cancer1
+                    scores_with_is_cancer = np.nanmean(patch_scores_with_is_cancer, axis=1)
+                    scores_with_is_cancer[np.isnan(scores_with_is_cancer)] = 0
+                    fpr_w_is_cancer, tpr_w_is_cancer, _ = roc_curve(all_targets, scores_with_is_cancer)
+                    auc(fpr_w_is_cancer, tpr_w_is_cancer)
+                    roc_auc.append(auc(fpr_w_is_cancer, tpr_w_is_cancer))
+                else:
+                    roc_auc.append(auc(fpr, tpr))
                 #plt.plot(fpr, tpr)
                 ax1.plot(fpr, tpr)
                 legend_labels.append(key + ' (AUC=' + str(round(roc_auc[-1], 3)) + ')')
@@ -201,20 +232,20 @@ for ind, key in enumerate(inference_files.keys()):
             patient_all = []
             if dataset == 'LEUKEMIA':
                 slides_data_file = r'C:\ran_data\BoneMarrow\slides_data_LEUKEMIA.xlsx'
-                slides_data = pd.read_excel(slides_data_file)
             elif (dataset == 'CAT') or (dataset == 'CARMEL'):
                 slides_data_file = r'C:\ran_data\Carmel_Slides_examples\add_ki67_labels\ER100_labels\slides_data_CARMEL_labeled_merged.xlsx'
-                slides_data = pd.read_excel(slides_data_file)
             elif (dataset == 'HAEMEK'):
                 slides_data_file = r'C:\ran_data\Haemek\slides_data_HAEMEK1.xlsx'
-                slides_data = pd.read_excel(slides_data_file)
             elif (dataset == 'SHEBA'):
                 slides_data_file = r'C:\ran_data\Sheba\slides_data_SHEBA_labeled_merged.xlsx'
-                slides_data = pd.read_excel(slides_data_file)
+            elif (dataset == 'BENIGN'):
+                slides_data_file = r'C:\ran_data\Benign\final slides_data\slides_data_BENIGN_merged.xlsx'
 
             #temp RanS 27.1.22 for HAEMEK inference on CAT models
-            '''slides_data_file = r'C:\ran_data\Haemek\slides_data_HAEMEK1.xlsx'
-            slides_data = pd.read_excel(slides_data_file)'''
+            #slides_data_file = r'C:\ran_data\Haemek\slides_data_HAEMEK1.xlsx'
+            #slides_data_file = r'C:\ran_data\Carmel_Slides_examples\add_ki67_labels\ER100_labels\slides_data_CARMEL_labeled_merged.xlsx'
+
+            slides_data = pd.read_excel(slides_data_file)
 
             #for name in all_slide_names:
             for name, slide_dataset in zip(all_slide_names, all_slide_datasets):
@@ -226,7 +257,7 @@ for ind, key in enumerate(inference_files.keys()):
                     patient_all.append(slides_data[slides_data['file'] == name]['patient barcode'].item())
                 elif dataset == 'LEUKEMIA' or dataset == 'SHEBA':
                     patient_all.append(slides_data[slides_data['file'] == name]['PatientID'].item())
-                elif slide_dataset[:6] == 'HAEMEK':  # HAEMEK files
+                elif (slide_dataset[:6] == 'HAEMEK') or (slide_dataset[:6] == 'BENIGN'):  # HAEMEK files
                     patient_all.append(slides_data[slides_data['file'] == name]['PatientIndex'].item())
 
             if N_classes == 2:

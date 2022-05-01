@@ -65,7 +65,9 @@ total_pos, total_neg = 0, 0
 correct_pos, correct_neg = 0, 0
 
 # Create folders to save the data:
-path_for_output = 'Inference/Full_Slide_Inference/' + inf_dset.DataSet
+
+#path_for_output = 'Inference/Full_Slide_Inference/' + inf_dset.DataSet
+path_for_output = os.path.join(output_dir, 'Inference', 'Full_Slide_Inference', inf_dset.DataSet)
 Path(path_for_output).mkdir(parents=True, exist_ok=True)
 
 

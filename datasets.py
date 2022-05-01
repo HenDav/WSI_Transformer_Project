@@ -20,8 +20,8 @@ import sys
 from math import isclose
 from PIL import Image
 from glob import glob
-import logging #temp RanS 17.2.22
-import cv2 #temp RanS 17.2.22
+import logging
+import cv2
 
 class WSI_Master_Dataset(Dataset):
     def __init__(self,
@@ -46,7 +46,8 @@ class WSI_Master_Dataset(Dataset):
                  er_eq_pr: bool = False,
                  slide_per_block: bool = False,
                  balanced_dataset: bool = False,
-                 RAM_saver: bool = False
+                 RAM_saver: bool = False,
+                 patch_dir: str = '',
                  ):
 
         # Support multitarget training, RanS 8.12.21
@@ -60,7 +61,7 @@ class WSI_Master_Dataset(Dataset):
         # Check if the target receptor is available for the requested train DataSet:
         assert_dataset_target(DataSet, target_kind)
 
-        print('Initializing {} DataSet....'.format('Train' if train else 'Test'))
+        logging.info('Initializing {} DataSet....'.format('Train' if train else 'Test'))
         self.DataSet = DataSet
         self.desired_magnification = desired_slide_magnification
         self.tile_size = tile_size
@@ -74,12 +75,18 @@ class WSI_Master_Dataset(Dataset):
         self.train_type = train_type
         self.color_param = color_param
         self.loan = loan
+        self.patch_dir = patch_dir
 
         # Get DataSets location:
         self.dir_dict = get_datasets_dir_dict(Dataset=self.DataSet)
-        print('Slide Data will be taken from these locations:')
-        print(self.dir_dict)
+        logging.info('Slide Data will be taken from these locations:')
+        logging.info(self.dir_dict)
         locations_list = []
+
+        # RanS 14.2.22, allow multiples in TMA dataset to use Amir dataset
+        use_multiples = False
+        # if self.DataSet == 'TMA' and self.desired_magnification == 7:
+        #    use_multiples = True #temp RanS 22.2.22
 
         for _, key in enumerate(self.dir_dict):
             locations_list.append(self.dir_dict[key])
@@ -88,27 +95,13 @@ class WSI_Master_Dataset(Dataset):
             grid_meta_data_file = os.path.join(self.dir_dict[key], 'Grids_' + str(self.desired_magnification), 'Grid_data.xlsx')
 
             slide_meta_data_DF = pd.read_excel(slide_meta_data_file)
-            #logging.info(1) #temp RanS 16.2.22
-            #logging.info(slide_meta_data_DF.loc[0]['file']) #temp RanS 16.2.22
             grid_meta_data_DF = pd.read_excel(grid_meta_data_file)
 
-            #logging.info(2)  # temp RanS 16.2.22
-            #logging.info(grid_meta_data_DF.loc[0]['file'])  # temp RanS 16.2.22
-
-            if self.DataSet == 'TMA' and self.desired_magnification == 7:
-                #slide_meta_data_DF = slide_meta_data_DF.sort_values(by=['file'])
-                #temp assuming slides_data and grid_data are in the same order!!!!!
-                #logging.info(3)  # temp RanS 16.2.22
-                #logging.info(slide_meta_data_DF.loc[0]['file'])  # temp RanS 16.2.22
-                #grid_meta_data_DF = grid_meta_data_DF.sort_values(by=['file'])
-                #logging.info(4)  # temp RanS 16.2.22
-                #logging.info(grid_meta_data_DF.loc[0]['file'])  # temp RanS 16.2.22
+            if use_multiples:
                 if any(grid_meta_data_DF['file'] != slide_meta_data_DF['file']):
                     raise IOError('order of slides in grid file does not match order in slides_data file!')
                 grid_meta_data_DF = grid_meta_data_DF.drop('file', axis=1)
                 meta_data_DF = pd.concat([slide_meta_data_DF, grid_meta_data_DF], axis=1)  # RanS 14.2.22, allow multiples
-                #logging.info(5)  # temp RanS 16.2.22
-                #logging.info(meta_data_DF.loc[0]['file'])  # temp RanS 16.2.22
             else:
                 meta_data_DF = pd.DataFrame({**slide_meta_data_DF.set_index('file').to_dict(),
                                              **grid_meta_data_DF.set_index('file').to_dict()})
@@ -116,7 +109,7 @@ class WSI_Master_Dataset(Dataset):
             self.meta_data_DF = meta_data_DF if not hasattr(self, 'meta_data_DF') else self.meta_data_DF.append(
                 meta_data_DF)
 
-        if not (self.DataSet == 'TMA' and self.desired_magnification == 7):
+        if not use_multiples:
             self.meta_data_DF.reset_index(inplace=True)
             self.meta_data_DF.rename(columns={'index': 'file'}, inplace=True)
 
@@ -174,7 +167,7 @@ class WSI_Master_Dataset(Dataset):
                 _, unique_inds = np.unique(all_blocks, return_index=True)
                 all_inds = np.arange(0, len(all_blocks))
                 excess_block_slides = set(all_inds) - set(unique_inds)
-                print('slide_per_block: removing ' + str(len(excess_block_slides)) + ' slides')
+                logging.info('slide_per_block: removing ' + str(len(excess_block_slides)) + ' slides')
             else:
                 IOError('slide_per_block only implemented for CARMEL dataset')
         elif (DataSet == 'LEUKEMIA') and (target_kind in ['ALL', 'is_B', 'is_HR', 'is_over_6', 'is_over_10', 'is_over_15', 'WBC_over_20', 'WBC_over_50', 'is_HR_B', 'is_tel_aml_B', 'is_tel_aml_non_hr_B']):
@@ -194,10 +187,8 @@ class WSI_Master_Dataset(Dataset):
                 valid_slide_indices = np.where(np.isin(all_targets[:, 0], ['Positive', 'Negative']) | np.isin(all_targets[:, 1], ['Positive', 'Negative']))[0]
             else:
                 valid_slide_indices1 = np.where(np.isin(np.array(all_targets), ['Positive', 'Negative']) == True)[0]
-                valid_slide_indices2 = np.where(np.isin(np.array(all_targets), [0,1,2,3,4,5,6,7,8,9]) == True)[0] #Support up to 10 classes
+                valid_slide_indices2 = np.where(np.isin(np.array(all_targets), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) == True)[0] #Support up to 10 classes
                 valid_slide_indices = np.hstack((valid_slide_indices1, valid_slide_indices2))
-                #logging.info(6)  # temp RanS 16.2.22
-                #logging.info(valid_slide_indices[:5])  # temp RanS 16.2.22
 
         #inference on unknown labels in case of (blind) test inference or Batched_Full_Slide_Inference_Dataset
         if len(valid_slide_indices) == 0 or self.train_type == 'Infer_All_Folds' or (self.target_kind == 'survival' and self.train_type == 'Infer'):
@@ -215,11 +206,11 @@ class WSI_Master_Dataset(Dataset):
             self.tile_size) + ' compatible @ X' + str(self.desired_magnification)] == 0])
 
         if 'bad segmentation' in self.meta_data_DF.columns:
-            slides_with_bad_seg = set(self.meta_data_DF.index[self.meta_data_DF['bad segmentation'] == 1])  #RanS 9.5.21
+            slides_with_bad_seg = set(self.meta_data_DF.index[self.meta_data_DF['bad segmentation'] == 1])
         else:
             slides_with_bad_seg = set()
 
-        # train only on samples with ER=PR, RanS 27.6.21
+        # train only on samples with ER=PR
         if er_eq_pr and self.train:
             slides_with_er_not_eq_pr = set(self.meta_data_DF.index[self.meta_data_DF['ER status'] != self.meta_data_DF['PR status']])
         else:
@@ -235,12 +226,13 @@ class WSI_Master_Dataset(Dataset):
             self.tile_size) + ' compatible @ X' + str(self.desired_magnification)] < n_minimal_tiles])
         # FIXME: find a way to use slides with less than the minimal amount of slides. and than delete the following if.
         if len(slides_with_few_tiles) > 0:
-            print(
-                '{} Slides were excluded from DataSet because they had less than {} available tiles or are non legitimate for training'
-                .format(len(slides_with_few_tiles), n_minimal_tiles))
+            logging.info(
+                         '{} Slides were excluded from DataSet because they had less than {} available tiles or are non legitimate for training'
+                         .format(len(slides_with_few_tiles), n_minimal_tiles))
 
-        if (self.DataSet == 'TMA') and (self.desired_magnification == 7):
-            pass #temp RanS 14.2.22, the "set" kills multiple rows in slides_data
+        #if (self.DataSet == 'TMA') and (self.desired_magnification == 7):
+        if use_multiples:
+            pass #RanS 14.2.22, the "set" kills multiple rows in slides_data
         else:
             valid_slide_indices = np.array(
                 list(set(valid_slide_indices) - slides_without_grid - slides_with_few_tiles - slides_with_0_tiles - slides_with_bad_seg - slides_with_er_not_eq_pr - excess_block_slides))
@@ -284,14 +276,8 @@ class WSI_Master_Dataset(Dataset):
         correct_folds = self.meta_data_DF[fold_column_name][valid_slide_indices].isin(folds)
         valid_slide_indices = np.array(correct_folds.index[correct_folds])
 
-        #logging.info(7)  # temp RanS 16.2.22
-        #logging.info(valid_slide_indices[:5])  # temp RanS 16.2.22
-
         all_image_file_names = list(self.meta_data_DF['file'])
         all_image_ids = list(self.meta_data_DF['id'])
-
-        #logging.info(8)  # temp RanS 16.2.22
-        #logging.info(all_image_file_names[:5])  # temp RanS 16.2.22
 
         all_in_fold = list(self.meta_data_DF[fold_column_name])
         all_tissue_tiles = list(self.meta_data_DF['Legitimate tiles - ' + str(self.tile_size) + ' compatible @ X' + str(
@@ -314,6 +300,23 @@ class WSI_Master_Dataset(Dataset):
                     valid_slide_index = self.meta_data_DF[self.meta_data_DF['file'] == slidename].index.to_list()
                     valid_slide_indices.append(valid_slide_index[0])
 
+            if self.patch_dir != '':
+                # load patches position from excel file
+                xfile = glob(os.path.join(self.patch_dir, '*_x.csv'))
+                yfile = glob(os.path.join(self.patch_dir, '*_y.csv'))
+                if len(xfile) == 0 or len(yfile) == 0:
+                    raise IOError('patch location files not found in dir!')
+                elif len(xfile) > 1 or len(yfile) > 1:
+                    raise IOError('more than one patch location file in dir!')
+                self.x_pd = pd.read_csv(xfile[0])
+                self.y_pd = pd.read_csv(yfile[0])
+
+                # take all slides that were used in previous inference
+                valid_slide_indices_prev = np.array(
+                    [int(np.where(self.meta_data_DF['file'] == slide_name)[0]) for slide_name in
+                     self.x_pd['slide_name']]).astype('int64')
+                valid_slide_indices = valid_slide_indices_prev
+
             self.valid_slide_indices = valid_slide_indices
             self.all_magnifications = all_magnifications
             self.all_is_DX_cut = all_is_DX_cut if self.DX else [True] * len(self.all_magnifications)
@@ -332,7 +335,6 @@ class WSI_Master_Dataset(Dataset):
         self.slides = []
         self.grid_lists = []
         self.presaved_tiles = []
-
 
         if self.target_kind in ['Survival_Time', 'Survival_Binary']:
             self.target_binary, self.target_cont, self.censored = [], [], []
@@ -362,7 +364,7 @@ class WSI_Master_Dataset(Dataset):
                         self.slides.append(tiles_dir)
                         self.grid_lists.append(0)
                     else:
-                        if (self.DataSet == 'TMA') and (self.desired_magnification == 7): #temp RanS 20.2.22
+                        if (self.DataSet == 'TMA'): # read TMA using opencv
                             self.slides.append(image_file)
                         else:
                             if self.train_type in ['Infer_All_Folds', 'Infer']:
@@ -376,21 +378,19 @@ class WSI_Master_Dataset(Dataset):
                                                  basic_file_name + '--tlsz' + str(self.tile_size) + '.data')
                         with open(grid_file, 'rb') as filehandle:
                             grid_list = pickle.load(filehandle)
-                            if (self.DataSet == 'TMA') and (self.desired_magnification == 7):
-                                grid_list = [(0, 408)] #temp RanS 23.1.22, override empty grids
+                            if use_multiples:
+                                grid_list = [(0, 408)] #override empty grids - use slides defined by list
                             self.grid_lists.append(grid_list)
                 except FileNotFoundError:
                     raise FileNotFoundError(
                         'Couldn\'t open slide {} or its Grid file {}'.format(image_file, grid_file))
 
-        #self.tile_size = 64 #temp for speed experiments, RanS 31.10.21
-
         # Setting the transformation:
-        if (self.DataSet == 'TMA') and (self.desired_magnification == 7):
-            use_amir_norm = True #temp RanS 14.2.22
+        if (self.DataSet == 'TMA'):
+            norm_type = 'Amir' #opencv reverses colors, so normalization needs to be reveresed as well RanS 14.2.22
         else:
-            use_amir_norm = False
-        self.transform = define_transformations(transform_type, self.train, self.tile_size, self.color_param, use_amir_norm)
+            norm_type = 'Ron'
+        self.transform = define_transformations(transform_type, self.train, self.tile_size, self.color_param, norm_type)
         if np.sum(self.presaved_tiles):
             self.rand_crop = transforms.RandomCrop(self.tile_size)
 
@@ -420,15 +420,12 @@ class WSI_Master_Dataset(Dataset):
         start_getitem = time.time()
         idx = idx % self.real_length
 
-        #logging.info('idx:{}'.format(idx))  # temp RanS 16.2.22
-
         if self.presaved_tiles[idx]:  # load presaved patches
             time_tile_extraction = time.time()
             idxs = sample(range(self.tissue_tiles[idx]), self.bag_size)
             empty_image = Image.fromarray(np.uint8(np.zeros((self.tile_size, self.tile_size, 3))))
             tiles = [empty_image] * self.bag_size
             for ii, tile_ind in enumerate(idxs):
-                #tile_path = os.path.join(self.tiles_dir[idx], 'tile_' + str(tile_ind) + '.data')
                 tile_path = os.path.join(self.slides[idx], 'tile_' + str(tile_ind) + '.data')
                 with open(tile_path, 'rb') as fh:
                     header = fh.readline()
@@ -442,49 +439,24 @@ class WSI_Master_Dataset(Dataset):
         else:
             slide = self.slides[idx]
 
-            if (self.DataSet == 'TMA') and (self.desired_magnification == 7): #temp RanS 16.2.22
-                #im = cv2.imread(self.slides[idx]._file_arg)
+            if (self.DataSet == 'TMA'): #read TMA using opencv, RanS 16.2.22
                 im = cv2.imread(self.slides[idx])
-                #im = im[:, :, ::-1].copy()  # temp RanS 14.2.22
-                #h, w, c = im.shape
                 w_margin = (im.shape[1] - 1440) // 2
                 im = im[:, w_margin:-w_margin]
                 im = cv2.resize(im, dsize=(512, 512),
                                    interpolation=cv2.INTER_LINEAR)
                 im = Image.fromarray(im)
                 tiles = [im]
-
-                '''tiles, time_list, label = _choose_data(grid_list=self.grid_lists[idx],
-                                                       slide=slide,
-                                                       how_many=self.bag_size,
-                                                       magnification=self.magnification[idx],
-                                                       # tile_size=int(self.tile_size / (1 - self.scale_factor)),
-                                                       tile_size=self.tile_size,
-                                                       # RanS 28.4.21, scale out cancelled for simplicity
-                                                       # Fix boundaries with scale
-                                                       print_timing=self.print_time,
-                                                       desired_mag=self.desired_magnification,
-                                                       loan=self.loan,
-                                                       random_shift=self.random_shift)'''
-
-                '''qq = np.array(tiles[0]) - np.array(tiles2[0])
-                patch_diff = np.sum(np.abs(qq))
-                if patch_diff > 0:
-                    logging.info('no match for reading methods: slide {} '.format(self.slides[idx]._file_arg))'''
             else:
                 tiles, time_list, label = _choose_data(grid_list=self.grid_lists[idx],
                                                        slide=slide,
                                                        how_many=self.bag_size,
                                                        magnification=self.magnification[idx],
-                                                       # tile_size=int(self.tile_size / (1 - self.scale_factor)),
                                                        tile_size=self.tile_size,
-                                                       # RanS 28.4.21, scale out cancelled for simplicity
-                                                       # Fix boundaries with scale
                                                        print_timing=self.print_time,
                                                        desired_mag=self.desired_magnification,
                                                        loan=self.loan,
                                                        random_shift=self.random_shift)
-
         if not self.loan:
             if self.target_kind == 'Survival_Time':
                 label = [self.target[idx]]
@@ -591,19 +563,19 @@ class WSI_MILdataset(WSI_Master_Dataset):
                                              desired_slide_magnification=desired_slide_magnification,
                                              slide_repetitions=slide_repetitions)
 
-        print(
-            'Initiation of WSI({}) {} {} DataSet for {} is Complete. Magnification is X{}, {} Slides, Tiles of size {}^2. {} tiles in a bag, {} Transform. TestSet is fold #{}. DX is {}'
-                .format(self.train_type,
-                        'Train' if self.train else 'Test',
-                        self.DataSet,
-                        self.target_kind,
-                        self.desired_magnification,
-                        self.real_length,
-                        self.tile_size,
-                        self.bag_size,
-                        'Without' if transform_type == 'none' else 'With',
-                        self.test_fold,
-                        'ON' if self.DX else 'OFF'))
+        logging.info(
+                     'Initiation of WSI({}) {} {} DataSet for {} is Complete. Magnification is X{}, {} Slides, Tiles of size {}^2. {} tiles in a bag, {} Transform. TestSet is fold #{}. DX is {}'
+                         .format(self.train_type,
+                                 'Train' if self.train else 'Test',
+                                 self.DataSet,
+                                 self.target_kind,
+                                 self.desired_magnification,
+                                 self.real_length,
+                                 self.tile_size,
+                                 self.bag_size,
+                                 'Without' if transform_type == 'none' else 'With',
+                                 self.test_fold,
+                                 'ON' if self.DX else 'OFF'))
 
 
 class WSI_REGdataset(WSI_Master_Dataset):
@@ -646,19 +618,19 @@ class WSI_REGdataset(WSI_Master_Dataset):
                                              RAM_saver=RAM_saver)
 
         self.loan = loan
-        print(
-            'Initiation of WSI({}) {} {} DataSet for {} is Complete. Magnification is X{}, {} Slides, Tiles of size {}^2. {} tiles in a bag, {} Transform. TestSet is fold #{}. DX is {}'
-                .format(self.train_type,
-                        'Train' if self.train else 'Test',
-                        self.DataSet,
-                        self.target_kind,
-                        self.desired_magnification,
-                        self.real_length,
-                        self.tile_size,
-                        self.bag_size,
-                        'Without' if transform_type == 'none' else 'With',
-                        self.test_fold,
-                        'ON' if self.DX else 'OFF'))
+        logging.info(
+                     'Initiation of WSI({}) {} {} DataSet for {} is Complete. Magnification is X{}, {} Slides, Tiles of size {}^2. {} tiles in a bag, {} Transform. TestSet is fold #{}. DX is {}'
+                         .format(self.train_type,
+                                 'Train' if self.train else 'Test',
+                                 self.DataSet,
+                                 self.target_kind,
+                                 self.desired_magnification,
+                                 self.real_length,
+                                 self.tile_size,
+                                 self.bag_size,
+                                 'Without' if transform_type == 'none' else 'With',
+                                 self.test_fold,
+                                 'ON' if self.DX else 'OFF'))
 
     def __getitem__(self, idx):
         # X, target, time_list, image_file_names, images = super(WSI_REGdataset, self).__getitem__(idx=idx)
@@ -704,10 +676,10 @@ class Infer_Dataset(WSI_Master_Dataset):
                                             DX=dx,
                                             get_images=False,
                                             train_type='Infer',
-                                            desired_slide_magnification=desired_slide_magnification)
+                                            desired_slide_magnification=desired_slide_magnification,
+                                            patch_dir=patch_dir)
 
         self.tiles_per_iter = tiles_per_iter
-        self.patch_dir = patch_dir
         self.folds = folds
         self.magnification = []
         self.num_tiles = []
@@ -727,19 +699,6 @@ class Infer_Dataset(WSI_Master_Dataset):
         self.presaved_tiles = self.presaved_tiles[resume_slide:] #RanS 15.11.21
         self.target = self.target[resume_slide:] #RanS 15.11.21
 
-        if self.patch_dir != '':
-            # RanS 24.10.21
-            # load patches position from excel file
-            xfile = glob(os.path.join(self.patch_dir, '*_x.csv'))
-            yfile = glob(os.path.join(self.patch_dir, '*_y.csv'))
-            if len(xfile) == 0 or len(yfile) == 0:
-                raise IOError('patch location files not found in dir!')
-            elif len(xfile) > 1 or len(yfile) > 1:
-                raise IOError('more than one patch location file in dir!')
-            self.x_pd = pd.read_csv(xfile[0])
-            self.y_pd = pd.read_csv(yfile[0])
-
-
         for _, slide_num in enumerate(self.valid_slide_indices):
             if (self.DX and self.all_is_DX_cut[slide_num]) or not self.DX:
                 if num_tiles <= self.all_tissue_tiles[slide_num] and self.all_tissue_tiles[slide_num] > 0:
@@ -747,8 +706,6 @@ class Infer_Dataset(WSI_Master_Dataset):
                 else:
                     self.num_tiles.append(int(self.all_tissue_tiles[slide_num]))
                     slide_with_not_enough_tiles += 1
-                    '''print('{} Slide available tiles are less than {}'.format(self.all_image_file_names[slide_num],
-                                                                             num_tiles))'''
 
                 self.magnification.extend([self.all_magnifications[slide_num]])
                 self.patient_barcode.append(self.all_patient_barcodes[slide_num])
@@ -756,7 +713,6 @@ class Infer_Dataset(WSI_Master_Dataset):
                 if self.patch_dir == '':
                     which_patches = sample(range(int(self.tissue_tiles[ind])), self.num_tiles[-1])
                 else:
-                    #RanS 24.10.21
                     which_patches = [ii for ii in range(self.num_tiles[-1])]
 
                 patch_ind_chunks = chunks(which_patches, self.tiles_per_iter)
@@ -772,7 +728,7 @@ class Infer_Dataset(WSI_Master_Dataset):
                             grid_list = pickle.load(filehandle)
                             self.grid_lists.append(grid_list)
 
-                ind += 1  # RanS 29.1.21
+                ind += 1
 
         print('There are {} slides with less than {} tiles'.format(slide_with_not_enough_tiles, num_tiles))
 
@@ -1141,8 +1097,6 @@ class Infer_Dataset_Background(WSI_Master_Dataset):
                     # self.num_patches.append(self.all_tissue_tiles[slide_num])
                     self.num_tiles.append(int(self.all_tissue_tiles[slide_num]))  # RanS 10.3.21
                     slide_with_not_enough_tiles += 1
-                    '''print('{} Slide available tiles are less than {}'.format(self.all_image_file_names[slide_num],
-                                                                             num_tiles))'''
 
                 # self.magnification.extend([self.all_magnifications[slide_num]] * self.num_patches[-1])
                 self.magnification.extend([self.all_magnifications[slide_num]])  # RanS 11.3.21

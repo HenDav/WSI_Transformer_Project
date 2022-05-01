@@ -141,29 +141,11 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
         model.train()
         model.to(DEVICE)
 
-        # temp RanS 13.2.22
-        import sys
-        '''if (sys.platform == 'win32') and (e == 0):
-            path = r'C:\ran_data\TMA\02-008\single_image\model\9_0.61_0.65.pt'
-            checkpoint = torch.load(path, map_location=torch.device('cpu'))
-            model.load_state_dict(checkpoint['model_state_dict'], strict=False)
-            model.net_dropout.p = 0
-        elif (args.dataset == 'TMA') and (args.mag == 7) and (e == 0):
-            path = r'/mnt/gipmed_new/Data/Breast/TMA/temp_for_debug/single_image/model/9_0.61_0.65.pt'
-            checkpoint = torch.load(path, map_location=torch.device('cpu'))
-            model.load_state_dict(checkpoint['model_state_dict'], strict=False)
-            model.net_dropout.p = 0'''
-
-        '''logging.info('before epoch: model._final_1x1_conv.weight)[:,:5]:\n {0}'.format(
-            torch.squeeze(model._final_1x1_conv.weight)[:, :5].cpu().detach().numpy()))  # temp RanS 15.2.22'''
-
         for batch_idx, minibatch in enumerate(tqdm(dloader_train)):
             data = minibatch['Data']
             target = minibatch['Target']
             time_list = minibatch['Time List']
             f_names = minibatch['File Names']
-
-
 
             temp_plot = False
             if temp_plot:
@@ -180,11 +162,6 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
 
             train_start = time.time()
             data, target = data.to(DEVICE), target.to(DEVICE).squeeze(1)
-
-            '''if (args.dataset == 'TMA') and (args.mag == 7):
-                logging.info('f_names:\n {0}'.format(f_names))  # temp RanS 15.2.22
-                logging.info('targets:\n {0}'.format(target))  # temp RanS 15.2.22
-                logging.info('data[0][:,250,250]: {}'.format(data[0][:, 250, 250]))'''
 
             optimizer.zero_grad()
             if print_timing:
@@ -248,13 +225,10 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                     time_backprop_start = time.time()
 
                 loss.backward()
-                #utils.plot_grad_flow(model.named_parameters()) #temp RanS 24.1.22
+                if temp_plot:
+                    utils.plot_grad_flow(model.named_parameters()) #RanS 24.1.22
 
                 optimizer.step()
-
-                '''if (args.dataset == 'TMA') and (args.mag == 7):
-                    logging.info('after step: model._final_1x1_conv.weight)[:,:5]:\n {0}'.format(
-                        torch.squeeze(model._final_1x1_conv.weight)[:, :5].cpu().detach().numpy()))  # temp RanS 15.2.22'''
 
                 train_loss += loss.item()
 
@@ -398,8 +372,8 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             #print('saved checkpoint to', args.output_dir) #RanS 23.6.21
             logging.info('saved checkpoint to {}'.format(args.output_dir))
 
-        if (args.dataset == 'TMA') and (args.mag == 7): #temp RanS 24.1.22
-            scheduler.step()
+        #if (args.dataset == 'TMA') and (args.mag == 7): #temp RanS 24.1.22
+        #    scheduler.step()
 
     all_writer.close()
     if print_timing:
@@ -695,10 +669,6 @@ if __name__ == '__main__':
         do_shuffle = False  # the sampler shuffles
         sampler = torch.utils.data.sampler.WeightedRandomSampler(weights=weights.squeeze(), num_samples=len(train_dset))
 
-    '''if (args.dataset == 'TMA') and (args.mag == 7):
-        train_loader = DataLoader(train_dset, batch_size=args.batch_size,
-                                  num_workers=num_workers, pin_memory=True, sampler=torch.utils.data.SequentialSampler(train_dset)) #temp RanS 16.2.22
-    else:'''
     train_loader = DataLoader(train_dset, batch_size=args.batch_size, shuffle=do_shuffle,
                               num_workers=num_workers, pin_memory=True, sampler=sampler)
     test_loader  = DataLoader(test_dset, batch_size=args.batch_size*2, shuffle=False,
@@ -770,10 +740,11 @@ if __name__ == '__main__':
 
 
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    if (args.dataset == 'TMA') and (args.mag == 7): #temp RanS 13.1.22
+    '''if (args.dataset == 'TMA') and (args.mag == 7): #temp RanS 13.1.22
         modules = [{'params': model.parameters(), 'weight_decay': args.weight_decay}]
-        optimizer = optim.SGD(modules, lr=args.lr, momentum=0.9, weight_decay=args.weight_decay, nesterov=True)
-        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=60, gamma=0.1)
+        #optimizer = optim.SGD(modules, lr=args.lr, momentum=0.9, weight_decay=args.weight_decay, nesterov=True)
+        optimizer = optim.RAdam(modules, lr=args.lr, weight_decay=args.weight_decay) #RanS 7.3.22
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=60, gamma=0.1)'''
 
     if len(args.target.split('+')) > 1:
         multi_target = True
@@ -784,10 +755,7 @@ if __name__ == '__main__':
         multi_target = False
 
     if DEVICE.type == 'cuda':
-        if (args.dataset == 'TMA') and (args.mag == 7): #temp cancelled RanS 15.2.22
-            pass
-        else:
-            model = torch.nn.DataParallel(model) #DataParallel, RanS 1.8.21.
+        model = torch.nn.DataParallel(model) #DataParallel, RanS 1.8.21.
         cudnn.benchmark = True
 
         # RanS 28.1.21
@@ -806,8 +774,8 @@ if __name__ == '__main__':
                     state[k] = v.to(DEVICE)
 
     if args.focal:
-        criterion = utils.FocalLoss(gamma=2)  # RanS 18.7.21
-        criterion.to(DEVICE) #RanS 20.7.21
+        criterion = utils.FocalLoss(gamma=2)
+        criterion.to(DEVICE)
     elif args.target == 'Survival_Time':
         criterion = Cox_loss
     else:
@@ -816,10 +784,8 @@ if __name__ == '__main__':
         else:
             criterion = nn.CrossEntropyLoss()
 
-    #RanS 3.11.21
     if args.RAM_saver:
         shuffle_freq = 100 #reshuffle dataset every 200 epochs
-        #shuffle_freq = 3  # temp
         shuffle_epoch_list = np.arange(np.ceil((from_epoch+EPS) / shuffle_freq) * shuffle_freq, epoch, shuffle_freq).astype(int)
         shuffle_epoch_list = np.append(shuffle_epoch_list, epoch)
 
