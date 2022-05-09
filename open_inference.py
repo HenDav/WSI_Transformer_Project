@@ -10,8 +10,10 @@ from inference_loader_input import inference_files, inference_dir, save_csv, pat
 multi_target = False
 if len(target.split('+')) > 1:
     multi_target = True
-    target0, target1 = target.split('+')
-    target_names = [target0, target1]
+    #target0, target1 = target.split('+')
+    #target_names = [target0, target1]
+    target_list = target.split('+')
+    N_targets = len(target_list)
 
 custom_cycler = (cycler(color=['#377eb8', '#ff7f00', '#4daf4a',
                                     '#f781bf', '#a65628', '#984ea3',
@@ -94,7 +96,7 @@ for ind, key in enumerate(inference_files.keys()):
                 raise IOError('mismatch between is_cancer patches and inference patches')
 
         if ind == 0: #define figure and axes
-            if all_scores.ndim == 2 and target != 'survival':
+            if all_scores.ndim == 2 and target != 'survival' and not multi_target:
                 N_classes = all_scores.shape[1]
                 fig_list, ax_list, legend_labels = [], [], []
                 if patient_level:
@@ -138,7 +140,7 @@ for ind, key in enumerate(inference_files.keys()):
             roc_auc5 = roc_auc_score(np.array(q[q['test fold idx breast'] == 5]['slide_label']), np.array(q[q['test fold idx breast'] == 5]['slide_score']))
 
         if save_csv:
-            if N_classes == 2:
+            if N_classes == 2 and not multi_target:
                 patch_scores_df = pd.DataFrame(patch_scores)
                 patch_scores_df.insert(0, "slide_name", all_slide_names)
                 patch_scores_df.insert(0, "dataset", all_slide_datasets)
@@ -146,13 +148,22 @@ for ind, key in enumerate(inference_files.keys()):
                 patch_scores_df.insert(0, "slide_score", all_scores)
                 patch_scores_df.to_csv(os.path.join(inference_dir, key + '_patch_scores.csv'))
             else:
-                for i_class in range(N_classes):
-                    patch_scores_df = pd.DataFrame(patch_scores[:, :, i_class])
+                N_files = np.max((N_targets, N_classes))
+
+
+                for i_file in range(N_files):
+                    patch_scores_df = pd.DataFrame(patch_scores[:, :, i_file])
                     patch_scores_df.insert(0, "slide_name", all_slide_names)
                     patch_scores_df.insert(0, "dataset", all_slide_datasets)
-                    patch_scores_df.insert(0, "slide_label", all_targets)
-                    patch_scores_df.insert(0, "slide_score", all_scores[:, i_class])
-                    patch_scores_df.to_csv(os.path.join(inference_dir, key + '_patch_scores_class' + str(i_class) +  '.csv'))
+                    if multi_target:
+                        patch_scores_df.insert(0, "slide_label", all_targets[i_file,:])
+                    else: #multiclass
+                        patch_scores_df.insert(0, "slide_label", all_targets)
+                    patch_scores_df.insert(0, "slide_score", all_scores[:, i_file])
+                    if N_classes > 2:
+                        patch_scores_df.to_csv(os.path.join(inference_dir, key + '_patch_scores_class' + str(i_file) +  '.csv'))
+                    else:
+                        patch_scores_df.to_csv(os.path.join(inference_dir, key + '_patch_scores_' + target_list[i_file] + '.csv'))
             try:
                 patch_x_df = pd.DataFrame(patch_locs[:, :, 0])
                 patch_x_df.insert(0, "slide_name", all_slide_names)
@@ -168,7 +179,7 @@ for ind, key in enumerate(inference_files.keys()):
             except:
                 pass
 
-        if fpr.__class__ == int:
+        if fpr.__class__ == int and not multi_target:
             my_scores = np.array(all_scores)
             my_targets = np.array(all_targets)
             my_scores = my_scores[my_targets >= 0]
@@ -190,16 +201,18 @@ for ind, key in enumerate(inference_files.keys()):
                         legend_labels[i_thresh].append(key + ' (AUC=' + str(round(roc_auc, 3)) + ')')
         else:
             if multi_target:
-                for i_target in range(2):
+                for i_target in range(N_targets):
                     my_scores = np.array(all_scores[:, i_target])
                     my_targets = np.array(all_targets[i_target,:])
                     my_scores = my_scores[my_targets >= 0]
                     my_targets = my_targets[my_targets >= 0]
                     fpr, tpr, _ = roc_curve(my_targets, my_scores)
-                    roc_auc.append(roc_auc_score(my_targets, my_scores))
-                    #plt.plot(fpr, tpr)
-                    ax1.plot(fpr, tpr)
-                    legend_labels.append(key + ' ' + target_names[i_target] + ' (AUC=' + str(round(roc_auc[-1], 3)) + ')')
+                    try:
+                        roc_auc.append(roc_auc_score(my_targets, my_scores))
+                        ax1.plot(fpr, tpr)
+                        legend_labels.append(key + ' ' + target_list[i_target] + ' (AUC=' + str(round(roc_auc[-1], 3)) + ')')
+                    except ValueError: #Only one class present in y_true. ROC AUC score is not defined in that case.
+                        pass
             else:
                 if is_cancer_improv:
                     #patch_scores_with_is_cancer = patch_scores * patch_scores_is_cancer

@@ -6,7 +6,7 @@ inference_files = {}
 
 exp = 10607
 fold = '1'
-target = 'survival'
+target = 'ER+PR+Her2'
 dataset = 'ABCTB'
 subdir = ''
 is_other = False
@@ -51,11 +51,12 @@ temp = False
 if temp:
     #val_list = ['Model_Epoch_resnet34(pretrained=True)-Folds_[1, 2, 3, 4, 5]_ER-Tiles_30.data']
     #val_list = ['Model_Epoch_16-Folds_[1, 2, 3, 4, 5]_ER-Tiles_30.data']
-    val_list = ['Model_Epoch_resnet34(pretrained=True)-Folds_[1]_ER-Tiles_500.data']
+    #val_list = ['Model_Epoch_resnet34(pretrained=True)-Folds_[1]_ER-Tiles_500.data']
+    val_list = ['Model_Epoch_1000-Folds_[1, 2, 3, 4, 5]_ER+PR+Her2-Tiles_5.data']
     key_list = ['temp']
     #inference_dir = r'C:\Users\User\Dropbox\Technion work 2020\Code\WSI_MIL\WSI_MIL\runs\Exp_321-ER-TestFold_2\Inference'
-    inference_dir = r'C:\Pathnet_results\MIL_general_try4\CAT_runs\ER\exp355\Inference\w_locs_fixed'
-
+    #inference_dir = r'C:\Pathnet_results\MIL_general_try4\CAT_runs\ER\exp355\Inference\w_locs_fixed'
+    inference_dir = r'C:\Users\User\Dropbox\Technion work 2020\Code\WSI_MIL\WSI_MIL\runs\Exp_621-ER+PR+Her2-TestFold_1\Inference'
 
 inference_files = dict(zip(key_list, val_list))
 

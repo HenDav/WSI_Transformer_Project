@@ -117,9 +117,11 @@ for counter in range(len(args.from_epoch)):
 
     if len(args.target.split('+')) > 1:
         multi_target = True
-        target0, target1 = args.target.split('+')
-        if counter == 0 and model_name[-15:] != '(num_classes=4)':
-            model_name = model_name[:-2] + '(num_classes=4)' #manually add num_classes since the arguments are not saved in run_data
+        target_list = args.target.split('+')
+        N_targets = len(target_list)
+        #target0, target1 = args.target.split('+')
+        #if counter == 0 and model_name[-15:] != '(num_classes=4)':
+        #    model_name = model_name[:-2] + '(num_classes=4)' #manually add num_classes since the arguments are not saved in run_data
     else:
         multi_target = False
 
@@ -206,18 +208,17 @@ inf_loader = DataLoader(inf_dset, batch_size=1, shuffle=False, num_workers=0, pi
 new_slide = True
 
 NUM_MODELS = len(models)
-#NUM_SLIDES = len(inf_dset.valid_slide_indices)
-NUM_SLIDES = len(inf_dset.image_file_names) #RanS 24.5.21, valid_slide_indices always counts non-dx slides
+NUM_SLIDES = len(inf_dset.image_file_names)
 NUM_SLIDES_SAVE = 50
 print('NUM_SLIDES: ', str(NUM_SLIDES))
 
 if multi_target:
-    all_targets = np.zeros((2, 0))
-    total_pos, total_neg = np.zeros(2), np.zeros(2)
-    patch_scores = np.empty((NUM_SLIDES, NUM_MODELS, args.num_tiles, 2))
-    all_scores, all_labels = np.zeros((NUM_SLIDES, NUM_MODELS, 2)), np.zeros((NUM_SLIDES, NUM_MODELS, 2))
-    correct_pos = np.zeros((NUM_MODELS, 2))
-    correct_neg = np.zeros((NUM_MODELS, 2))
+    all_targets = np.zeros((N_targets, 0))
+    total_pos, total_neg = np.zeros(N_targets), np.zeros(N_targets)
+    patch_scores = np.empty((NUM_SLIDES, NUM_MODELS, args.num_tiles, N_targets))
+    all_scores, all_labels = np.zeros((NUM_SLIDES, NUM_MODELS, N_targets)), np.zeros((NUM_SLIDES, NUM_MODELS, N_targets))
+    correct_pos = np.zeros((NUM_MODELS, N_targets))
+    correct_neg = np.zeros((NUM_MODELS, N_targets))
 else:
     all_targets = []
     total_pos, total_neg = 0, 0
@@ -310,11 +311,15 @@ with torch.no_grad():
                 scores = torch.zeros((len(data), 2))
                 print('Extracting features only for pretrained ResNet')
             else:
-                raise IOError('Net not supported yet for feature and score exctration, implement!')
+                raise IOError('Net not supported yet for feature and score extraction, implement!')
 
             if multi_target:
-                scores = torch.cat((torch.nn.functional.softmax(scores[:, :2], dim=1),
-                                     torch.nn.functional.softmax(scores[:, 2:], dim=1)), dim=1)
+                outputs_softmax = torch.zeros_like(scores)
+                for i_target in range(N_targets):
+                    outputs_softmax[:, i_target * 2: i_target * 2 + 2] = torch.nn.functional.softmax(scores[:, i_target * 2: i_target * 2 + 2], dim=1)
+                scores = outputs_softmax
+                #scores = torch.cat((torch.nn.functional.softmax(scores[:, :2], dim=1),
+                #                     torch.nn.functional.softmax(scores[:, 2:], dim=1)), dim=1)
             else:
                 scores = torch.nn.functional.softmax(scores, dim=1)
 
@@ -337,8 +342,11 @@ with torch.no_grad():
             if multi_target:
                 target_squeezed = torch.transpose(torch.squeeze(target, 2), 0, 1)
                 all_targets = np.hstack((all_targets, target_squeezed.cpu().numpy()))
-                total_pos += np.array((torch.squeeze(target[:, 0]).eq(1).sum().item(), torch.squeeze(target[:, 1]).eq(1).sum().item()))
-                total_neg += np.array((torch.squeeze(target[:, 0]).eq(0).sum().item(), torch.squeeze(target[:, 1]).eq(0).sum().item()))
+                for i_target in range(N_targets):
+                    total_pos[i_target] += torch.squeeze(target[:, i_target]).eq(1).sum().item()
+                    total_neg[i_target] += torch.squeeze(target[:, i_target]).eq(0).sum().item()
+                #total_pos += np.array((torch.squeeze(target[:, 0]).eq(1).sum().item(), torch.squeeze(target[:, 1]).eq(1).sum().item()))
+                #total_neg += np.array((torch.squeeze(target[:, 0]).eq(0).sum().item(), torch.squeeze(target[:, 1]).eq(0).sum().item()))
             else:
                 all_targets.append(target.cpu().numpy()[0][0])
                 if N_classes == 2:
@@ -353,22 +361,21 @@ with torch.no_grad():
             patch_locs_all[slide_num, :len(patch_locs_1_slide), :] = patch_locs_1_slide
 
             for model_ind in range(NUM_MODELS):
-
-                predicted = current_slide_tile_scores[model_ind].mean(0).argmax()
                 if multi_target:
-                    #current_slide_tile_scores = np.vstack((scores_0[model_num], scores_1[model_num], scores_2[model_num], scores_3[model_num]))
-                    #predicted = np.vstack((current_slide_tile_scores[:2, :].mean(1).argmax(), current_slide_tile_scores[2:, :].mean(1).argmax()))
-                    #patch_scores[slide_num, model_ind, :len(scores_1[model_ind]), 0] = scores_1[model_ind]
-                    #patch_scores[slide_num, model_ind, :len(scores_3[model_ind]), 1] = scores_3[model_ind]
-                    patch_scores[slide_num, model_ind, :n_tiles, 0] = current_slide_tile_scores[model_ind][:, 1]
-                    patch_scores[slide_num, model_ind, :n_tiles, 1] = current_slide_tile_scores[model_ind][:, 3]
-                    #all_scores[slide_num, model_ind, 0] = scores_1[model_ind].mean()
-                    #all_scores[slide_num, model_ind, 1] = scores_3[model_ind].mean()
-                    all_scores[slide_num, model_ind, 0] = current_slide_tile_scores[model_ind][:, 1].mean()
-                    all_scores[slide_num, model_ind, 1] = current_slide_tile_scores[model_ind][:, 3].mean()
-                    correct_pos[model_ind] += np.squeeze((predicted == 1) & (target_squeezed.eq(1).cpu().numpy()))
-                    correct_neg[model_ind] += np.squeeze((predicted == 0) & (target_squeezed.eq(0).cpu().numpy()))
+                    batch_len = len(target)
+                    predicted = torch.zeros(N_targets, batch_len)
+                    for i_target in range(N_targets):
+                        predicted[i_target, :] = current_slide_tile_scores[model_ind][:, i_target * 2: i_target * 2 + 2].mean(0).argmax()
+                        patch_scores[slide_num, model_ind, :n_tiles, i_target] = current_slide_tile_scores[model_ind][:, i_target * 2 + 1]
+                        all_scores[slide_num, model_ind, i_target] = current_slide_tile_scores[model_ind][:, i_target * 2 + 1].mean()
+                    #patch_scores[slide_num, model_ind, :n_tiles, 0] = current_slide_tile_scores[model_ind][:, 1]
+                    #patch_scores[slide_num, model_ind, :n_tiles, 1] = current_slide_tile_scores[model_ind][:, 3]
+                    #all_scores[slide_num, model_ind, 0] = current_slide_tile_scores[model_ind][:, 1].mean()
+                    #all_scores[slide_num, model_ind, 1] = current_slide_tile_scores[model_ind][:, 3].mean()
+                    correct_pos[model_ind] += np.squeeze((predicted == 1).cpu().numpy() & (target_squeezed.eq(1).cpu().numpy()))
+                    correct_neg[model_ind] += np.squeeze((predicted == 0).cpu().numpy() & (target_squeezed.eq(0).cpu().numpy()))
                 else:
+                    predicted = current_slide_tile_scores[model_ind].mean(0).argmax()
                     # = np.vstack((scores_0[model_num], scores_1[model_num]))
                     #predicted = current_slide_tile_scores.mean(1).argmax()
                     #patch_scores[slide_num, model_ind, :len(scores_1[model_ind])] = scores_1[model_ind]
@@ -455,12 +462,13 @@ for model_num in range(NUM_MODELS):
     #RanS 20.12.21, remove targets = -1 from auc calculation
     try:
         if multi_target:
-            for i_target in range(2):
+            fpr, tpr = 0, 0 #calculate in open_inference
+            '''for i_target in range(N_targets):
                 my_scores = np.array(all_scores[:, model_num, i_target])
                 my_targets = np.array(all_targets[i_target, :])
                 my_scores = my_scores[my_targets >= 0]
                 my_targets = my_targets[my_targets >= 0]
-                fpr, tpr, _ = roc_curve(my_targets, my_scores)
+                fpr, tpr, _ = roc_curve(my_targets, my_scores)'''
         else:
             scores_arr = all_scores[:, model_num]
             targets_arr = np.array(all_targets)

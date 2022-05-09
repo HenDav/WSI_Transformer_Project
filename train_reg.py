@@ -112,10 +112,10 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             all_targets, all_outputs, all_censored, all_cont_targets = [], [], [], []
 
         if multi_target:
-            true_targets_train, scores_train = np.zeros((2, 0)), np.zeros((2, 0))
-            correct_pos, correct_neg = np.zeros(2), np.zeros(2)
-            total_pos_train, total_neg_train = np.zeros(2), np.zeros(2)
-            correct_labeling = np.zeros(2)
+            true_targets_train, scores_train = np.zeros((N_targets, 0)), np.zeros((N_targets, 0))
+            correct_pos, correct_neg = np.zeros(N_targets), np.zeros(N_targets)
+            total_pos_train, total_neg_train = np.zeros(N_targets), np.zeros(N_targets)
+            correct_labeling = np.zeros(N_targets)
         else:
             if N_classes == 2:
                 scores_train = np.zeros(0)
@@ -189,21 +189,33 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             else:
                 if multi_target:
                     batch_len = len(target)
-                    loss_array = torch.zeros(batch_len, 2)
-                    loss_array[:, 0] = criterion(outputs[:, :2], target[:, 0].reshape(batch_len))
-                    loss_array[:, 1] = criterion(outputs[:, 2:], target[:, 1].reshape(batch_len))
+                    loss_array = torch.zeros(batch_len, N_targets)
+                    for i_target in range(N_targets):
+                        loss_array[:, i_target] = criterion(outputs[:, i_target*2 : i_target*2 + 2], target[:, i_target].reshape(batch_len))
+                    #loss_array[:, 0] = criterion(outputs[:, :2], target[:, 0].reshape(batch_len))
+                    #loss_array[:, 1] = criterion(outputs[:, 2:], target[:, 1].reshape(batch_len))
                     mask = loss_array != 0
                     loss = torch.mean((loss_array * mask).sum(dim=1) / mask.sum(dim=1))
-                    outputs = torch.cat((torch.nn.functional.softmax(outputs[:, :2], dim=1), torch.nn.functional.softmax(outputs[:, 2:], dim=1)),dim=1)
-                    predicted = torch.vstack((outputs[:, :2].max(1).indices, outputs[:, 2:].max(1).indices))
-                    scores_train = np.hstack((scores_train, np.vstack((outputs[:, 1].cpu().detach().numpy(), outputs[:, 3].cpu().detach().numpy()))))
+                    # outputs = torch.cat((torch.nn.functional.softmax(outputs[:, :2], dim=1), torch.nn.functional.softmax(outputs[:, 2:], dim=1)),dim=1)
+                    # predicted = torch.vstack((outputs[:, :2].max(1).indices, outputs[:, 2:].max(1).indices))
+                    # scores_train = np.hstack((scores_train, np.vstack((outputs[:, 1].cpu().detach().numpy(), outputs[:, 3].cpu().detach().numpy()))))
+                    outputs_softmax = torch.zeros_like(outputs)
+                    for i_target in range(N_targets):
+                        outputs_softmax[:, i_target*2: i_target*2 + 2] = torch.nn.functional.softmax(outputs[:, i_target * 2: i_target*2 + 2], dim=1)
+                    outputs = outputs_softmax
+                    predicted = torch.zeros(N_targets, batch_len)
+                    scores_train_batch = np.zeros((N_targets, batch_len))
                     target_squeezed = torch.transpose(torch.squeeze(target, 2), 0, 1)
                     true_targets_train = np.hstack((true_targets_train, target_squeezed.cpu().detach().numpy()))
-                    total_pos_train += np.array((torch.squeeze(target[:, 0]).eq(1).sum().item(),  torch.squeeze(target[:, 1]).eq(1).sum().item()))
-                    total_neg_train += np.array((torch.squeeze(target[:, 0]).eq(0).sum().item(), torch.squeeze(target[:, 1]).eq(0).sum().item()))
-                    correct_labeling += np.array((predicted[0,:].eq(target_squeezed[0,:]).sum().item(), predicted[1,:].eq(target_squeezed[1,:]).sum().item()))
-                    correct_pos += np.array((predicted[0, target_squeezed[0,:].eq(1)].eq(1).sum().item(), predicted[1, target_squeezed[1,:].eq(1)].eq(1).sum().item()))
-                    correct_neg += np.array((predicted[0, target_squeezed[0,:].eq(0)].eq(0).sum().item(), predicted[1, target_squeezed[1,:].eq(0)].eq(0).sum().item()))
+                    for i_target in range(N_targets):
+                        predicted[i_target, :] = outputs[:, i_target*2 : i_target*2 + 2].max(1).indices
+                        scores_train_batch[i_target, :] = outputs[:, i_target*2+1].cpu().detach().numpy()
+                        total_pos_train[i_target] += torch.squeeze(target[:, i_target]).eq(1).sum().item()
+                        total_neg_train[i_target] += torch.squeeze(target[:, i_target]).eq(0).sum().item()
+                        correct_labeling[i_target] += predicted[i_target, :].eq(target_squeezed[i_target, :]).sum().item()
+                        correct_pos[i_target] += predicted[i_target, target_squeezed[i_target, :].eq(1)].eq(1).sum().item()
+                        correct_neg[i_target] += predicted[i_target, target_squeezed[i_target, :].eq(0)].eq(0).sum().item()
+                    scores_train = np.hstack((scores_train, scores_train_batch))
                 else:
                     loss = criterion(outputs, target)
                     outputs = torch.nn.functional.softmax(outputs, dim=1)
@@ -273,17 +285,21 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
         balanced_acc_train = 100. * ((correct_pos + EPS) / (total_pos_train + EPS) + (correct_neg + EPS) / (total_neg_train + EPS)) / 2
 
         if multi_target:
-            roc_auc_train = np.empty(2)
+            roc_auc_train = np.empty(N_targets)
             roc_auc_train[:] = np.float64(np.nan)
-            if len(np.unique(true_targets_train[0, true_targets_train[0,:] >= 0])) > 1:  # more than one label
-                fpr_train, tpr_train, _ = roc_curve(true_targets_train[0, true_targets_train[0,:] >= 0], scores_train[0, true_targets_train[0,:] >= 0])
-                roc_auc_train[0] = auc(fpr_train, tpr_train)
-            if len(np.unique(true_targets_train[1, true_targets_train[1,:] >= 0])) > 1:  # more than one label
+            for i_target in range(N_targets):
+                if len(np.unique(true_targets_train[i_target, true_targets_train[i_target, :] >= 0])) > 1:  # more than one label
+                    fpr_train, tpr_train, _ = roc_curve(true_targets_train[i_target, true_targets_train[i_target, :] >= 0], scores_train[i_target, true_targets_train[i_target, :] >= 0])
+                    roc_auc_train[i_target] = auc(fpr_train, tpr_train)
+                    all_writer.add_scalars('Train/Balanced Accuracy', {target_list[i_target]: balanced_acc_train[i_target]}, e)
+                    all_writer.add_scalars('Train/Roc-Auc', {target_list[i_target]: roc_auc_train[i_target]}, e)
+                    all_writer.add_scalars('Train/Accuracy', {target_list[i_target]: train_acc[i_target]}, e)
+            '''if len(np.unique(true_targets_train[1, true_targets_train[1,:] >= 0])) > 1:  # more than one label
                 fpr_train, tpr_train, _ = roc_curve(true_targets_train[1, true_targets_train[1,:] >= 0], scores_train[1, true_targets_train[1,:] >= 0])
                 roc_auc_train[1] = auc(fpr_train, tpr_train)
             all_writer.add_scalars('Train/Balanced Accuracy', {target0: balanced_acc_train[0], target1: balanced_acc_train[1]}, e)
             all_writer.add_scalars('Train/Roc-Auc', {target0: roc_auc_train[0], target1: roc_auc_train[1]}, e)
-            all_writer.add_scalars('Train/Accuracy', {target0: train_acc[0], target1: train_acc[1]}, e)
+            all_writer.add_scalars('Train/Accuracy', {target0: train_acc[0], target1: train_acc[1]}, e)'''
         elif N_classes > 2: #multiclass
             #calculate binary AUC scores for each threshold
             for i_thresh in range(N_classes-1):
@@ -382,10 +398,10 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
 
 def check_accuracy(model: nn.Module, data_loader: DataLoader, all_writer, DEVICE, epoch: int):
     if multi_target:
-        true_pos_test, true_neg_test = np.zeros(2), np.zeros(2)
-        total_pos_test, total_neg_test = np.zeros(2), np.zeros(2)
-        true_labels_test, scores_test = np.zeros((2, 0)), np.zeros((2, 0))
-        correct_labeling_test = np.zeros(2)
+        true_pos_test, true_neg_test = np.zeros(N_targets), np.zeros(N_targets)
+        total_pos_test, total_neg_test = np.zeros(N_targets), np.zeros(N_targets)
+        true_labels_test, scores_test = np.zeros((N_targets, 0)), np.zeros((N_targets, 0))
+        correct_labeling_test = np.zeros(N_targets)
     else:
         if N_classes == 2:
             scores_test = np.zeros(0)
@@ -415,16 +431,34 @@ def check_accuracy(model: nn.Module, data_loader: DataLoader, all_writer, DEVICE
             outputs, _ = model(data)
 
             if multi_target:
-                outputs = torch.cat((torch.nn.functional.softmax(outputs[:, :2], dim=1), torch.nn.functional.softmax(outputs[:, 2:], dim=1)), dim=1)
-                predicted = torch.vstack((outputs[:, :2].max(1).indices, outputs[:, 2:].max(1).indices))
-                scores_test = np.hstack((scores_test, np.vstack((outputs[:, 1].cpu().detach().numpy(), outputs[:, 3].cpu().detach().numpy()))))
+                batch_len = len(targets)
+                outputs_softmax = torch.zeros_like(outputs)
+                for i_target in range(N_targets):
+                    outputs_softmax[:, i_target * 2: i_target * 2 + 2] = torch.nn.functional.softmax(outputs[:, i_target * 2: i_target * 2 + 2], dim=1)
+                outputs = outputs_softmax
+                predicted = torch.zeros(N_targets, batch_len)
+
+                scores_test_batch = np.zeros((N_targets, batch_len))
                 target_squeezed = torch.transpose(torch.squeeze(targets, 2), 0, 1)
+                for i_target in range(N_targets):
+                    predicted[i_target, :] = outputs[:, i_target * 2: i_target * 2 + 2].max(1).indices
+                    scores_test_batch[i_target, :] = outputs[:, i_target * 2 + 1].cpu().detach().numpy()
+                    total_pos_test[i_target] += torch.squeeze(targets[:, i_target]).eq(1).sum().item()
+                    total_neg_test[i_target] += torch.squeeze(targets[:, i_target]).eq(0).sum().item()
+                    correct_labeling_test[i_target] += predicted[i_target, :].eq(target_squeezed[i_target, :]).sum().item()
+                    true_pos_test[i_target] += predicted[i_target, target_squeezed[i_target, :].eq(1)].eq(1).sum().item()
+                    true_neg_test[i_target] += predicted[i_target, target_squeezed[i_target, :].eq(0)].eq(0).sum().item()
+
+                #outputs = torch.cat((torch.nn.functional.softmax(outputs[:, :2], dim=1), torch.nn.functional.softmax(outputs[:, 2:], dim=1)), dim=1)
+                #predicted = torch.vstack((outputs[:, :2].max(1).indices, outputs[:, 2:].max(1).indices))
+                #scores_test = np.hstack((scores_test, np.vstack((outputs[:, 1].cpu().detach().numpy(), outputs[:, 3].cpu().detach().numpy()))))
+                scores_test = np.hstack((scores_test, scores_test_batch))
                 true_labels_test = np.hstack((true_labels_test, target_squeezed.cpu().detach().numpy()))
-                correct_labeling_test += np.array((predicted[0, :].eq(target_squeezed[0, :]).sum().item(), predicted[1, :].eq(target_squeezed[1, :]).sum().item()))
-                total_pos_test += np.array((torch.squeeze(targets[:, 0]).eq(1).sum().item(), torch.squeeze(targets[:, 1]).eq(1).sum().item()))
-                total_neg_test += np.array((torch.squeeze(targets[:, 0]).eq(0).sum().item(), torch.squeeze(targets[:, 1]).eq(0).sum().item()))
-                true_pos_test += np.array((predicted[0, target_squeezed[0, :].eq(1)].eq(1).sum().item(), predicted[1, target_squeezed[1, :].eq(1)].eq(1).sum().item()))
-                true_neg_test += np.array((predicted[0, target_squeezed[0, :].eq(0)].eq(0).sum().item(), predicted[1, target_squeezed[1, :].eq(0)].eq(0).sum().item()))
+                #correct_labeling_test += np.array((predicted[0, :].eq(target_squeezed[0, :]).sum().item(), predicted[1, :].eq(target_squeezed[1, :]).sum().item()))
+                #total_pos_test += np.array((torch.squeeze(targets[:, 0]).eq(1).sum().item(), torch.squeeze(targets[:, 1]).eq(1).sum().item()))
+                #total_neg_test += np.array((torch.squeeze(targets[:, 0]).eq(0).sum().item(), torch.squeeze(targets[:, 1]).eq(0).sum().item()))
+                #true_pos_test += np.array((predicted[0, target_squeezed[0, :].eq(1)].eq(1).sum().item(), predicted[1, target_squeezed[1, :].eq(1)].eq(1).sum().item()))
+                #true_neg_test += np.array((predicted[0, target_squeezed[0, :].eq(0)].eq(0).sum().item(), predicted[1, target_squeezed[1, :].eq(0)].eq(0).sum().item()))
             else:
                 outputs = torch.nn.functional.softmax(outputs, dim=1)
                 _, predicted = outputs.max(1)
@@ -504,9 +538,18 @@ def check_accuracy(model: nn.Module, data_loader: DataLoader, all_writer, DEVICE
         acc = 100 * correct_labeling_test / total_test
         bacc = 100. * ((true_pos_test + EPS) / (total_pos_test + EPS) + (true_neg_test + EPS) / (total_neg_test + EPS)) / 2
         if multi_target:
-            roc_auc = np.empty(2)
+            roc_auc = np.empty(N_targets)
             roc_auc[:] = np.nan
-            if len(np.unique(true_labels_test[0, true_labels_test[0, :] >= 0])) > 1:  # more than one label
+            for i_target in range(N_targets):
+                if len(np.unique(true_labels_test[i_target, true_labels_test[i_target, :] >= 0])) > 1:  # more than one label
+                    fpr_train, tpr_train, _ = roc_curve(true_labels_test[i_target, true_labels_test[i_target, :] >= 0],
+                                                        scores_test[i_target, true_labels_test[i_target, :] >= 0])
+                    roc_auc[i_target] = auc(fpr_train, tpr_train)
+                    all_writer.add_scalars('Test/Balanced Accuracy', {target_list[i_target]: bacc[i_target]}, epoch)
+                    all_writer.add_scalars('Test/Roc-Auc', {target_list[i_target]: roc_auc[i_target]}, epoch)
+                    all_writer.add_scalars('Test/Accuracy', {target_list[i_target]: acc[i_target]}, epoch)
+
+            '''if len(np.unique(true_labels_test[0, true_labels_test[0, :] >= 0])) > 1:  # more than one label
                 fpr_train, tpr_train, _ = roc_curve(true_labels_test[0, true_labels_test[0, :] >= 0],
                                                     scores_test[0, true_labels_test[0, :] >= 0])
                 roc_auc[0] = auc(fpr_train, tpr_train)
@@ -517,7 +560,7 @@ def check_accuracy(model: nn.Module, data_loader: DataLoader, all_writer, DEVICE
             all_writer.add_scalars('Test/Balanced Accuracy',
                                    {target0: bacc[0], target1: bacc[1]}, epoch)
             all_writer.add_scalars('Test/Roc-Auc', {target0: roc_auc[0], target1: roc_auc[1]}, epoch)
-            all_writer.add_scalars('Test/Accuracy', {target0: acc[0], target1: acc[1]}, epoch)
+            all_writer.add_scalars('Test/Accuracy', {target0: acc[0], target1: acc[1]}, epoch)'''
         elif N_classes > 2:  # multiclass
             # calculate binary AUC scores for each threshold
             for i_thresh in range(N_classes - 1):
@@ -746,11 +789,15 @@ if __name__ == '__main__':
         optimizer = optim.RAdam(modules, lr=args.lr, weight_decay=args.weight_decay) #RanS 7.3.22
         scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=60, gamma=0.1)'''
 
-    if len(args.target.split('+')) > 1:
+    if len(train_dset.target_kind) > 1:
         multi_target = True
-        target0, target1 = args.target.split('+')
-        if model.linear.out_features != 4:
-            raise IOError('Model defined does not support multitarget training, select model with 4 output channels')
+        target_list = train_dset.target_kind
+        N_targets = len(target_list)
+        #target0, target1 = args.target.split('+')
+        if model.linear.out_features != 2*len(target_list):
+            raise IOError('Model defined does not match number of targets, select model with ' + str(2*len(target_list)) + ' output channels')
+        #if model.linear.out_features != 4:
+            #raise IOError('Model defined does not support multitarget training, select model with 4 output channels')
     else:
         multi_target = False
 

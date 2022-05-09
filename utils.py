@@ -533,15 +533,19 @@ def run_data(experiment: str = None,
         MultiSlide = str(run_DF_exp.loc[[experiment], ['MultiSlide Per Bag']].values[0][0])
         model_name = str(run_DF_exp.loc[[experiment], ['Model']].values[0][0])
         Desired_Slide_magnification = int(run_DF_exp.loc[[experiment], ['Desired Slide Magnification']].values[0][0])
-        censored_ratio = run_DF_exp.loc[[experiment], ['Censor Ratio']].values[0][0]
-        combined_loss_weights = run_DF_exp.loc[[experiment], ['Combined Loss Weights']].values[0][0]
-        receptor_tumor_mode = run_DF_exp.loc[[experiment], ['Receptor + is_Tumor Train Mode']].values[0][0]
-        receptor_tumor_mode = convert_value_to_integer(receptor_tumor_mode)
         try:
+            censored_ratio = run_DF_exp.loc[[experiment], ['Censor Ratio']].values[0][0]
+            combined_loss_weights = run_DF_exp.loc[[experiment], ['Combined Loss Weights']].values[0][0]
+            receptor_tumor_mode = run_DF_exp.loc[[experiment], ['Receptor + is_Tumor Train Mode']].values[0][0]
+            receptor_tumor_mode = convert_value_to_integer(receptor_tumor_mode)
             free_bias = bool(run_DF_exp.loc[[experiment], ['Free Bias']].values[0][0])
             CAT_only = bool(run_DF_exp.loc[[experiment], ['Using Feature from CAT model alone']].values[0][0])
             Class_Relation = float(run_DF_exp.loc[[experiment], ['Class Relation']].values[0][0])
         except:
+            censored_ratio = np.nan
+            combined_loss_weights = np.nan
+            receptor_tumor_mode = np.nan
+            receptor_tumor_mode = np.nan
             free_bias = np.nan
             CAT_only = np.nan
             Class_Relation = np.nan
@@ -1052,7 +1056,7 @@ def get_datasets_dir_dict(Dataset: str):
 
 
 def assert_dataset_target(DataSet, target_kind):
-    #Support multi targets, RanS 8.12.21
+    #Support multi targets
     if type(target_kind) != list:
         target_kind = [target_kind]
     target_kind = set(target_kind)
@@ -1063,7 +1067,7 @@ def assert_dataset_target(DataSet, target_kind):
         raise ValueError('For PORTO_HE DataSet, target should be one of: PDL1, EGFR')
     elif DataSet == 'PORTO_PDL1' and not target_kind <= {'PDL1'}:
         raise ValueError('For PORTO_PDL1 DataSet, target should be PDL1')
-    elif (DataSet in ['TCGA', 'CAT', 'ABCTB_TCGA']) and not target_kind <= {'ER', 'PR', 'Her2', 'OR', 'is_cancer'}:
+    elif (DataSet in ['TCGA', 'CAT', 'ABCTB_TCGA']) and not target_kind <= {'ER', 'PR', 'Her2', 'OR', 'is_cancer', 'Ki67'}:
         raise ValueError('target should be one of: ER, PR, Her2, OR')
     elif (DataSet in ['IC', 'HIC', 'HEROHE', 'HAEMEK']) and not target_kind <= {'ER', 'PR', 'Her2', 'OR', 'Ki67'}:
         raise ValueError('target should be one of: ER, PR, Her2, OR')

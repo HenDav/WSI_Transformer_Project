@@ -144,10 +144,10 @@ class WSI_Master_Dataset(Dataset):
                  patch_dir: str = '',
                  ):
 
-        # Support multitarget training, RanS 8.12.21
-        if len(target_kind.split('+')) > 1:
+        # Multi target training
+        N_targets = len(target_kind.split('+'))
+        if N_targets > 1:
             target_kind = target_kind.split('+')
-            N_targets = 2 #currently support only two targets!
             self.multi_target = True
         else:
             self.multi_target = False
@@ -240,7 +240,7 @@ class WSI_Master_Dataset(Dataset):
 
         else:
             if self.multi_target:
-                all_targets = np.zeros((len(self.meta_data_DF), len(self.target_kind)), dtype=object)
+                all_targets = np.zeros((len(self.meta_data_DF), N_targets), dtype=object)
                 for ii in range(N_targets):
                     all_targets[:, ii] = list(self.meta_data_DF[self.target_kind[ii] + ' status'])
             else:
@@ -278,7 +278,8 @@ class WSI_Master_Dataset(Dataset):
             valid_slide_indices = np.where(np.invert(np.isnan(all_targets)) == True)[0]
         else:
             if self.multi_target:
-                valid_slide_indices = np.where(np.isin(all_targets[:, 0], ['Positive', 'Negative']) | np.isin(all_targets[:, 1], ['Positive', 'Negative']))[0]
+                #valid_slide_indices = np.where(np.isin(all_targets[:, 0], ['Positive', 'Negative']) | np.isin(all_targets[:, 1], ['Positive', 'Negative']))[0]
+                valid_slide_indices = np.where(np.any((all_targets == 'Positive') | (all_targets == 'Negative'), axis=1))[0]
             else:
                 valid_slide_indices1 = np.where(np.isin(np.array(all_targets), ['Positive', 'Negative']) == True)[0]
                 valid_slide_indices2 = np.where(np.isin(np.array(all_targets), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) == True)[0] #Support up to 10 classes
@@ -286,11 +287,12 @@ class WSI_Master_Dataset(Dataset):
 
         #inference on unknown labels in case of (blind) test inference or Batched_Full_Slide_Inference_Dataset
         if len(valid_slide_indices) == 0 or self.train_type == 'Infer_All_Folds' or (self.target_kind == 'survival' and self.train_type == 'Infer'):
-            if self.multi_target:
+            '''if self.multi_target:
                 valid_slide_indices = np.where(all_targets[:, 0])[0]
             else:
                 #valid_slide_indices = np.where(np.array(all_targets))[0]  # take all slides
-                valid_slide_indices = np.arange(len(all_targets))  # take all slides, corrected to allow target=0, RanS 23.1.22
+                valid_slide_indices = np.arange(len(all_targets))  # take all slides, corrected to allow target=0, RanS 23.1.22'''
+            valid_slide_indices = np.arange(len(all_targets))  # take all slides
 
         # Also remove slides without grid data:
         slides_without_grid = set(self.meta_data_DF.index[self.meta_data_DF['Total tiles - ' + str(
@@ -3776,10 +3778,11 @@ class WSI_Master_Dataset_Survival(Dataset):
                  is_all_not_censored: bool = False,
                  legit_slide_list: list = []):
 
-        # Support multitarget training, RanS 8.12.21
-        if len(target_kind.split('+')) > 1:
+        # Support multitarget training
+        # Multi target training
+        N_targets = len(target_kind.split('+'))
+        if N_targets > 1:
             target_kind = target_kind.split('+')
-            N_targets = 2  # currently support only two targets!
             self.multi_target = True
         else:
             self.multi_target = False
@@ -4236,10 +4239,10 @@ class WSI_Master_Dataset_Survival_CR(Dataset):
                  Censored_ratio: float = 0.5,
                  legit_slide_list: list = []):
 
-        # Support multitarget training, RanS 8.12.21
-        if len(target_kind.split('+')) > 1:
+        # Multi target training
+        N_targets = len(target_kind.split('+'))
+        if N_targets > 1:
             target_kind = target_kind.split('+')
-            N_targets = 2  # currently support only two targets!
             self.multi_target = True
         else:
             self.multi_target = False
