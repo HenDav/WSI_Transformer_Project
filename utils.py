@@ -32,6 +32,7 @@ from PIL import ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 from random import shuffle
 import skimage
+from fractions import Fraction
 
 
 #if sys.platform == 'win32':
@@ -334,6 +335,7 @@ def run_data(experiment: str = None,
              num_bags: int = 1,
              DX: bool = False,
              DataSet_name: list = ['TCGA'],
+             DataSet_test_name: list = [None],
              DataSet_size: tuple = None,
              DataSet_Slide_magnification: int = None,
              epoch: int = None,
@@ -355,7 +357,8 @@ def run_data(experiment: str = None,
              weight_decay: float = -1,
              censored_ratio: float = -1,
              combined_loss_weights: list = [],
-             receptor_tumor_mode: int = -1):
+             receptor_tumor_mode: int = -1,
+             is_domain_adaptation: bool = False):
     """
     This function writes the run data to file
     :param experiment:
@@ -429,6 +432,9 @@ def run_data(experiment: str = None,
         if type(DataSet_name) is not list:
             DataSet_name = [DataSet_name]
 
+        if type(DataSet_test_name) is not list:
+            DataSet_test_name = [DataSet_test_name]
+
         run_dict = {'Experiment': experiment,
                     'Start Date': str(date.today()),
                     'Test Fold': test_fold,
@@ -440,6 +446,7 @@ def run_data(experiment: str = None,
                     'Location': location,
                     'DX': DX,
                     'DataSet': ' / '.join(DataSet_name),
+                    'Test Set (DataSet)': ' / '.join(DataSet_test_name) if DataSet_test_name[0] != None else None,
                     'Receptor': Receptor,
                     'Model': 'None',
                     'Last Epoch': 0,
@@ -457,8 +464,9 @@ def run_data(experiment: str = None,
                     'Learning Rate': learning_rate,
                     'Weight Decay': weight_decay,
                     'Censor Ratio': censored_ratio,
-                    'Combined Loss Weights': combined_loss_weights,
-                    'Receptor + is_Tumor Train Mode': receptor_tumor_mode
+                    'Combined Loss Weights': [Fraction(combined_loss_weights[item]).limit_denominator() for item in range(len(combined_loss_weights))],
+                    'Receptor + is_Tumor Train Mode': receptor_tumor_mode,
+                    'Trained with Domain Adaptation': is_domain_adaptation
                     }
         run_DF = run_DF.append([run_dict], ignore_index=True)
         if not os.path.isdir('runs'):
@@ -942,7 +950,7 @@ def get_datasets_dir_dict(Dataset: str):
 
         elif sys.platform == 'darwin':   #Omer local
             dir_dict['TCGA'] = TCGA_omer_path
-            dir_dict['HEROHE'] = HEROHE_omer_path
+            dir_dict['CARMEL'] = CARMEL_omer_path
 
         else:
             raise Exception('Unrecognized platform')
@@ -1764,8 +1772,8 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str, test_fo
                                                   },
                                        'Fold 2': {'ER': {'DataSet Name': r'FEATURES: Exp_393-ER-TestFold_2',
                                                          'TrainSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_393-ER-TestFold_2/Inference/train_w_features',
-                                                         #'TestSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_393-ER-TestFold_2/Inference/test_w_features',
-                                                         'TestSet Location': r'/home/womer/project/All Data/Ran_Features/393/Test',  # This is the scrambled test set
+                                                         'TestSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_393-ER-TestFold_2/Inference/test_w_features',
+                                                         #'TestSet Location': r'/home/womer/project/All Data/Ran_Features/393/Test',  # This is the scrambled test set
                                                          'REG Model Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_393-ER-TestFold_2/Model_CheckPoints/model_data_Epoch_1000.pt'
                                                          },
                                                   'PR': {'DataSet Name': r'FEATURES: Exp_20063-PR-TestFold_2',
@@ -1810,6 +1818,12 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str, test_fo
                                                          'TestSet Location': r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20207-PR-TestFold_4/Inference/test_w_features',
                                                          'REG Model Location': r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20207-PR-TestFold_4/Model_CheckPoints/model_data_Epoch_1000.pt'
                                                          }
+                                                  },
+                                       'Fold 5': {'Her2': {'DataSet Name': r'FEATURES: Exp_20228-Her2-TestFold_5',
+                                                           'TrainSet Location': r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20228-Her2-TestFold_5/Inference/train_w_features',
+                                                           'TestSet Location': r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20228-Her2-TestFold_5/Inference/test_w_features',
+                                                           'REG Model Location': r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20228-Her2-TestFold_5/Model_CheckPoints/model_data_Epoch_1000.pt'
+                                                           }
                                                   }
                                        },
                                'CAT with Location': {'Fold 1': {'ER': {'DataSet Name': r'FEATURES: Exp_355-ER-TestFold_1 With Locations',
@@ -1845,6 +1859,38 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str, test_fo
                                                                 'is_Tumor_for_ER': {'DataSet Name': r'FEATURES: Exp_627-is_Tumor_for_ER-TestFold_1 With Locations',
                                                                                     'TrainSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_627-is_cancer-TestFold_1/Inference/CAT_ER_train_fold2345_patches_inference_w_features',
                                                                                     'TestSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_627-is_cancer-TestFold_1/Inference/CAT_ER_test_fold1_patches_inference_w_features',
+                                                                                    'REG Model Location': None
+                                                                                    }
+                                                                },
+
+                                                     'Fold 2': {'ER_for_is_Tumor': {'DataSet Name': r'FEATURES: Exp_393-ER-TestFold_2 With Locations',
+                                                                                    'TrainSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_393-ER-TestFold_2/Inference/train_w_features_new',
+                                                                                    'TestSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_393-ER-TestFold_2/Inference/test_w_features',
+                                                                                    'REG Model Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_393-ER-TestFold_2/Model_CheckPoints/model_data_Epoch_1000.pt'
+                                                                                    },
+                                                                'Her2': {'DataSet Name': r'FEATURES: Exp_412-Her2-TestFold_2 With Locations',
+                                                                         'TrainSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_412-Her2-TestFold_2/Inference/train_w_features',
+                                                                         'TestSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_412-Her2-TestFold_2/Inference/test_w_features',
+                                                                         'REG Model Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_412-Her2-TestFold_2/Model_CheckPoints/model_data_Epoch_1000.pt'
+                                                                         },
+                                                                'PR': {'DataSet Name': r'FEATURES: Exp_20063-PR-TestFold_2 With Locations',
+                                                                       'TrainSet Location': r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20063-PR-TestFold_2/Inference/train_w_features_new',
+                                                                       'TestSet Location': r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20063-PR-TestFold_2/Inference/test_w_features',
+                                                                       'REG Model Location': r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20063-PR-TestFold_2/Model_CheckPoints/model_data_Epoch_1000.pt'
+                                                                       },
+                                                                'is_Tumor_for_Her2': {'DataSet Name': r'FEATURES: Exp_641-is_Tumor_for_Her2-TestFold_2 With Locations',
+                                                                                      'TrainSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_641-is_cancer-TestFold_2/Inference/CAT_Her2_train_fold1345_patches_inference_w_features',
+                                                                                      'TestSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_641-is_cancer-TestFold_2/Inference/CAT_Her2_test_fold2_patches_inference_w_features',
+                                                                                      'REG Model Location': None
+                                                                                      },
+                                                                'is_Tumor_for_ER': {'DataSet Name': r'FEATURES: Exp_641-is_Tumor_for_ER-TestFold_2 With Locations',
+                                                                                    'TrainSet Location': r'features:/home/rschley/code/WSI_MIL/general_try4/runs/Exp_641-is_cancer-TestFold_2/Inference/CAT_ER_train_fold1345_patches_inference_w_features',
+                                                                                    'TestSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_641-is_cancer-TestFold_2/Inference/CAT_ER_test_fold2_patches_inference_w_features',
+                                                                                    'REG Model Location': None
+                                                                                    },
+                                                                'is_Tumor_for_PR': {'DataSet Name': r'FEATURES: Exp_641-is_Tumor_for_PR-TestFold_2 With Locations',
+                                                                                    'TrainSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_641-is_cancer-TestFold_2/Inference/CAT_PR_train_fold1345_patches_inference_w_features',
+                                                                                    'TestSet Location': r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_641-is_cancer-TestFold_2/Inference/CAT_PR_test_fold2_patches_inference_w_features',
                                                                                     'REG Model Location': None
                                                                                     }
                                                                 }
@@ -1931,6 +1977,13 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str, test_fo
                                                                    'TestSet Location': {'Carmel 9': r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20201-Her2-TestFold_4/Inference/CARMEL9',
                                                                                         'Carmel 10': r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20201-Her2-TestFold_4/Inference/CARMEL10',
                                                                                         'Carmel 11': r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20201-Her2-TestFold_4/Inference/CARMEL11'
+                                                                                        }
+                                                                   }
+                                                          },
+                                               'Fold 5': {'Her2': {'DataSet Name': r'FEATURES: Model From Exp_20228-Her2-TestFold_5, CARMEL ONLY Slides Batch 9-11',
+                                                                   'TestSet Location': {'Carmel 9': r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20228-Her2-TestFold_5/Inference/CARMEL9',
+                                                                                        'Carmel 10': r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20228-Her2-TestFold_5/Inference/CARMEL10',
+                                                                                        'Carmel 11': r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20228-Her2-TestFold_5/Inference/CARMEL11'
                                                                                         }
                                                                    }
                                                           }
@@ -2439,7 +2492,7 @@ def concatenate_minibatch(minibatch, is_shuffle: bool = False):
 
 #####
 
-def rgb2heb(imageRGB):
+def rgb2heb(imageRGB, color_values: list = None):
 
     """
     takes an RGB image of a slide stained by H&E,
@@ -2454,26 +2507,33 @@ def rgb2heb(imageRGB):
     imageRGB = (imageRGB.astype(np.uint16) + 1) / 256
     #imageRGB = (imageRGB + 1) / 256
 
-    # calibrated HE values with background
-    # He = [0.49021345; 0.8398868; 0.2329828];
-    # Eo = [0.15047029; 0.95457155; 0.2572001];
-    # Res = [ 0.59782326 ;  0.6429284 ; 0.47880098 ]; % residual
+    if color_values == None:
+        # calibrated HE values with background
+        # He = [0.49021345; 0.8398868; 0.2329828];
+        # Eo = [0.15047029; 0.95457155; 0.2572001];
+        # Res = [ 0.59782326 ;  0.6429284 ; 0.47880098 ]; % residual
 
-    # default HE value
-    # He = [0.6443186; 0.7166757; 0.26688856];
-    # Eo = [0.09283128; 0.9545457; 0.28324];
-    # Res = [ 0.63595444 ;  0.001 ; 0.7717266 ]; % residual
+        # default HE value
+        # He = [0.6443186; 0.7166757; 0.26688856];
+        # Eo = [0.09283128; 0.9545457; 0.28324];
+        # Res = [ 0.63595444 ;  0.001 ; 0.7717266 ]; % residual
 
-    # calibrated HE valued w/o background
-    """He = np.array([0.49555248, 0.84, 0.22093])
-    Eo = np.array([0.1617637, 0.94391227, 0.2878579])
-    Res = np.array([0.6753781, 0.001, 0.7374717])  # residual"""
+        # calibrated HE valued w/o background
+        """He = np.array([0.49555248, 0.84, 0.22093])
+        Eo = np.array([0.1617637, 0.94391227, 0.2878579])
+        Res = np.array([0.6753781, 0.001, 0.7374717])  # residual"""
 
 
-    # HE values from paper:
-    He = np.array([0.18, 0.2, 0.08])
-    Eo = np.array([0.01, 0.13, 0.01])
-    Res = np.array([0.1, 0.21, 0.29])  # DAB
+        # HE values from paper:
+        He = np.array([0.18, 0.2, 0.08])
+        Eo = np.array([0.01, 0.13, 0.01])
+        Res = np.array([0.1, 0.21, 0.29])  # DAB
+
+    else:
+        He = -np.log10(np.array(color_values[0]) / 255)
+        Eo = -np.log10(np.array(color_values[1]) / 255)
+        Res = -np.log10(np.array(color_values[2]) / 255)
+
 
     # combine stain vectors to deconvolution matrix
     HEtoRGB = np.stack([He / np.linalg.norm(He), Eo / np.linalg.norm(Eo), Res / np.linalg.norm(Res)], axis=1)
@@ -2520,5 +2580,23 @@ def heb2rgb(imageHEB, HEBtoRGB_Conversion_Matrix):
     image_RGB = np.clip(image_RGB, 0, 1)
 
     return image_RGB
+
+
+def cohort_to_int(cohort_list: list) -> list:
+    CohortDictionary = {'ABCTB': 0,
+                        'CARMEL1': 1,
+                        'CARMEL2': 1,
+                        'CARMEL3': 1,
+                        'CARMEL4': 1,
+                        'CARMEL5': 1,
+                        'CARMEL6': 1,
+                        'CARMEL7': 1,
+                        'CARMEL8': 1,
+                        'TCGA': 2,
+                        'HAEMEK': 3,
+                        'HAEMEK1': 3
+                        }
+
+    return [CohortDictionary[key] for key in cohort_list]
 
 

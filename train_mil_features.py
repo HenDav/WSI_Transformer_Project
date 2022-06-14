@@ -26,9 +26,9 @@ parser = argparse.ArgumentParser(description='WSI_MIL Training of PathNet Projec
 #parser.add_argument('-diffslides', dest='different_slides', action='store_true', help='Use more than one slide in each bag')
 #parser.add_argument('--mag', type=int, default=10, help='desired magnification of patches')
 #parser.add_argument('--c_param', default=0.1, type=float, help='color jitter parameter')
-parser.add_argument('-ds', '--dataset', type=str, default='CAT with Location', help='DataSet to use')
-parser.add_argument('-tar', '--target', type=str, default='ER_for_is_Tumor', help='Target to train for') #FIXME: to Her2+is_Tumor
-parser.add_argument('-tf', '--test_fold', default=1, type=int, help='fold to be as TEST FOLD')
+parser.add_argument('-ds', '--dataset', type=str, default='TCGA_ABCTB', help='DataSet to use')
+parser.add_argument('-tar', '--target', type=str, default='ER', help='Target to train for') #FIXME: to Her2+is_Tumor
+parser.add_argument('-tf', '--test_fold', default=2, type=int, help='fold to be as TEST FOLD')
 parser.add_argument('-e', '--epochs', default=2, type=int, help='Epochs to run')
 parser.add_argument('-ex', '--experiment', type=int, default=0, help='Continue train of this experiment')
 parser.add_argument('-fe', '--from_epoch', type=int, default=0, help='Continue train from epoch')
@@ -48,7 +48,7 @@ parser.add_argument('-dl', '--data_limit', type=int, default=None, help='Data Li
 parser.add_argument('-repData', dest='repeating_data', action='store_false', help='sample data with repeat ?')
 parser.add_argument('-conly', dest='carmel_only', action='store_true', help='Use ONLY CARMEL slides  ?')
 parser.add_argument('-remark', '--remark', type=str, default='', nargs=argparse.REMAINDER, help='option to add remark for the run')
-parser.add_argument('--is_tumor_mode', type=int, default=-1, help='which mode to use when training with target receptor + is_tumor')
+parser.add_argument('--is_tumor_mode', type=int, default=0, help='which mode to use when training with target receptor + is_tumor')
 
 args = parser.parse_args()
 
@@ -341,6 +341,7 @@ if __name__ == '__main__':
 
     data_location = utils.get_RegModel_Features_location_dict(train_DataSet=args.dataset, target=args.target, test_fold=args.test_fold)
 
+    # TODO: WHAT DOES THIS DO ?
     if sys.platform == 'darwin' and type(data_location) == tuple and (data_location[0]['TrainSet Location'] == None and data_location[1]['TrainSet Location'] == None):
         data_location[0]['TrainSet Location'] = data_location[0]['TestSet Location']
         data_location[1]['TrainSet Location'] = data_location[1]['TestSet Location']

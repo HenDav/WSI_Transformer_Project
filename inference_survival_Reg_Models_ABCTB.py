@@ -132,8 +132,7 @@ N_classes = models[0].linear.out_features #for resnets and such
 if args.dx:
     dx = args.dx
 
-TILE_SIZE = 128
-tiles_per_iter = 20
+
 if sys.platform == 'linux':
     TILE_SIZE = 256
     tiles_per_iter = 150
@@ -141,9 +140,9 @@ if sys.platform == 'linux':
         tiles_per_iter = 100
 elif sys.platform == 'win32':
     TILE_SIZE = 256
-
-if (args.dataset == 'TMA') and (args.mag == 7):
-    TILE_SIZE = 512
+elif sys.platform == 'darwin':
+    TILE_SIZE = 128
+    tiles_per_iter = 20
 
 #RanS 16.3.21, support ron's model as well
 if args.model_path != '':

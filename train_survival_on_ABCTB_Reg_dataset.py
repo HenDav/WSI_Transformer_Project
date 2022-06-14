@@ -21,7 +21,7 @@ from datetime import datetime
 from itertools import cycle
 from random import shuffle
 import pandas as pd
-from torch import linalg as LA
+#from torch import linalg as LA
 
 utils.send_run_data_via_mail()
 
@@ -29,40 +29,30 @@ parser = argparse.ArgumentParser(description='')
 parser.add_argument('-ex', '--experiment', type=int, default=0, help='Continue train of this experiment')
 parser.add_argument('-fe', '--from_epoch', type=int, default=0, help='Continue train from epoch')
 parser.add_argument('-tf', '--test_fold', default=1, type=int, help='fold to be as TEST FOLD')
-parser.add_argument('--transform_type', default='rvf', type=str, help='none / flip / wcfrs (weak color+flip+rotate+scale)')
-parser.add_argument('-e', '--epochs', default=500, type=int, help='Epochs to run')
+parser.add_argument('--transform_type', default='pcbnfrsc', type=str, help='none / flip / wcfrs (weak color+flip+rotate+scale)')
+parser.add_argument('-e', '--epochs', default=1001, type=int, help='Epochs to run')
 parser.add_argument('-tar', '--target', type=str, default='Time', help='Binary / Time')
 parser.add_argument('-l', '--loss', type=str, default='Cox', help='Cox / L2')
 parser.add_argument('-mb', '--mini_batch_size', type=int, default=18, help='Mini batch size')
 parser.add_argument('--lr', default=1e-5, type=float, help='learning rate')
 parser.add_argument('-wd', '--weight_decay', default=5e-5, type=float, help='L2 penalty')
 parser.add_argument('-time', dest='time', action='store_true', help='save train timing data ?')
-parser.add_argument('-cr', '--censored_ratio', type=float, default=0, help='Mean ratio of censored samples in each minibatch')
+parser.add_argument('-cr', '--censored_ratio', type=float, default=0.5, help='Mean ratio of censored samples in each minibatch')
 parser.add_argument('-se', '--save_every', default=20, type=int, help='duration to save models (in epochs)')
 parser.add_argument('-sxl', '--save_xl_every', default=1e5, type=int, help='duration to save excel file (in epochs)')
-parser.add_argument('-lw', '--loss_weights', nargs="+", default=[1/3.2, 1/1382, 1], help='loss weights - [Cox, L2, Binary]')
+#parser.add_argument('-lw', '--loss_weights', nargs="+", default=[1/3.2 * 3/2, 1/1382 * 2/3, 1], help='loss weights - [Cox, L2, Binary]')
+parser.add_argument('-lw', '--loss_weights', nargs="+", default=[1, 0, 0], help='loss weights - [Cox, L2, Binary]')
 parser.add_argument('-loss_comb', dest='loss_combination', action='store_true', help='Combine all 3 loss functions ?')
 parser.add_argument('-DEBUG_pg', dest='print_gradients', action='store_true', help='')
 args = parser.parse_args()
 
-if args.print_gradients:
+'''if args.print_gradients:
     args.loss_combination = True
     args.test_fold = 1
     args.epochs = 10
     args.mini_batch_size = 18
     args.censored_ratio = 0.5
-    args.loss_weights = [1, 1, 1]
-
-# Convert items in args.loss_weights to floats
-temp = []
-for value in args.loss_weights:
-    if type(value) in [float, int]:
-        temp.append(float(value))
-    elif type(value) == str:
-        temp.append(eval(value))
-
-args.loss_weights_as_str = args.loss_weights
-args.loss_weights = temp
+    args.loss_weights = [1, 1, 1]'''
 
 # The following modification is needed only to fix the data written in the code files (run parameters)
 args.loss = args.loss if args.target == 'Time' else ''
@@ -589,7 +579,15 @@ if __name__ == '__main__':
     # Getting the receptor name:
     if args.loss_combination:
         print('Train with Combined loss with weights: {}'.format(args.loss_weights))
-        receptor = 'Survival_Combined_Loss'
+        receptor = 'Survival'
+        if 0 not in args.loss_weights:
+            receptor = 'Survival_Combined_Loss'
+        elif args.loss_weights[0] != 0:
+            receptor += '_Cox'
+        elif args.loss_weights[1] != 0:
+            receptor += '_L2'
+        elif args.loss_weights[2] != 0:
+            receptor += '_Binary'
     else:
         receptor = 'Survival_' + args.target
         if args.target == 'Time':
@@ -606,7 +604,7 @@ if __name__ == '__main__':
                                           learning_rate=args.lr,
                                           weight_decay=args.weight_decay,
                                           censored_ratio=args.censored_ratio,
-                                          combined_loss_weights=args.loss_weights_as_str if args.loss_combination else [])
+                                          combined_loss_weights=args.loss_weights if args.loss_combination else [])
 
         args.output_dir, experiment = run_data_results['Location'], run_data_results['Experiment']
 
@@ -743,5 +741,6 @@ if __name__ == '__main__':
 
 
     all_writer.close()
-    print('Done')
+    print('Training No. {} has concluded successfully after {} Epochs'.format(experiment, args.epochs))
+
 
