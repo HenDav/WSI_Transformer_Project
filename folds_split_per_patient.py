@@ -3,7 +3,7 @@ from random import shuffle
 import csv
 import pandas as pd
 
-dataset = 'BENIGN'
+dataset = 'AML'
 patient_column_name = 'patient barcode' #default
 
 if dataset == 'Carmel123':
@@ -44,6 +44,13 @@ elif dataset == 'LEUKEMIA':
     n_folds = 5  # number of cross-validation folds
     out_file = r'C:\ran_data\BoneMarrow\slides_data_LEUKEMIA_folds.xlsx'
     patient_column_name = 'PatientID'
+elif dataset == 'AML':
+    in_file = r'C:\ran_data\BoneMarrow\AML\slides_data_AML.xlsx'
+    test_ratio = 0  # percentage to be marked as "test"
+    val_ratio = 0  # percentage to be marked as "validation"
+    n_folds = 5  # number of cross-validation folds
+    out_file = r'C:\ran_data\BoneMarrow\AMLslides_data_AML_folds.xlsx'
+    patient_column_name = 'PatientID'
 elif dataset == 'Ipatimup':
     in_file = r'C:\ran_data\Covilha+Ipatimup\slides_data_Ipatimup.xlsx'
     test_ratio = 0  # percentage to be marked as "test"
@@ -65,11 +72,11 @@ elif dataset == 'TMA':
     n_folds = 5  # number of cross-validation folds
     out_file = r'C:\ran_data\TMA\02-008\slides_data_TMA_folds.xlsx'
 elif dataset == 'SHEBA':
-    in_file = r'C:\ran_data\Sheba\slides_data_SHEBA_batch3_labeled.xlsx'
+    in_file = r'C:\ran_data\Sheba\slides_data_SHEBA6_labeled.xlsx'
     test_ratio = 0  # percentage to be marked as "test"
     val_ratio = 0  # percentage to be marked as "validation"
     n_folds = 5  # number of cross-validation folds
-    out_file = r'C:\ran_data\Sheba\slides_data_SHEBA_batch3_labeled_folds.xlsx'
+    out_file = r'C:\ran_data\Sheba\slides_data_SHEBA_batch6_labeled_folds.xlsx'
     patient_column_name = 'PatientID'
 elif dataset == 'HAEMEK':
     in_file = r'C:\ran_data\Haemek\slides_data_HAEMEK1.xlsx'

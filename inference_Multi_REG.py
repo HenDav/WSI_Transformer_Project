@@ -11,9 +11,9 @@ from tqdm import tqdm
 import pickle
 import resnet_v2
 from collections import OrderedDict
-import smtplib, ssl
 import nets, PreActResNets, resnet_v2
 import torchvision
+import send_gmail
 
 parser = argparse.ArgumentParser(description='WSI_REG Slide inference')
 parser.add_argument('-ex', '--experiment', nargs='+', type=int, default=[10607], help='Use models from this experiment')
@@ -157,7 +157,7 @@ if sys.platform == 'linux':
 elif sys.platform == 'win32':
     TILE_SIZE = 256
 
-if (args.dataset == 'TMA') and (args.mag == 7):
+if (args.dataset[:3] == 'TMA') and (args.mag == 7):
     TILE_SIZE = 512
 
 #RanS 16.3.21, support ron's model as well
@@ -503,22 +503,4 @@ print('Done !')
 if os.path.isfile(resume_file_name):
     os.remove(resume_file_name)
 
-# finished training, send email if possible
-if os.path.isfile('mail_cfg.txt'):
-    with open("mail_cfg.txt", "r") as f:
-        text = f.readlines()
-        receiver_email = text[0][:-1]
-        password = text[1]
-
-    port = 465  # For SSL
-    sender_email = "gipmed.python@gmail.com"
-
-    message = 'Subject: finished inference for experiment ' + str(args.experiment)
-
-    # Create a secure SSL context
-    context = ssl.create_default_context()
-
-    with smtplib.SMTP_SSL("smtp.gmail.com", port, context=context) as server:
-        server.login(sender_email, password)
-        server.sendmail(sender_email, receiver_email, message)
-        print('email sent to ' + receiver_email)
+send_gmail.send_gmail(experiment, is_train=False)

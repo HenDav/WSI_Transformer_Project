@@ -29,8 +29,17 @@ from datetime import date
 import time
 from skimage.color import rgb2hed
 from colorsys import rgb_to_hsv
+import Segmentation.remove_control_tissue as remove_from_seg
+from enum import Enum
+
+class OTSU_METHOD(Enum):
+    OTSU3_FLEXIBLE_THRESH = 0
+    OTSU3_LOWER_THRESH = 1
+    OTSU3_UPPER_THRESH = 2
+    OTSU_REGULAR = 3
 
 Image.MAX_IMAGE_PIXELS = None
+
 
 #RanS 8.2.21
 def check_level1_mag():
@@ -668,7 +677,8 @@ def make_slides_xl_file(DataSet: str = 'HEROHE', ROOT_DIR: str = 'All Data', out
     slide_files_ndpi = glob.glob(os.path.join(ROOT_DIR, DataSet, '*.ndpi'))
     slide_files_mrxs = glob.glob(os.path.join(ROOT_DIR, DataSet, '*.mrxs'))
     slide_files_tiff = glob.glob(os.path.join(ROOT_DIR, DataSet, '*.tiff'))
-    slides = slide_files_svs + slide_files_ndpi + slide_files_mrxs + slide_files_tiff
+    slide_files_jpg = glob.glob(os.path.join(ROOT_DIR, DataSet, '*.jpg'))
+    slides = slide_files_svs + slide_files_ndpi + slide_files_mrxs + slide_files_tiff + slide_files_jpg
     mag_dict = {'.svs': 'aperio.AppMag', '.ndpi': 'hamamatsu.SourceLens', '.mrxs': 'openslide.objective-power', 'tiff': 'tiff.Software'} #RanS 25.3.21, dummy for TIFF
     mpp_dict = {'.svs': 'aperio.MPP', '.ndpi': 'openslide.mpp-x', '.mrxs': 'openslide.mpp-x', 'tiff': 'openslide.mpp-x'}
     date_dict = {'.svs': 'aperio.Date', '.ndpi': 'tiff.DateTime', '.mrxs': 'mirax.GENERAL.SLIDE_CREATIONDATETIME', 'tiff': 'philips.DICOM_ACQUISITION_DATETIME'}
@@ -941,38 +951,25 @@ def _make_segmentation_for_image(file, DataSet, rewrite, out_path_dataset, slide
             thumb_arr[thumb_arr_equal1 & thumb_arr_equal2, :] = 255
             thumb = Image.fromarray(thumb_arr)
 
-        # RanS 29.4.21
-        if DataSet == 'PORTO_PDL1':
+        if DataSet == 'PORTO_PDL1' or DataSet[:4] == 'HER2':
             is_IHC_slide = True
         else:
             is_IHC_slide = False
 
-        #RanS 13.5.21, avoid control tissue on PORTO second batch IHC
-        #detect edges of tissue, dump lower 33%
-        if (is_IHC_slide and fn[-5:] == ' pdl1'):
-            thumb_arr = np.array(thumb)
-            thumb_binary_inverse = 255-np.max(thumb_arr,axis=2)
-            positions = np.nonzero(thumb_binary_inverse)
-            top = positions[0].min()
-            bottom = positions[0].max()
-            cutoff = int(top + (bottom - top) *0.6)
-            thumb_arr[cutoff:, :, :] = 255
-            #thumb_arr[int(thumb.size[0]*0.66):, :, :] = 255
-            thumb_cropped = Image.fromarray(thumb_arr)
-        else:
-            thumb_cropped = thumb
-        # RanS 22.2.21
+        thumb = remove_from_seg.remove_control_tissue_according_to_dataset(thumb, is_IHC_slide, fn, DataSet)
+        thumb = remove_from_seg.remove_slide_artifacts_according_to_dataset(thumb, DataSet)
+
         # if DataSet == 'ABCTB':
-        if DataSet == 'PORTO_HE':
-            use_otsu3 = True # this helps avoid the grid
+        if DataSet == 'PORTO_HE' or DataSet[:4] == 'HER2' or DataSet[:5] == 'SHEBA':
+            otsu_method = OTSU_METHOD.OTSU3_FLEXIBLE_THRESH
         else:
-            use_otsu3 = False
-        if DataSet == 'LEUKEMIA':
-            thmb_seg_map, edge_image = _calc_simple_segmentation_for_image(thumb_cropped, magnification, white_thresh=250)
-        elif DataSet == 'TMA':
-            thmb_seg_map, edge_image = _calc_simple_segmentation_for_image(thumb_cropped, magnification, white_thresh=230)
+            otsu_method = OTSU_METHOD.OTSU_REGULAR
+        if DataSet in ['LEUKEMIA', 'AML']:
+            thmb_seg_map, edge_image = _calc_simple_segmentation_for_image(thumb, magnification, white_thresh=250)
+        elif DataSet[:3] == 'TMA':
+            thmb_seg_map, edge_image = _calc_simple_segmentation_for_image(thumb, magnification, white_thresh=230)
         else:
-            thmb_seg_map, edge_image = _calc_segmentation_for_image(thumb_cropped, magnification, use_otsu3=use_otsu3, is_IHC_slide=is_IHC_slide)
+            thmb_seg_map, edge_image = _calc_segmentation_for_image(thumb, magnification, otsu_method=otsu_method, is_IHC_slide=is_IHC_slide)
         slide.close()
         thmb_seg_image = Image.blend(thumb, edge_image, 0.5)
 
@@ -1061,7 +1058,7 @@ def _calc_simple_segmentation_for_image(image: Image, magnification: int, white_
 
     return seg_map_PIL, edge_image
 
-def _calc_segmentation_for_image(image: Image, magnification: int, use_otsu3: bool,
+def _calc_segmentation_for_image(image: Image, magnification: int, otsu_method: OTSU_METHOD,
                                  is_IHC_slide: bool) -> (Image, Image):
     """
     This function creates a segmentation map for an Image
@@ -1069,52 +1066,40 @@ def _calc_segmentation_for_image(image: Image, magnification: int, use_otsu3: bo
     :return:
     """
 
-    # Converting the image from RGBA to HSV and to a numpy array (from PIL):
-    #image_array = np.array(image.convert('HSV'))
-    if is_IHC_slide:
-        #image_array = rgb2hed(image)[:, :, 2] #DAB channel
-        #image_array = (255 * (image_array - np.min(image_array)) / (np.max(image_array) - np.min(image_array))).astype('uint8')
-        image_array = np.array(image.convert('CMYK'))[:, :, 1]  # RanS 9.12.20
-    else:
-        image_array = np.array(image.convert('CMYK'))[:, :, 1] #RanS 9.12.20
+    image_array = np.array(image.convert('CMYK'))[:, :, 1]
 
-    #RanS 18.7.21 - make almost total black into total white to ignore black areas in otsu
+    # turn almost total black into total white to ignore black areas in otsu
     image_array_rgb = np.array(image)
     image_is_black = np.prod(image_array_rgb, axis=2) < 20**3
     image_array[image_is_black] = 0
 
     # otsu Thresholding:
-    #use_otsu3 = True
-    '''if use_otsu3:
-        # RanS 25.10.20 - 3way binarization
+    if (otsu_method == OTSU_METHOD.OTSU3_FLEXIBLE_THRESH) or (otsu_method == OTSU_METHOD.OTSU3_LOWER_THRESH):
+        # 3way binarization
         thresh = otsu3(image_array)
         _, seg_map = cv.threshold(image_array, thresh[0], 255, cv.THRESH_BINARY)
+    elif otsu_method == OTSU_METHOD.OTSU3_UPPER_THRESH:
+        thresh = otsu3(image_array)
+        _, seg_map = cv.threshold(image_array, thresh[1], 255, cv.THRESH_BINARY)
     else:
-        _, seg_map = cv.threshold(image_array, 0, 255, cv.THRESH_OTSU)'''
-    _, seg_map = cv.threshold(image_array, 0, 255, cv.THRESH_OTSU)
+        _, seg_map = cv.threshold(image_array, 0, 255, cv.THRESH_OTSU)
 
-    #RanS 2.12.20 - try otsu3 in HED color space
-    temp = False
-    if temp:
-        import HED_space
-        image_HED = HED_space.RGB2HED(np.array(image))
-        #image_HED_normed = (image_HED - np.min(image_HED,axis=(0,1))) / (np.max(image_HED,axis=(0,1)) - np.min(image_HED,axis=(0,1))) #rescale to 0-1
-        image_HED_normed = (image_HED - np.min(image_HED)) / (np.max(image_HED) - np.min(image_HED))  # rescale to 0-1
-        HED_space.plot_image_in_channels(image_HED_normed, '')
-        image_HED_int = (image_HED_normed*255).astype(np.uint8)
-        HED_space.plot_image_in_channels(image_HED_int, '')
-        thresh_HED = otsu3(image_HED_int[:, :, 0])
-        _, seg_map_HED = cv.threshold(image_HED[:, :, 0], thresh_HED[1], 255, cv.THRESH_BINARY)
-        plt.imshow(seg_map_HED)
+    # test median pixel color to inspect segmentation
+    if (otsu_method == OTSU_METHOD.OTSU3_FLEXIBLE_THRESH) and not is_IHC_slide:
+        pixel_vec = image_array_rgb.reshape(-1, 3)[seg_map.reshape(-1)>0]
+        #median_color = np.median(pixel_vec, axis=0)
+        #median_hue = rgb_to_hsv(*median_color/256)[0]*360
 
-    #RanS 9.11.20 - test median pixel color to inspect segmentation
-    if use_otsu3:
-        image_array_rgb = np.array(image)
-        pixel_vec = image_array_rgb.reshape(-1,3)[seg_map.reshape(-1)>0]
-        median_color = np.median(pixel_vec, axis=0)
-        median_hue = rgb_to_hsv(*median_color/256)[0]*360
+        hue_vec = np.array([rgb_to_hsv(*pixel/256)[0]*360 for pixel in pixel_vec])
+        #saturation_vec = np.array([rgb_to_hsv(*pixel / 256)[1] for pixel in pixel_vec])
+        median_hue = np.median(hue_vec)
+        #median_saturation = np.median(saturation_vec)
+        #saturation_lower_decile = np.percentile(saturation_vec, 10)
         #if all(median_color > 180): #median pixel is white-ish, changed from 200
-        if (median_hue < 250):  # RanS 19.5.21, median seg hue is not purple/red
+        #if (median_hue < 250) or (median_saturation < 0.15):  # median seg hue is not purple/red or saturation is very low (white)
+        #if (median_hue < 250) or (saturation_lower_decile < 0.1):  # median seg hue is not purple/red or saturation is very low (white)
+        take_upper_otsu3_thresh = median_hue < 250
+        if take_upper_otsu3_thresh:  # median seg hue is not purple/red or saturation is very low (white)
             #take upper threshold
             thresh = otsu3(image_array)
             _, seg_map = cv.threshold(image_array, thresh[1], 255, cv.THRESH_BINARY)
@@ -1143,38 +1128,33 @@ def _calc_segmentation_for_image(image: Image, magnification: int, use_otsu3: bo
         size_thresh = 5000  # RanS 9.12.20, lung cancer biopsies can be very small
         contours, _ = cv.findContours(seg_map_filt, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE)
         contour_area = np.zeros(len(contours))
+        rectangle_area = np.zeros(len(contours))
 
         for ii in range(len(contours)):
             contour_area[ii] = cv.contourArea(contours[ii])
 
+            #temp RanS 23.5.22 - enclosing rectangle area
+            [[rectangle_min_x, rectangle_min_y]] = np.min(contours[ii], axis=0)
+            [[rectangle_max_x, rectangle_max_y]] = np.max(contours[ii], axis=0)
+            rectangle_area[ii] = (rectangle_max_y - rectangle_min_y) * (rectangle_max_x - rectangle_min_x)
+
         max_contour = np.max(contour_area)
+        max_contour_ind = np.argmax(contour_area)
+        if (otsu_method == OTSU_METHOD.OTSU3_FLEXIBLE_THRESH) and not take_upper_otsu3_thresh:
+            fill_factor_largest_contour = contour_area[max_contour_ind] / rectangle_area[max_contour_ind]
+            take_upper_otsu3_thresh = fill_factor_largest_contour > 0.97 #contour is a perfect rectangle
+            if take_upper_otsu3_thresh:  # median seg hue is not purple/red or saturation is very low (white)
+                # take upper threshold
+                thresh = otsu3(image_array)
+                _, seg_map = cv.threshold(image_array, thresh[1], 255, cv.THRESH_BINARY)
+
         small_contours_bool = (contour_area < size_thresh) & (contour_area < max_contour * 0.02)
 
-    if not use_otsu3 and not is_IHC_slide: #RanS 19.5.21, do not filter small parts filtering for lung cancer
-        #temp RanS 30.12.20 - plot each contour with its mean color, std...
-        temp_plot = False
-        if temp_plot:
-            #im1 = np.zeros(seg_map.shape)
-            rgb_image2 = rgb_image.copy()
-            #for ii in range(len(contours)):
-            for ii in np.where(contour_area>10000)[0]: #temp RanS 24.2.21
-                rgb_image2 = cv.drawContours(rgb_image2, [contours[ii]], -1, contour_color_std[ii, 2], thickness=cv.FILLED)
-                #rgb_image2 = cv.drawContours(rgb_image2, [contours[ii]], -1, contour_std[ii], thickness=cv.FILLED)
-                #im1 = cv.drawContours(im1, [contours[ii]], -1, contour_std[ii], thickness=cv.FILLED)
-                #im1 = cv.drawContours(im1, contours, contourIdx=ii, color=contour_std[ii], thickness=1)
-                #rgb_image2 = cv.drawContours(rgb_image2, contours, contourIdx=ii, color = [1,1,1], thickness=-1)
-            plt.imshow(rgb_image2)
-            #plt.imshow(rgb_image)
-            #plt.imshow(im1,alpha=0.5)
-            #plt.colorbar()
-
+    if otsu_method == OTSU_METHOD.OTSU_REGULAR and not is_IHC_slide: #RanS 19.5.21, do not filter small parts filtering for lung cancer
         small_contours = [contours[ii] for ii in range(len(contours)) if small_contours_bool[ii]==True]
         seg_map_filt = cv.drawContours(seg_map_filt, small_contours, -1, (0, 0, 255), thickness=cv.FILLED) #delete the small contours
 
-    #RanS 30.12.20, delete gray contours
-    #gray_contours_bool = contour_std < 5
-
-    #RanS 3.3.21, check contour color only for large contours
+    # check contour color only for large contours
     if not is_IHC_slide:
         hsv_image = np.array(image.convert('HSV'))  # temp RanS 24.2.21
         rgb_image = np.array(image)
