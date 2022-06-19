@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from cycler import cycler
 
 parser = argparse.ArgumentParser(description='WSI_MIL Features Slide inference')
-parser.add_argument('-ex', '--experiment', type=int, default=10549, help='Use this model for inference')
+parser.add_argument('-ex', '--experiment', type=int, default=10679, help='Use this model for inference')
 parser.add_argument('-fe', '--from_epoch', type=int, default=[500], help='Use this epoch model for inference')
 parser.add_argument('-pp', '--is_per_patient', action='store_true', help='per patient inference ?')
 parser.add_argument('-conly', '--carmel_only', action='store_true', help='use slides only from Carmel Dataset ?')
@@ -68,9 +68,19 @@ if sys.platform == 'darwin':
         output_dir = '/'.join(output_dir.split('/')[-2:])
 
 
-CAT_dsets = [r'FEATURES: Exp_355-ER-TestFold_1', r'FEATURES: Exp_393-ER-TestFold_2', r'FEATURES: Exp_472-ER-TestFold_3', r'FEATURES: Exp_542-ER-TestFold_4',
-             r'FEATURES: Exp_392-Her2-TestFold_1', r'FEATURES: Exp_412-Her2-TestFold_2', r'FEATURES: Exp_20114-Her2-TestFold_3', r'FEATURES: Exp_20201-Her2-TestFold_4',
-             r'FEATURES: Exp_10-PR-TestFold_1', r'FEATURES: Exp_20063-PR-TestFold_2', r'FEATURES: Exp_497-PR-TestFold_3', r'FEATURES: Exp_20207-PR-TestFold_4'
+CAT_dsets = [r'FEATURES: Exp_355-ER-TestFold_1',
+             r'FEATURES: Exp_393-ER-TestFold_2',
+             r'FEATURES: Exp_472-ER-TestFold_3',
+             r'FEATURES: Exp_542-ER-TestFold_4',
+             r'FEATURES: Exp_392-Her2-TestFold_1',
+             r'FEATURES: Exp_412-Her2-TestFold_2',
+             r'FEATURES: Exp_20114-Her2-TestFold_3',
+             r'FEATURES: Exp_20201-Her2-TestFold_4',
+             r'FEATURES: Exp_20228-Her2-TestFold_5',
+             r'FEATURES: Exp_10-PR-TestFold_1',
+             r'FEATURES: Exp_20063-PR-TestFold_2',
+             r'FEATURES: Exp_497-PR-TestFold_3',
+             r'FEATURES: Exp_20207-PR-TestFold_4'
              ]
 
 CAT_with_Location_dsets = [r'FEATURES: Exp_392-Her2-TestFold_1 With Locations',
@@ -79,7 +89,10 @@ CAT_with_Location_dsets = [r'FEATURES: Exp_392-Her2-TestFold_1 With Locations',
                            r'FEATURES: Exp_355-ER-TestFold_1 With Locations for is_Tumor + IS_TUMOR',
                            r'FEATURES: Exp_355-ER-TestFold_1 With Locations for is_Tumor',
                            r'FEATURES: Exp_10-PR-TestFold_1  With Locations',
-                           r'FEATURES: Exp_392-Her2-TestFold_1 With Locations'
+                           r'FEATURES: Exp_392-Her2-TestFold_1 With Locations',
+                           r'FEATURES: Exp_393-ER-TestFold_2 With Locations',
+                           r'FEATURES: Exp_412-Her2-TestFold_2 With Locations',
+                           r'FEATURES: Exp_20063-PR-TestFold_2 With Locations'
                            ]
 
 CARMEL_dsets = [r'FEATURES: Exp_419-Ki67-TestFold_1', r'FEATURES: Exp_490-Ki67-TestFold_2']
@@ -100,10 +113,6 @@ elif run_data_output['Dataset Name'] in TCGA_ABCTB_dsets:
 else:
     dset = None
 
-'''
-if args.carmel_test_set:
-    dset = 'CARMEL 9-11'
-'''
 if args.carmel_test_set:
     if args.experiment in [10586, 10587, 10590]:
         dset = 'TCGA_ABCTB->CARMEL'

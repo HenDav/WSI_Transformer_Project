@@ -94,7 +94,8 @@ def make_tiles_hard_copy(DataSet: str = 'TCGA',
                          added_extension: str = '',
                          num_workers: int = 1,
                          oversized_HC_tiles: bool = False,
-                         as_jpg: bool = False):
+                         as_jpg: bool = False,
+                         resize_tiles_to_size: int = None):
     """    
     :param DataSet: Dataset to create grid for 
     :param ROOT_DIR: Root Directory for the data
@@ -129,20 +130,21 @@ def make_tiles_hard_copy(DataSet: str = 'TCGA',
     with multiprocessing.Pool(num_workers) as pool:
         with tqdm(total=len(files)) as pbar:
             for i, _ in enumerate(pool.map(partial(_make_HC_tiles_from_slide,
-                                        meta_data_DF=slides_meta_data_DF,
-                                        ROOT_DIR=ROOT_DIR,
-                                        added_extension=added_extension,
-                                        DataSet=DataSet,
-                                        tile_size=tile_sz,
-                                        desired_magnification=desired_magnification,
-                                        num_tiles=num_tiles,
-                                        from_tile=0,
-                                        oversized_HC_tiles=oversized_HC_tiles,
-                                        as_jpg=as_jpg),
-                                files)):
+                                                   meta_data_DF=slides_meta_data_DF,
+                                                   ROOT_DIR=ROOT_DIR,
+                                                   added_extension=added_extension,
+                                                   DataSet=DataSet,
+                                                   tile_size=tile_sz,
+                                                   desired_magnification=desired_magnification,
+                                                   num_tiles=num_tiles,
+                                                   from_tile=0,
+                                                   oversized_HC_tiles=oversized_HC_tiles,
+                                                   as_jpg=as_jpg,
+                                                   resize_tiles_to_size=resize_tiles_to_size),
+                                           files)):
                 pbar.update()
-
-    '''for file in tqdm(files):
+    '''
+    for file in tqdm(files):
         _make_HC_tiles_from_slide(file=file,
                                   meta_data_DF=slides_meta_data_DF,
                                   ROOT_DIR=ROOT_DIR,
@@ -152,15 +154,27 @@ def make_tiles_hard_copy(DataSet: str = 'TCGA',
                                   desired_magnification=desired_magnification,
                                   num_tiles=num_tiles,
                                   from_tile=0,
-                                  oversized_HC_tiles=oversized_HC_tiles)'''
+                                  oversized_HC_tiles=oversized_HC_tiles,
+                                  as_jpg=as_jpg,
+                                  resize_tiles_to_size=resize_tiles_to_size
+                                  )
+    '''
 
     print('Finished hard-copy tile production phase !')
 
 
-def _make_HC_tiles_from_slide(file: str, meta_data_DF: pd.DataFrame, ROOT_DIR: str,
-                              DataSet: str, from_tile: int, num_tiles: int,
-                              added_extension: str = '', desired_magnification: int = 20, tile_size: int = 256,
-                              oversized_HC_tiles: bool = False, as_jpg: bool = False):
+def _make_HC_tiles_from_slide(file: str,
+                              meta_data_DF: pd.DataFrame,
+                              ROOT_DIR: str,
+                              DataSet: str,
+                              from_tile: int,
+                              num_tiles: int,
+                              added_extension: str = '',
+                              desired_magnification: int = 20,
+                              tile_size: int = 256,
+                              oversized_HC_tiles: bool = False,
+                              as_jpg: bool = False,
+                              resize_tiles_to_size: int = None):
     start = time.time()
     if meta_data_DF.loc[file, 'Total tiles - ' + str(tile_size) + ' compatible @ X' + str(desired_magnification)] == -1:
         print('Could not find tile data for slide ' + file)
@@ -189,13 +203,15 @@ def _make_HC_tiles_from_slide(file: str, meta_data_DF: pd.DataFrame, ROOT_DIR: s
 
     if num_tiles == -1: #extract all tiles!
         num_tiles = len(grid_list)
+    elif num_tiles > len(grid_list):
+        num_tiles = len(grid_list)
 
     if not os.path.isdir(out_dir):
         os.mkdir(out_dir)
     if not os.path.isdir(os.path.join(out_dir, base_name)):
         os.mkdir(os.path.join(out_dir, base_name))
     # RanS 22.4.21, do not rewrite if all tiles are already saved
-    elif len([name for name in os.listdir(os.path.join(out_dir, base_name)) if os.path.isfile(os.path.join(out_dir, base_name, name))]) == num_tiles:
+    elif len([name for name in os.listdir(os.path.join(out_dir, base_name)) if os.path.isfile(os.path.join(out_dir, base_name, name))]) == num_tiles + 1:
         print('skipping file ' + file + ", all tiles already exist")
         return
 
@@ -204,16 +220,22 @@ def _make_HC_tiles_from_slide(file: str, meta_data_DF: pd.DataFrame, ROOT_DIR: s
 
     start1 = time.time()
 
+    # initializing variables for  excel log file
+    tile_names, tile_locations = [], []
+
     for ind, loc in enumerate(grid_list[from_tile: from_tile + num_tiles]):
         image_tile, _, _ = utils._get_tiles(slide=slide,
-                                          locations=[loc],
-                                          tile_size_level_0=level_0_tile_size,
-                                          adjusted_tile_sz=adjusted_tile_size,
-                                          output_tile_sz=tile_size,
-                                          best_slide_level=best_slide_level,
-                                          random_shift=False,
-                                          oversized_HC_tiles=oversized_HC_tiles)
+                                            locations=[loc],
+                                            tile_size_level_0=level_0_tile_size,
+                                            adjusted_tile_sz=adjusted_tile_size,
+                                            output_tile_sz=tile_size,
+                                            best_slide_level=best_slide_level,
+                                            random_shift=False,
+                                            oversized_HC_tiles=oversized_HC_tiles)
 
+
+        if resize_tiles_to_size != None and resize_tiles_to_size != tile_size:
+            image_tile[0] = image_tile[0].resize((resize_tiles_to_size, resize_tiles_to_size), resample=Image.BICUBIC)
 
         if as_jpg:
             tile_file_name = os.path.join(out_dir, base_name, 'tile_' + str(ind) + '.jpg')
@@ -225,6 +247,15 @@ def _make_HC_tiles_from_slide(file: str, meta_data_DF: pd.DataFrame, ROOT_DIR: s
                 fh.write('{0:} {1:} {2:} {3:}\n'.format(tile_array.dtype, tile_array.shape[0], tile_array.shape[1],
                                                             tile_array.shape[2]).encode('ascii'))
                 fh.write(tile_array)
+
+        # Create excel log file containing tile names and locations:
+        tile_names.append('tile_' + str(ind))
+        tile_locations.append(list(loc))
+
+    excel_log_DF = pd.DataFrame({'Tile Names': tile_names,
+                                 'Locations': tile_locations})
+    excel_log_DF.to_csv(os.path.join(out_dir, base_name, 'log_file_tile_size_' + str(tile_size) + '.csv'))
+
     slide.close()  # RanS 28.4.21
 
     end = time.time()

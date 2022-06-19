@@ -13,7 +13,7 @@ from utils import MyRotation, Cutout, _get_tiles, _choose_data, chunks, map_orig
 from utils import define_transformations, assert_dataset_target
 from utils import dataset_properties_to_location, get_label, num_2_bool
 from utils import show_patches_and_transformations, get_datasets_dir_dict, balance_dataset
-from utils import get_optimal_slide_level
+from utils import get_optimal_slide_level, cohort_to_int
 import openslide
 from tqdm import tqdm
 import sys
@@ -141,7 +141,7 @@ class WSI_Master_Dataset(Dataset):
                  slide_per_block: bool = False,
                  balanced_dataset: bool = False,
                  RAM_saver: bool = False,
-                 patch_dir: str = '',
+                 patch_dir: str = ''
                  ):
 
         # Multi target training
@@ -203,6 +203,10 @@ class WSI_Master_Dataset(Dataset):
             self.meta_data_DF = meta_data_DF if not hasattr(self, 'meta_data_DF') else self.meta_data_DF.append(
                 meta_data_DF)
 
+        if self.meta_data_DF['id'].isnull().sum() > 0:
+            print('Disregarding slides without id')
+            self.meta_data_DF = self.meta_data_DF[self.meta_data_DF['id'].notnull()]
+
         if not use_multiples:
             self.meta_data_DF.reset_index(inplace=True)
             self.meta_data_DF.rename(columns={'index': 'file'}, inplace=True)
@@ -247,6 +251,7 @@ class WSI_Master_Dataset(Dataset):
                 all_targets = list(self.meta_data_DF[self.target_kind + ' status'])
 
         all_patient_barcodes = list(self.meta_data_DF['patient barcode'])
+        all_cohorts = cohort_to_int(list(self.meta_data_DF['id']))
 
         #RanS 17.8.21
         if slide_per_block:
@@ -355,8 +360,12 @@ class WSI_Master_Dataset(Dataset):
                 if 'val' in folds:
                     folds.remove('val')
             else:
-                folds = [self.test_fold]
-                folds.append('val')
+                if self.test_fold == 'All':
+                    folds = list(self.meta_data_DF[fold_column_name].unique())
+                else:
+                    folds = [self.test_fold]
+                    folds.append('val')
+
         elif self.train_type == 'Infer':
             folds = infer_folds
         elif self.train_type == 'Infer_All_Folds':
@@ -431,6 +440,8 @@ class WSI_Master_Dataset(Dataset):
         self.slides = []
         self.grid_lists = []
         self.presaved_tiles = []
+        self.cohort = []
+
 
         if self.target_kind in ['Survival_Time', 'Survival_Binary']:
             self.target_binary, self.target_cont, self.censored = [], [], []
@@ -444,6 +455,7 @@ class WSI_Master_Dataset(Dataset):
                 self.target.append(all_targets[index])
                 self.magnification.append(all_magnifications[index])
                 self.presaved_tiles.append(all_image_ids[index] == 'ABCTB_TILES')
+                self.cohort.append(all_cohorts[index])
 
                 if self.target_kind in ['Survival_Time', 'Survival_Binary']:
                     self.censored.append(all_censored[index])
@@ -620,7 +632,9 @@ class WSI_Master_Dataset(Dataset):
                 'Images': images,
                 'Target Binary': target_binary,
                 'Survival Time': self.target_cont[idx] if self.target_kind in ['Survival_Time', 'Survival_Binary'] else torch.LongTensor([-1]),
-                'Censored': bool(self.censored[idx]) if self.target_kind in ['Survival_Time', 'Survival_Binary'] else torch.LongTensor([-1])
+                'Censored': bool(self.censored[idx]) if self.target_kind in ['Survival_Time', 'Survival_Binary'] else torch.LongTensor([-1]),
+                'Cohort': self.cohort[idx],
+                'is_Train': self.train
                 }
 
 
@@ -728,13 +742,13 @@ class WSI_REGdataset(WSI_Master_Dataset):
                                  self.test_fold,
                                  'ON' if self.DX else 'OFF'))
 
+
     def __getitem__(self, idx):
         # X, target, time_list, image_file_names, images = super(WSI_REGdataset, self).__getitem__(idx=idx)
         data_dict = super(WSI_REGdataset, self).__getitem__(idx=idx)
         X = data_dict['Data']
         X = torch.reshape(X, (3, self.tile_size, self.tile_size))
 
-        #return X, label, time_list, image_file_names, images
         return {'Data': X,
                 'Target': data_dict['Target'],
                 'Censored': data_dict['Censored'],
@@ -743,7 +757,9 @@ class WSI_REGdataset(WSI_Master_Dataset):
                 'Time List': data_dict['Time List'],
                 'Time dict': data_dict['Time dict'],
                 'File Names': data_dict['File Names'],
-                'Images': data_dict['Images']
+                'Images': data_dict['Images'],
+                'Cohort': data_dict['Cohort'],
+                'is_Train': data_dict['is_Train']
                 }
 
 
@@ -1615,8 +1631,8 @@ class Features_MILdataset(Dataset):
                  data_limit: int = None,  # if 'None' than there will be no data limit. If a number is specified than it'll be the data limit
                  test_fold: int = None,
                  carmel_only: bool = False,  # if true than only feature slides from CARMEL dataset will be taken from all the features given the files
-                 print_timing: bool = False,
-                 slide_repetitions: int = 1
+                 print_timing: bool = False
+                 #slide_repetitions: int = 1
                  ):
 
         self.is_per_patient, self.is_all_tiles, self.is_repeating_tiles = is_per_patient, is_all_tiles, is_repeating_tiles
@@ -1856,7 +1872,8 @@ class Features_MILdataset(Dataset):
                 total_slides += 1
                 feature_1 = features[slide_num, :, :, 0]
                 nan_indices = np.argwhere(np.isnan(feature_1)).tolist()
-                tiles_in_slide = nan_indices[0][1] if bool(nan_indices) else max_tile_num  # check if there are any nan values in feature_1
+                first_nan_index = nan_indices[0][1] if bool(nan_indices) else max_tile_num
+                tiles_in_slide = first_nan_index  # check if there are any nan values in feature_1
 
                 # The following lines solves the case for dataset with magnification bigger than 10:
                 # column_title = 'Legitimate tiles - 256 compatible @ X10' if len(dataset.split('_')) == 1 else 'Legitimate tiles - 256 compatible @ X' + dataset.split('_')[1]
@@ -4980,3 +4997,23 @@ class Infer_Dataset_Survival(WSI_Master_Dataset_Survival):
                 'Binary Target': target_binary_current,
                 'Time Target': target_time_current
                 }
+
+
+class ConcatDataset(Dataset):
+    def __init__(self, *datasets):
+        self.datasets = datasets
+        self.len_0, self.len_1 = len(self.datasets[0]), len(self.datasets[1])
+        self.total_len = self.len_0 + self.len_1
+
+    def __getitem__(self, i):
+        #return tuple(d[i] for d in self.datasets)
+        #return tuple(d[i % len(d)] for d in self.datasets)
+        if i < self.len_0:
+            return self.datasets[0][i]
+        else:
+            return self.datasets[1][i]
+
+    def __len__(self):
+        #return min(len(d) for d in self.datasets)
+        #return max(len(d) for d in self.datasets)
+        return self.total_len

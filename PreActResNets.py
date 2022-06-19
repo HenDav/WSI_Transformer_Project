@@ -7,7 +7,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.autograd import Function
 import os
+#from torch.nn.modules import Module
 
 #THIS_FILE = os.path.realpath(__file__).split('/')[-1].split('.')[0] + '.'
 THIS_FILE = os.path.basename(os.path.realpath(__file__)).split('.')[0] + '.'
@@ -365,6 +367,104 @@ class PreActResNet_Ron(nn.Module):
             return out, features #RanS 1.7.21
 
 
+class PreActResNet_Ron_DomainAdaptation(nn.Module):
+    def __init__(self, block, num_blocks, num_classes: int = 2, num_domains: int = 4, lam: int = 1):
+        super(PreActResNet_Ron_DomainAdaptation, self).__init__()
+        self.in_planes = 16
+        self.lam = lam
+
+        self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
+        self.layer1 = self._make_layer(block, 16, num_blocks[0], stride=1)
+        self.layer2 = self._make_layer(block, 32, num_blocks[1], stride=2)
+        self.layer3 = self._make_layer(block, 64, num_blocks[2], stride=2)
+        self.layer4 = self._make_layer(block, 128, num_blocks[3], stride=2)
+        self.dropout = nn.Dropout(p=0.5)
+        self.linear = nn.Linear(128*block.expansion, num_classes)
+        self.model_name = ''
+
+
+        self.change_num_domains(num_domains=num_domains)
+        '''self.domain_classifier = nn.Sequential(GRL(lam=lam),
+                                               nn.Linear(self.linear.in_features, 1024),
+                                               nn.ReLU(),
+                                               nn.Linear(1024, 1024),
+                                               nn.ReLU(),
+                                               nn.Linear(1024, num_domains)
+                                               )'''
+
+    def _make_layer(self, block, planes, num_blocks, stride):
+        strides = [stride] + [1]*(num_blocks-1)
+        layers = []
+        for stride in strides:
+            layers.append(block(self.in_planes, planes, stride))
+            self.in_planes = planes * block.expansion
+        return nn.Sequential(*layers)
+
+
+    def change_num_classes(self, num_classes):
+        self.linear = nn.Linear(self.linear.in_features, num_classes)
+
+    def change_num_domains(self, num_domains):
+        self.domain_classifier = nn.Sequential(GRL(lam=self.lam),
+                                               nn.Linear(self.linear.in_features, 1024),
+                                               nn.ReLU(),
+                                               nn.Linear(1024, 1024),
+                                               nn.ReLU(),
+                                               nn.Linear(1024, num_domains)
+                                               )
+
+    def set_lambda(self, new_lam):
+        self.domain_classifier[0].lam = new_lam
+
+    def get_lambda(self):
+        return self.domain_classifier[0].lam
+
+
+    def forward(self, x, is_train):
+        if len(x.shape) == 5:
+            num_of_bags, tiles_amount, _, tiles_size, _ = x.shape
+            x = torch.reshape(x, (num_of_bags * tiles_amount, 3, tiles_size, tiles_size))
+
+        out = self.conv1(x)
+        out = self.layer1(out)
+        out = self.layer2(out)
+        out = self.layer3(out)
+        out = self.layer4(out)
+
+        out = F.avg_pool2d(out, out.shape[3])
+        out = out.view(out.size(0), -1)
+
+        features = out
+
+
+        class_features = out[is_train] if self.training else out
+
+        domain_scores = self.domain_classifier(out)
+        class_scores = self.linear(class_features)
+
+        '''if self.training and torch.any(torch.isnan(class_scores)):
+            import pandas as pd
+            print('Model: Found NaN in Score')
+            scores_dict = {'Scores': list(torch.reshape(class_scores, (18,)).detach().cpu().numpy())}
+            scores_DF = pd.DataFrame(scores_dict).transpose()
+            scores_DF.to_excel('debug_data_scores_from_model.xlsx')
+
+            weights = list(torch.reshape(self.linear.weight, (512,)).detach().cpu().numpy())
+            bias = list(self.linear.bias.detach().cpu().numpy()) + [-1] * 511
+
+            linear_layer_dict = {'Weights': weights,
+                                 'Bias': bias}
+            linear_layer_DF = pd.DataFrame(linear_layer_dict).transpose()
+            linear_layer_DF.to_excel('debug_data_models_linear_layer.xlsx')
+
+            features_DF = pd.DataFrame(features.detach().cpu().numpy())
+            features_DF.to_excel('debug_data_features_from_models.xlsx')
+
+            print('Finished saving 3 debug files from model code')'''
+
+        return class_scores, domain_scores, features
+
+
 #def PreActResNet50_Ron():
 def PreActResNet50_Ron(train_classifier_only=False, num_classes=2):
     model = PreActResNet_Ron(PreActBottleneck_Ron, [3, 4, 6, 3], num_classes=num_classes)
@@ -391,4 +491,88 @@ def MIL_PreActResNet50_Ron():
     print(model.model_name)
     return model
 
+'''
+def get_gradients_lambda_reverser(lam: int = -1):
+    def reverse_add_lambda_to_backward(self, grad_input, grad_output):
+        print('input[0]: ', grad_input[0])
+        print('input[1]: ', grad_input[1])
+        print('input[2]: ', grad_input[2])
+        print('Lam: ', lam)
+
+        new_gi = []
+        for gi in grad_input:
+            if gi != None:
+                new_gi.append(gi * lam)
+            else:
+                new_gi.append(None)
+
+        return tuple(new_gi)
+
+    return reverse_add_lambda_to_backward
+'''
+
+
+def PreActResNet50_Ron_DomainAdaptation(train_classifier_only=False,
+                                        num_classes: int = 2,
+                                        num_domains: int = 4,
+                                        lam: int = 1):
+    model = PreActResNet_Ron_DomainAdaptation(PreActBottleneck_Ron, [3, 4, 6, 3], num_classes=num_classes,
+                                              num_domains=num_domains, lam=lam)
+
+
+    model.model_name = THIS_FILE + 'PreActResNet50_Ron_DomainAdaptation()'
+    print(model.model_name)
+
+    if train_classifier_only:
+        model.model_name = THIS_FILE + 'PreActResNet50_Ron_DomainAdaptation(train_classifier_only=True)'
+        if num_classes != 2:  # RanS 3.1.21
+            model.model_name = model.model_name[:-1] + ', num_classes=' + str(num_classes) + ')'
+        for param in model.parameters():
+            param.requires_grad = False
+        for param in model.linear.parameters():
+            param.requires_grad = True
+
+    elif num_classes != 2: #RanS 3.1.21
+        model.model_name = model.model_name[:-1] + 'num_classes=' + str(num_classes) + ')'
+
+    return model
+
+
+class GradReverse(Function):
+    @staticmethod
+    def forward(ctx, input, lambd):
+        ctx.lambd = lambd
+        output = input.view_as(input)
+        return output
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        lambd = ctx.lambd
+        #print('grad_output: ', grad_output)
+        grad_input = grad_output * -lambd
+        #print('grad_input: ', grad_input)
+
+        return grad_input, None
+
+class GRL(nn.Module):
+    def __init__(self, lam):
+        super(GRL, self).__init__()
+        if lam <= 0:
+            raise Exception('lam must be a positive number, the reversal is already built in the function')
+
+        self.lam = lam
+
+    def forward(self, input):
+        # See the autograd section for explanation of what happens here.
+        return GradReverse.apply(input, self.lam)
+
+
+class domain_test(nn.Module):
+    def __init__(self):
+        super(domain_test, self).__init__()
+        self.grl = GRL(lam=1)
+        self.lin = nn.Linear(5, 2)
+
+    def forward(self, input):
+        return self.lin(self.grl(input))
 
