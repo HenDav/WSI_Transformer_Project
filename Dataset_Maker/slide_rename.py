@@ -1,56 +1,61 @@
 import os
-import pandas as pd
-import argparse
+from Dataset_Maker import slide_walker
 
-parser = argparse.ArgumentParser(description='WSI_REG Slide inference')
-parser.add_argument('--in_dir', type=str, default=r'C:\ran_data\BoneMarrow\new_slides_041021', help='input dir')
-parser.add_argument('--out_dir', type=str, default='LEUKEMIA', help='output dir')
 
-parser.add_argument('--is_mrxs', action='store_true', help='is mrxs slide') #RanS 8.2.21
+def add_slide_rename_to_barcode_list(in_dir, Dataset):
+    excel_file = slide_walker.get_barcode_list_file(in_dir, Dataset)
+    barcode_list = slide_walker.open_barcode_list_file(excel_file)
+    barcode_list['slide rename'] = barcode_list['SlideID'].replace('/','_')
+    barcode_list.sort_values(by='slide rename')
+    prev_id = ""
+    for row in barcode_list.iterrows():
+        if row['slide rename'] == prev_id:
+            row['slide rename'] = row['slide rename'] + "-0"
+        prev_id = row['slide rename']
 
-args = parser.parse_args()
-in_dir = args.in_dir
-out_dir = os.path.join(args.in_dir, args.out_dir)
-is_mrxs = args.is_mrxs
+    print('aa')
 
-if not os.path.isdir(out_dir):
-    os.mkdir(out_dir)
+def rename_slides_according_to_list(in_dir, Dataset):
+    out_dir = define_output_dir(in_dir, Dataset)
+    excel_file = slide_walker.get_barcode_list_file(in_dir, Dataset)
+    barcode_list = slide_walker.open_barcode_list_file(excel_file)
 
-excel_file = os.path.join(in_dir, '../barcode_list.xlsx')
-if os.path.isfile(excel_file):
-    barcode_list = pd.read_excel(excel_file, engine='openpyxl')
-else:
-    raise IOError('cannot find barcode file!')
+    for row in barcode_list.iterrows():
+        try:
+            rename_slide_file_and_folder(slide_data=row[1], out_dir=out_dir)
+        except KeyError as e:
+            print(e)
 
-for row in barcode_list.iterrows():
-    print(row)
-    fn = os.path.join(row[1]['dir'], row[1]['file'])
-    try:
-        if is_mrxs:
-            dn = fn[:-5]
-            #if slide file and folder exist:
-            if os.path.isfile(fn) and os.path.isdir(dn) and row[1]['slide rename'] != -1:
-                os.rename(fn, os.path.join(out_dir, str(row[1]['slide rename']) + '.mrxs'))
-                os.rename(dn, os.path.join(out_dir, str(row[1]['slide rename'])))
-                print("Source path renamed to destination path successfully.")
 
-        else: # svs and other files
-            if os.path.isfile(fn) and row[1]['slide rename'] != -1:
-                os.rename(fn, os.path.join(out_dir, str(row[1]['slide rename'])))
-                print("Source path renamed to destination path successfully.")
+def rename_slide_file_and_folder(slide_data, out_dir):
+    fn = os.path.join(slide_data['dir'], slide_data['file'])
+    print('file:', fn)
+    if slide_data['slide rename'] == -1:
+        return
+    if is_mrxs(fn):
+        dn = fn[:-5]
+        if os.path.isfile(fn) and os.path.isdir(dn):
+            new_dirname = str(slide_data['slide rename'])
+            new_filename = new_dirname + '.mrxs'
+            rename_file(fn, new_filename, out_dir)
+            rename_file(dn, new_dirname, out_dir)
+    else:  # svs and other files
+        if os.path.isfile(fn):
+            new_filename = str(slide_data['slide rename'])
+            rename_file(fn, new_filename, out_dir)
+    print('renamed successfully')
 
-    # If Source is a file
-    # but destination is a directory
-    except IsADirectoryError:
-        print("Source is a file but destination is a directory")
-        # If source is a directory
-    # but destination is a file
-    except NotADirectoryError:
-        print("Source is a directory but destination is a file")
-        # For permission related errors
-    except PermissionError:
-        print("Operation not permitted")
-        # For other errors
-    except OSError as error:
-        print(error)
-print('finished')
+
+def rename_file(orig_name, new_name, out_dir):
+    os.rename(orig_name, os.path.join(out_dir, new_name))
+
+
+def is_mrxs(filename):
+    return filename.split('.')[-1] == 'mrxs'
+
+
+def define_output_dir(in_dir, Dataset):
+    out_dir = os.path.join(in_dir, Dataset)
+    if not os.path.isdir(out_dir):
+        os.mkdir(out_dir)
+    return out_dir
