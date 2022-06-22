@@ -874,19 +874,19 @@ def get_datasets_dir_dict(Dataset: str):
     ABCTB_TIF_gipdeep_path = r'/mnt/gipmed_new/Data/ABCTB_TIF'
     CARMEL_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/Carmel'
     TCGA_LUNG_gipdeep_path = r'/mnt/gipmed_new/Data/Lung/TCGA_Lung/TCGA_LUNG'
-    LEUKEMIA_gipdeep_path = r'/mnt/gipmed_new/Data/BoneMarrow/LEUKEMIA'
+    ALL_gipdeep_path = r'/mnt/gipmed_new/Data/BoneMarrow/ALL'
+    AML_gipdeep_path = r'/mnt/gipmed_new/Data/BoneMarrow/AML/AML'
     Ipatimup_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/Ipatimup'
     Covilha_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/Covilha'
-    TMA_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/TMA/bliss_data/02-008/HE/TMA'
-    #TMA_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/TMA/temp_for_debug/single_image/TMA' #temp RanS 15.2.22
+    TMA_HE_02_008_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/TMA/bliss_data/02-008/HE/TMA_HE_02-008'
+    TMA_HE_01_011_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/TMA/bliss_data/01-011/HE/TMA_HE_01-011'
     HAEMEK_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/Haemek'
     CARMEL_BENIGN_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/Carmel/Benign'
 
     TCGA_ran_path = r'C:\ran_data\TCGA_example_slides\TCGA_examples_131020_flat\TCGA'
     HEROHE_ran_path = r'C:\ran_data\HEROHE_examples'
     ABCTB_ran_path = r'C:\ran_data\ABCTB\ABCTB_examples\ABCTB'
-    TMA_ran_path = r'C:\ran_data\TMA\02-008\TMA'
-    #TMA_ran_path = r'C:\ran_data\TMA\02-008\single_image\TMA' #temp RanS 13.2.22
+    TMA_HE_02_008_ran_path = r'C:\ran_data\TMA\02-008\TMA'
 
     TCGA_omer_path = r'/Users/wasserman/Developer/WSI_MIL/All Data/TCGA'
     HEROHE_omer_path = r'/Users/wasserman/Developer/WSI_MIL/All Data/HEROHE'
@@ -1014,9 +1014,10 @@ def get_datasets_dir_dict(Dataset: str):
 
     elif Dataset == 'SHEBA':
         if sys.platform == 'linux':
-            #dir_dict['SHEBA'] = SHEBA_gipdeep_path
-            for ii in np.arange(1, 5):
+            for ii in np.arange(2, 7):
                 dir_dict['SHEBA' + str(ii)] = os.path.join(SHEBA_gipdeep_path, 'Batch_' + str(ii), 'SHEBA' + str(ii))
+        elif sys.platform == 'win32':  # Ran local
+            dir_dict['SHEBA5'] = r'C:\ran_data\Sheba\SHEBA5'
 
     elif Dataset == 'PORTO_HE':
         if sys.platform == 'linux':
@@ -1035,7 +1036,16 @@ def get_datasets_dir_dict(Dataset: str):
 
     elif Dataset == 'LEUKEMIA':
         if sys.platform == 'linux':  # GIPdeep
-            dir_dict['LEUKEMIA'] = LEUKEMIA_gipdeep_path
+            dir_dict['ALL'] = ALL_gipdeep_path
+            dir_dict['AML'] = AML_gipdeep_path
+
+    elif Dataset == 'AML':
+        if sys.platform == 'linux':  # GIPdeep
+            dir_dict['AML'] = ALL_gipdeep_path
+
+    elif Dataset == 'ALL':
+        if sys.platform == 'linux':  # GIPdeep
+            dir_dict['ALL'] = ALL_gipdeep_path
 
     elif Dataset == 'IC':
         if sys.platform == 'linux':  # GIPdeep
@@ -1048,11 +1058,15 @@ def get_datasets_dir_dict(Dataset: str):
             dir_dict['Covilha'] = Covilha_gipdeep_path
             dir_dict['HEROHE'] = HEROHE_gipdeep_path
 
-    elif Dataset == 'TMA':
+    elif Dataset == 'TMA_HE_02_008':
         if sys.platform == 'linux':  # GIPdeep
-            dir_dict['TMA'] = TMA_gipdeep_path
+            dir_dict['TMA_HE_02_008'] = TMA_HE_02_008_gipdeep_path
         else:
-            dir_dict['TMA'] = TMA_ran_path
+            dir_dict['TMA_HE_02_008'] = TMA_HE_02_008_ran_path
+
+    elif Dataset == 'TMA_HE_01_011':
+        if sys.platform == 'linux':  # GIPdeep
+            dir_dict['TMA_HE_01_011'] = TMA_HE_01_011_gipdeep_path
 
     elif Dataset == 'HAEMEK':
         if sys.platform == 'linux':  # GIPdeep
@@ -1069,14 +1083,16 @@ def assert_dataset_target(DataSet, target_kind):
         target_kind = [target_kind]
     target_kind = set(target_kind)
 
-    if DataSet == 'TMA' and not target_kind <= {'ER', 'temp', 'binary_dist', 'binary_live', 'binary_any'}:
-        raise ValueError('For TMA DataSet, target should be one of: ER, binary_dist, binary_live, binary_any')
-    if DataSet == 'PORTO_HE' and not target_kind <= {'PDL1', 'EGFR', 'is_full_cancer'}:
+    if DataSet == 'TMA_HE_02_008' and not target_kind <= {'ER', 'temp', 'binary_dist', 'binary_live', 'binary_any'}:
+        raise ValueError('For TMA_HE_02_008 DataSet, target should be one of: ER, binary_dist, binary_live, binary_any')
+    if DataSet == 'TMA_HE_01_011' and not target_kind <= {'binary_live', 'ER'}:
+        raise ValueError('For TMA_HE_01_011 DataSet, target should be one of: binary_live, ER')
+    elif DataSet == 'PORTO_HE' and not target_kind <= {'PDL1', 'EGFR', 'is_full_cancer'}:
         raise ValueError('For PORTO_HE DataSet, target should be one of: PDL1, EGFR')
     elif DataSet == 'PORTO_PDL1' and not target_kind <= {'PDL1'}:
         raise ValueError('For PORTO_PDL1 DataSet, target should be PDL1')
     elif (DataSet in ['TCGA', 'CAT', 'ABCTB_TCGA']) and not target_kind <= {'ER', 'PR', 'Her2', 'OR', 'is_cancer', 'Ki67'}:
-        raise ValueError('target should be one of: ER, PR, Her2, OR')
+        raise ValueError('target should be one of: ER, PR, Her2, OR, is_cancer, Ki67')
     elif (DataSet in ['IC', 'HIC', 'HEROHE', 'HAEMEK']) and not target_kind <= {'ER', 'PR', 'Her2', 'OR', 'Ki67'}:
         raise ValueError('target should be one of: ER, PR, Her2, OR')
     elif (DataSet == 'CARMEL') and not target_kind <= {'ER', 'PR', 'Her2', 'OR', 'Ki67', 'ER100'}:
@@ -1087,8 +1103,8 @@ def assert_dataset_target(DataSet, target_kind):
         raise ValueError('Invalid target for SHEBA DataSet')
     elif DataSet == 'TCGA_LUNG' and not target_kind <= {'is_cancer', 'is_LUAD', 'is_full_cancer'}:
         raise ValueError('for TCGA_LUNG DataSet, target should be is_cancer or is_LUAD')
-    elif DataSet == 'LEUKEMIA' and not target_kind <= {'ALL','is_B','is_HR', 'is_over_6', 'is_over_10', 'is_over_15', 'WBC_over_20', 'WBC_over_50', 'is_HR_B', 'is_tel_aml_B', 'is_tel_aml_non_hr_B', 'MRD'}:
-        raise ValueError('for LEUKEMIA DataSet, target should be ALL, is_B, is_HR, is_over_6, is_over_10, is_over_15, WBC_over_20, WBC_over_50, is_HR_B, is_tel_aml_B, is_tel_aml_non_hr_B, MRD')
+    elif (DataSet in 'LEUKEMIA', 'ALL', 'AML') and not target_kind <= {'ALL','is_B','is_HR', 'is_over_6', 'is_over_10', 'is_over_15', 'WBC_over_20', 'WBC_over_50', 'is_HR_B', 'is_tel_aml_B', 'is_tel_aml_non_hr_B', 'MRD', 'AML'}:
+        raise ValueError('for LEUKEMIA DataSets, target should be ALL, is_B, is_HR, is_over_6, is_over_10, is_over_15, WBC_over_20, WBC_over_50, is_HR_B, is_tel_aml_B, is_tel_aml_non_hr_B, MRD')
     elif (DataSet in ['ABCTB', 'ABCTB_TIF']) and not target_kind <= {'ER', 'PR', 'Her2', 'survival', 'Survival_Time', 'Survival_Binary'}:
         #raise ValueError('target should be one of: ER, PR, Her2, survival, Survival_Time, Survival_Binary')
         raise ValueError('target should be one of: ER, PR, Her2, survival, Survival_Time, Survival_Binary. {} was given as target'.format(target_kind))
@@ -2394,7 +2410,7 @@ def send_run_data_via_mail():
         filename = '/home/rschley/code/WSI_MIL/general_try4/runs/run_data.xlsx'
         user = 'rschley'
 
-    elif 'sglis' in path_parts:
+    elif 'sgils' in path_parts:
         filename = '/mnt/gipnetapp_public/sgils/ran/runs/run_data.xlsx'
         user = 'sgils'
 

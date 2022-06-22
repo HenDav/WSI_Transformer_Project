@@ -24,8 +24,12 @@ from Cox_Loss import Cox_loss
 import re
 import matplotlib.pyplot as plt
 import logging
+import send_gmail
 
-utils.send_run_data_via_mail()
+try:
+    utils.send_run_data_via_mail()
+except:
+    pass
 
 DEFAULT_BATCH_SIZE = 18
 parser = argparse.ArgumentParser(description='WSI_REG Training of PathNet Project')
@@ -388,7 +392,7 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             #print('saved checkpoint to', args.output_dir) #RanS 23.6.21
             logging.info('saved checkpoint to {}'.format(args.output_dir))
 
-        #if (args.dataset == 'TMA') and (args.mag == 7): #temp RanS 24.1.22
+        #if (args.dataset[:3] == 'TMA') and (args.mag == 7): #temp RanS 24.1.22
         #    scheduler.step()
 
     all_writer.close()
@@ -610,7 +614,7 @@ if __name__ == '__main__':
     if sys.platform == 'linux' or sys.platform == 'win32':
         TILE_SIZE = 256
 
-    if (args.dataset == 'TMA') and (args.mag == 7):
+    if (args.dataset[:3] == 'TMA') and (args.mag == 7):
         TILE_SIZE = 512
 
     # Saving/Loading run meta data to/from file:
@@ -783,13 +787,14 @@ if __name__ == '__main__':
 
 
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    '''if (args.dataset == 'TMA') and (args.mag == 7): #temp RanS 13.1.22
+    '''if (args.dataset[:3] == 'TMA') and (args.mag == 7): #temp RanS 13.1.22
         modules = [{'params': model.parameters(), 'weight_decay': args.weight_decay}]
         #optimizer = optim.SGD(modules, lr=args.lr, momentum=0.9, weight_decay=args.weight_decay, nesterov=True)
         optimizer = optim.RAdam(modules, lr=args.lr, weight_decay=args.weight_decay) #RanS 7.3.22
         scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=60, gamma=0.1)'''
 
-    if len(train_dset.target_kind) > 1:
+    #if len(train_dset.target_kind) > 1:
+    if isinstance(train_dset.target_kind, list):
         multi_target = True
         target_list = train_dset.target_kind
         N_targets = len(target_list)
@@ -899,22 +904,4 @@ if __name__ == '__main__':
     else:
         train(model, train_loader, test_loader, DEVICE=DEVICE, optimizer=optimizer, print_timing=args.time)
 
-    #finished training, send email if possible
-    if os.path.isfile('mail_cfg.txt'):
-        with open("mail_cfg.txt", "r") as f:
-            text = f.readlines()
-            receiver_email = text[0][:-1]
-            password = text[1]
-
-        port = 465  # For SSL
-        sender_email = "gipmed.python@gmail.com"
-
-        message = 'Subject: finished running experiment ' + str(experiment)
-
-        # Create a secure SSL context
-        context = ssl.create_default_context()
-
-        with smtplib.SMTP_SSL("smtp.gmail.com", port, context=context) as server:
-            server.login(sender_email, password)
-            server.sendmail(sender_email, receiver_email, message)
-            print('email sent to ' + receiver_email)
+    send_gmail.send_gmail(experiment, is_train=True)

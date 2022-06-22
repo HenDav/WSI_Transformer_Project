@@ -179,7 +179,7 @@ class WSI_Master_Dataset(Dataset):
 
         # RanS 14.2.22, allow multiples in TMA dataset to use Amir dataset
         use_multiples = False
-        # if self.DataSet == 'TMA' and self.desired_magnification == 7:
+        # if self.DataSet[:3] == 'TMA' and self.desired_magnification == 7:
         #    use_multiples = True #temp RanS 22.2.22
 
         for _, key in enumerate(self.dir_dict):
@@ -269,10 +269,10 @@ class WSI_Master_Dataset(Dataset):
                 logging.info('slide_per_block: removing ' + str(len(excess_block_slides)) + ' slides')
             else:
                 IOError('slide_per_block only implemented for CARMEL dataset')
-        elif (DataSet == 'LEUKEMIA') and (target_kind in ['ALL', 'is_B', 'is_HR', 'is_over_6', 'is_over_10', 'is_over_15', 'WBC_over_20', 'WBC_over_50', 'is_HR_B', 'is_tel_aml_B', 'is_tel_aml_non_hr_B']):
+        elif (DataSet in ['LEUKEMIA', 'ALL']) and (target_kind in ['AML', 'ALL', 'is_B', 'is_HR', 'is_over_6', 'is_over_10', 'is_over_15', 'WBC_over_20', 'WBC_over_50', 'is_HR_B', 'is_tel_aml_B', 'is_tel_aml_non_hr_B']):
             #remove slides with diagnosis day != 0
             excess_block_slides = set(self.meta_data_DF.index[self.meta_data_DF['Day_0/15/33_fixed'] != 0])
-        elif (DataSet == 'LEUKEMIA') and (target_kind == 'MRD'):
+        elif (DataSet in ['LEUKEMIA', 'ALL']) and (target_kind == 'MRD'):
             excess_block_slides = set(self.meta_data_DF.index[self.meta_data_DF['Day_0/15/33_fixed'] != 33])
         else:
             excess_block_slides = set()
@@ -331,7 +331,7 @@ class WSI_Master_Dataset(Dataset):
                          '{} Slides were excluded from DataSet because they had less than {} available tiles or are non legitimate for training'
                          .format(len(slides_with_few_tiles), n_minimal_tiles))
 
-        #if (self.DataSet == 'TMA') and (self.desired_magnification == 7):
+        #if (self.DataSet[:3] == 'TMA') and (self.desired_magnification == 7):
         if use_multiples:
             pass #RanS 14.2.22, the "set" kills multiple rows in slides_data
         else:
@@ -346,7 +346,7 @@ class WSI_Master_Dataset(Dataset):
         # The train set should be a combination of all sets except the test set and validation set:
         if self.DataSet == 'CAT' or self.DataSet == 'ABCTB_TCGA':
             fold_column_name = 'test fold idx breast'
-        elif self.target_kind == 'is_tel_aml_B': #RanS 4.1.22
+        elif self.target_kind in ['is_tel_aml_B', 'is_tel_aml_non_hr_B']:
             fold_column_name = 'test fold idx for is_tel_aml_B'
         else:
             fold_column_name = 'test fold idx'
@@ -472,7 +472,7 @@ class WSI_Master_Dataset(Dataset):
                         self.slides.append(tiles_dir)
                         self.grid_lists.append(0)
                     else:
-                        if (self.DataSet == 'TMA'): # read TMA using opencv
+                        if (self.DataSet[:3] == 'TMA'): # read TMA using opencv
                             self.slides.append(image_file)
                         else:
                             if self.train_type in ['Infer_All_Folds', 'Infer']:
@@ -494,8 +494,8 @@ class WSI_Master_Dataset(Dataset):
                         'Couldn\'t open slide {} or its Grid file {}'.format(image_file, grid_file))
 
         # Setting the transformation:
-        if (self.DataSet == 'TMA'):
-            norm_type = 'Amir' #opencv reverses colors, so normalization needs to be reveresed as well RanS 14.2.22
+        if (self.DataSet[:3] == 'TMA'):
+            norm_type = 'Amir' #opencv reverses colors, so normalization needs to be reveresed as well
         else:
             norm_type = 'Ron'
         self.transform = define_transformations(transform_type, self.train, self.tile_size, self.color_param, norm_type)
@@ -518,7 +518,7 @@ class WSI_Master_Dataset(Dataset):
             for attribute in attributes_to_delete:
                 delattr(self, attribute)
 
-        self.random_shift = True if (self.train and self.DataSet != 'TMA') else False
+        self.random_shift = True if (self.train and self.DataSet[:3] != 'TMA') else False
 
     def __len__(self):
         return len(self.target) * self.factor
@@ -547,7 +547,7 @@ class WSI_Master_Dataset(Dataset):
         else:
             slide = self.slides[idx]
 
-            if (self.DataSet == 'TMA'): #read TMA using opencv, RanS 16.2.22
+            if (self.DataSet[:3] == 'TMA'): # read TMA using opencv
                 im = cv2.imread(self.slides[idx])
                 w_margin = (im.shape[1] - 1440) // 2
                 im = im[:, w_margin:-w_margin]
@@ -3875,7 +3875,7 @@ class WSI_Master_Dataset_Survival(Dataset):
                 print('slide_per_block: removing ' + str(len(excess_block_slides)) + ' slides')
             else:
                 IOError('slide_per_block only implemented for CARMEL dataset')
-        elif (DataSet == 'LEUKEMIA') and (target_kind in ['ALL', 'is_B', 'is_HR', 'is_over_6', 'is_over_10', 'is_over_15', 'WBC_over_20', 'WBC_over_50', 'is_HR_B', 'is_tel_aml_B', 'is_tel_aml_non_hr_B']):
+        elif (DataSet in ['LEUKEMIA', 'ALL']) and (target_kind in ['AML', 'ALL', 'is_B', 'is_HR', 'is_over_6', 'is_over_10', 'is_over_15', 'WBC_over_20', 'WBC_over_50', 'is_HR_B', 'is_tel_aml_B', 'is_tel_aml_non_hr_B']):
             #remove slides with diagnosis day != 0
             excess_block_slides = set(self.meta_data_DF.index[self.meta_data_DF['Day_0/15/33_fixed'] != 0])
         else:

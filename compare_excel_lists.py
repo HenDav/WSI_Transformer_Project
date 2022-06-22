@@ -33,3 +33,26 @@ def compare_excel_lists(dir_name, fn1, fn2, header_name):
 
     for fn, missing_in_f in zip([fn1, fn2], [missing_in_f1, missing_in_f2]):
         save_missing_list_to_excel(dir_name, fn, missing_in_f)
+
+
+def merge_excel_lists(dirname, file1, file2, merge_key):
+    df = []
+    for i, ifile in enumerate([file1, file2]):
+        df.append(pd.read_excel(os.path.join(dirname, ifile)))
+        df[-1][merge_key] = df[-1][merge_key].astype(str)
+
+    df_m = pd.merge(df[0], df[1], how='outer', on=merge_key)
+    df_m.to_excel(os.path.join(dirname, 'merged_file.xlsx'))
+
+def fix_TMA_slide_names_in_label_excel_list(dirname, fn, filename_key):
+    df = pd.read_excel(os.path.join(dirname, fn))
+    file_list = df[filename_key]
+    new_names = []
+    for image_fn in file_list:
+        image_name = os.path.splitext(image_fn)[0]
+        last_number = image_name.split('_')[-1]
+        last_number_with_zeros = str(last_number).zfill(3)
+        new_image_name = '_'.join(image_name.split('_')[:-1]) + '_' + last_number_with_zeros + os.path.splitext(image_fn)[-1]
+        new_names.append(new_image_name)
+    df['new_file'] = new_names
+    df.to_excel(os.path.join(dirname, fn + '_filename_zfilled.xlsx'))
