@@ -777,7 +777,7 @@ class MIL_PreActResNet50_Ron_MultiBag(nn.Module):
         self.L = 128
         self.K = 1  # in the paper referred a 1.
 
-        # is_HeatMap is used when we want to create a heatmap and we need to fkip the order of the last two layers
+        # is_HeatMap is used when we want to create a heatmap and we need to skip the order of the last two layers
         self.is_HeatMap = False  # Omer 27/7/2021
 
         self.feat_ext_part1 = PreActResNets.MIL_PreActResNet50_Ron()
