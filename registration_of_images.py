@@ -3,6 +3,7 @@ os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = str(pow(2,40))
 import cv2
 import numpy as np
 from scipy.spatial import Delaunay, Voronoi, voronoi_plot_2d
+from scipy.spatial.distance import cdist
 from tqdm import tqdm
 from scipy.interpolate import griddata, interp2d
 import os
@@ -69,12 +70,15 @@ def get_closest_combined(pix_original_location, inv_simplices_values, alpha):
 
 def get_closest_simplex(pix_original_location, simplices_inv_values, simplex_areas, alpha, is_grad_metric=False):
 	global mid_points
-	true_distances = np.sqrt(((mid_points - pix_original_location) ** 2).sum(1))
-	pix_original_location = np.hstack((pix_original_location, 1)).reshape(3, 1)
-	gils_distances = abs(np.matmul(inv_simplices_values, pix_original_location)).squeeze(2).mean(1)
+
+	true_distances = cdist(mid_points, pix_original_location)  # np.sqrt(((mid_points - pix_original_location) ** 2).sum(1))
+	pix_original_location = np.hstack((pix_original_location, np.ones((pix_original_location.shape[0], 1)))).transpose()
+	# gils_distances = abs(np.matmul(inv_simplices_values, pix_original_location)).squeeze(2).mean(1)  # non matrix calculations
+	gils_distances = abs(np.matmul(inv_simplices_values, pix_original_location)).mean(1)
 
 	total_distances = alpha * true_distances + (1 - alpha) * gils_distances
-	closest_simplex = np.argmin(total_distances)
+	# closest_simplex = np.argmin(total_distances)  # non matrix calculations
+	closest_simplex = np.argmin(total_distances, axis=0)
 	return closest_simplex
 
 
@@ -224,7 +228,18 @@ def create_pixel_location_matrix(img1, simplex_match, simplex_areas, simplex_inv
 	yv = yv.reshape((1, -1))
 	original_coordinates = np.vstack((yv, xv)).transpose()
 	in_triangle = HE_tri.find_simplex(original_coordinates)
-	closest_index_of_mid_point = get_closest_simplex(original_coordinates, simplex_inverse_values, simplex_areas, alpha=0.1, is_grad_metric=True)
+	in_triangle = in_triangle[:1000]
+	original_coordinates_00 = original_coordinates[:1000, :]  #FIXME: testing only
+	closest_index_of_mid_point = get_closest_simplex(original_coordinates_00, simplex_inverse_values, simplex_areas, alpha=0.1, is_grad_metric=True)
+
+	in_triangle_attachments_for_outside_points = simplex_match[closest_index_of_mid_point]
+	location_to_change = np.where(in_triangle == -1)[0]
+	in_triangle[location_to_change] = in_triangle_attachments_for_outside_points[location_to_change]  # Assigning out of the convex hukk points
+
+	pix_transformed_coordinates = apply_points_transform(pix_original_location, transform=transform_matrices[in_triangle])
+
+
+	print('Fixing this')
 
 
 	for _, col in enumerate(tqdm(range(W))):
@@ -441,9 +456,9 @@ if __name__=="__main__":
 	location = '/'.join(file1.split('/')[:-1])
 	file_name_1 = file1.split('/')[-1]
 
-	'''img2 = cv2.imread(file2, 1)
+	img2 = cv2.imread(file2, 1)
 	file_name_2 = file2.split('/')[-1]
-	img2_original = cv2.imread(file2, 1)'''
+	img2_original = cv2.imread(file2, 1)
 
 
 	'''
@@ -464,7 +479,7 @@ if __name__=="__main__":
 
 	H, W, _ = img1.shape
 
-	if True:
+	if False:
 		#img = np.concatenate((img1, img2), axis=1)
 		img=img1
 		# displaying the image
@@ -516,12 +531,12 @@ if __name__=="__main__":
 	inv_simplices_values, simplex_match = compute_Gils_value_simplices(HE_tri)
 
 
-	cv2.imwrite(os.path.join(location, 'With_Triangles_' + file_name_1), img1)
-	cv2.imwrite(os.path.join(location, 'With_Triangles_' + file_name_2), img2)
+	'''cv2.imwrite(os.path.join(location, 'With_Triangles_' + file_name_1), img1)
+	cv2.imwrite(os.path.join(location, 'With_Triangles_' + file_name_2), img2)'''
 
 
 
-	img = np.concatenate((img1, img2), axis=1)
+	#img = np.concatenate((img1, img2), axis=1)
 
 	'''
 	cv2.imshow('image2', img)
