@@ -8,7 +8,6 @@ from random import sample, seed
 import random
 import torch
 from torchvision import transforms
-import sys
 import time
 from typing import List, Tuple
 from xlrd.biffh import XLRDError
@@ -29,21 +28,16 @@ from tqdm import tqdm
 from pathlib import Path
 import sys
 from PIL import ImageFile
-ImageFile.LOAD_TRUNCATED_IMAGES = True
 from random import shuffle
-import skimage
 from fractions import Fraction
-
-
-#if sys.platform == 'win32':
-#    os.add_dll_directory(r'C:\ran_programs\Anaconda3\openslide_bin_ran')
 import openslide
 
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 Image.MAX_IMAGE_PIXELS = None
 
 
 def chunks(list: List, length: int):
-    new_list = [ list[i * length:(i + 1) * length] for i in range((len(list) + length - 1) // length )]
+    new_list = [list[i * length:(i + 1) * length] for i in range((len(list) + length - 1) // length)]
     return new_list
 
 
@@ -865,218 +859,6 @@ def define_transformations(transform_type, train, tile_size, color_param=0.1, no
     return transform
 
 
-def get_datasets_dir_dict(Dataset: str):
-    dir_dict = {}
-    TCGA_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/TCGA'
-    ABCTB_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/ABCTB/ABCTB'
-    HEROHE_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/HEROHE'
-    SHEBA_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/Sheba'
-    ABCTB_TIF_gipdeep_path = r'/mnt/gipmed_new/Data/ABCTB_TIF'
-    CARMEL_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/Carmel'
-    TCGA_LUNG_gipdeep_path = r'/mnt/gipmed_new/Data/Lung/TCGA_Lung/TCGA_LUNG'
-    ALL_gipdeep_path = r'/mnt/gipmed_new/Data/BoneMarrow/ALL'
-    AML_gipdeep_path = r'/mnt/gipmed_new/Data/BoneMarrow/AML/AML'
-    Ipatimup_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/Ipatimup'
-    Covilha_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/Covilha'
-    TMA_HE_02_008_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/TMA/bliss_data/02-008/HE/TMA_HE_02-008'
-    TMA_HE_01_011_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/TMA/bliss_data/01-011/HE/TMA_HE_01-011'
-    HAEMEK_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/Haemek'
-    CARMEL_BENIGN_gipdeep_path = r'/mnt/gipmed_new/Data/Breast/Carmel/Benign'
-
-    TCGA_ran_path = r'C:\ran_data\TCGA_example_slides\TCGA_examples_131020_flat\TCGA'
-    HEROHE_ran_path = r'C:\ran_data\HEROHE_examples'
-    ABCTB_ran_path = r'C:\ran_data\ABCTB\ABCTB_examples\ABCTB'
-    TMA_HE_02_008_ran_path = r'C:\ran_data\TMA\02-008\TMA'
-
-    TCGA_omer_path = r'/Users/wasserman/Developer/WSI_MIL/All Data/TCGA'
-    HEROHE_omer_path = r'/Users/wasserman/Developer/WSI_MIL/All Data/HEROHE'
-    CARMEL_omer_path = r'/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL'
-
-    if Dataset == 'ABCTB_TCGA':
-        if sys.platform == 'linux':  # GIPdeep
-            dir_dict['TCGA'] = TCGA_gipdeep_path
-            #dir_dict['ABCTB'] = ABCTB_gipdeep_path
-            dir_dict['ABCTB'] = ABCTB_TIF_gipdeep_path
-        elif sys.platform == 'win32':  # GIPdeep
-            dir_dict['TCGA'] = TCGA_ran_path
-            dir_dict['ABCTB'] = ABCTB_ran_path
-
-    elif Dataset == 'CARMEL':
-        if sys.platform == 'linux':  # GIPdeep
-            for ii in np.arange(1, 9):
-                dir_dict['CARMEL' + str(ii)] = os.path.join(CARMEL_gipdeep_path, 'Batch_' + str(ii), 'CARMEL' + str(ii))
-        elif sys.platform == 'darwin':  # Omer
-            dir_dict['CARMEL'] = CARMEL_omer_path
-
-    elif Dataset == 'CARMEL+BENIGN':
-        if sys.platform == 'linux':  # GIPdeep
-            for ii in np.arange(1, 9):
-                dir_dict['CARMEL' + str(ii)] = os.path.join(CARMEL_gipdeep_path, 'Batch_' + str(ii), 'CARMEL' + str(ii))
-
-            for ii in np.arange(1, 4):
-                dir_dict['BENIGN' + str(ii)] = os.path.join(CARMEL_BENIGN_gipdeep_path, 'Batch_' + str(ii), 'BENIGN' + str(ii))
-
-    elif Dataset == 'Carmel 9-11':
-        if sys.platform == 'linux':  # GIPdeep
-            for ii in np.arange(9, 12):
-                dir_dict['CARMEL' + str(ii)] = os.path.join(CARMEL_gipdeep_path, 'Batch_' + str(ii), 'CARMEL' + str(ii))
-        elif sys.platform == 'darwin':  # Omer
-            raise Exception('Need to implement')
-
-    elif (Dataset[:6] == 'CARMEL') and (len(Dataset) > 6):
-        batch_num = Dataset[6:]
-        if sys.platform == 'linux':  # GIPdeep
-            dir_dict[Dataset] = os.path.join(CARMEL_gipdeep_path, 'Batch_' + batch_num, 'CARMEL' + batch_num)
-        elif sys.platform == 'win32':  # Ran local
-            dir_dict[Dataset] = TCGA_ran_path #temp for debug only
-
-    elif (Dataset[:6] == 'BENIGN') and (len(Dataset) > 6):
-        batch_num = Dataset[6:]
-        if sys.platform == 'linux':  # GIPdeep
-            dir_dict[Dataset] = os.path.join(CARMEL_BENIGN_gipdeep_path, 'Batch_' + batch_num, 'BENIGN' + batch_num)
-
-    elif Dataset == 'CAT':
-        if sys.platform == 'linux':  # GIPdeep
-            for ii in np.arange(1, 9):
-                dir_dict['CARMEL' + str(ii)] = os.path.join(CARMEL_gipdeep_path, 'Batch_' + str(ii), 'CARMEL' + str(ii))
-            dir_dict['TCGA'] = TCGA_gipdeep_path
-            #dir_dict['HEROHE'] = HEROHE_gipdeep_path
-            #dir_dict['ABCTB'] = ABCTB_gipdeep_path
-            dir_dict['ABCTB'] = ABCTB_TIF_gipdeep_path
-
-        elif sys.platform == 'win32':  #Ran local
-            dir_dict['TCGA'] = TCGA_ran_path
-            dir_dict['HEROHE'] = HEROHE_ran_path
-
-        elif sys.platform == 'darwin':   #Omer local
-            dir_dict['TCGA'] = TCGA_omer_path
-            dir_dict['CARMEL'] = CARMEL_omer_path
-
-        else:
-            raise Exception('Unrecognized platform')
-
-    elif Dataset == 'TCGA_LUNG':
-        if sys.platform == 'linux':  # GIPdeep
-            dir_dict['TCGA_LUNG'] = TCGA_LUNG_gipdeep_path
-
-    elif Dataset == 'TCGA':
-        if sys.platform == 'linux':  # GIPdeep
-            dir_dict['TCGA'] = TCGA_gipdeep_path
-
-        elif sys.platform == 'win32':  # Ran local
-            dir_dict['TCGA'] = TCGA_ran_path
-
-        elif sys.platform == 'darwin':  # Omer local
-            dir_dict['TCGA'] = TCGA_omer_path
-
-        else:
-            raise Exception('Unrecognized platform')
-
-    elif Dataset == 'HEROHE':
-        if sys.platform == 'linux':  # GIPdeep
-            dir_dict['HEROHE'] = HEROHE_gipdeep_path
-
-        elif sys.platform == 'win32':  # Ran local
-            dir_dict['HEROHE'] = HEROHE_ran_path
-
-        elif sys.platform == 'darwin':  # Omer local
-            dir_dict['HEROHE'] = HEROHE_omer_path
-
-    elif Dataset == 'ABCTB_TIF':
-        if sys.platform == 'linux':  # GIPdeep
-            #dir_dict['ABCTB_TIF'] = r'/home/womer/project/All Data/ABCTB_TIF'
-            dir_dict['ABCTB_TIF'] = ABCTB_TIF_gipdeep_path
-        elif sys.platform == 'darwin':  # Omer local
-            dir_dict['ABCTB_TIF'] = r'All Data/ABCTB_TIF'
-        else:
-            raise Exception('Unsupported platform')
-
-    elif Dataset == 'ABCTB_TILES':
-        if sys.platform == 'linux':  # GIPdeep
-            dir_dict['ABCTB_TILES'] = r'/home/womer/project/All Data/ABCTB_TILES'
-        elif sys.platform == 'darwin':  # Omer local
-            dir_dict['ABCTB_TILES'] = r'All Data/ABCTB_TILES'
-
-    elif Dataset == 'ABCTB':
-        if sys.platform == 'linux':  # GIPdeep Run from local files
-            #dir_dict['ABCTB'] = ABCTB_gipdeep_path
-            dir_dict['ABCTB'] = ABCTB_TIF_gipdeep_path
-            #dir_dict['ABCTB'] = r'/mnt/gipmed_new/Data/Breast/ABCTB/mrxs_50test_temp/ABCTB' #temp RanS 9.11.21
-            #dir_dict['ABCTB'] = r'/mnt/gipmed_new/Data/Breast/ABCTB/tif_49_slides' #temp RanS 9.11.21
-            #dir_dict['ABCTB'] = r'/mnt/gipmed_new/Data/Breast/ABCTB/mrxs_50test_temp/duplicated'  # temp RanS 29.11.21
-            #dir_dict['ABCTB'] = r'/mnt/gipmed_new/Data/Breast/ABCTB/tif_49_slides_duplicated' #temp RanS 9.11.21
-
-        elif sys.platform == 'win32':  # Ran local
-            dir_dict['ABCTB'] = ABCTB_ran_path
-
-        elif sys.platform == 'darwin':  # Omer local
-            dir_dict['ABCTB'] = r'All Data/ABCTB_TIF'
-
-    elif Dataset == 'SHEBA':
-        if sys.platform == 'linux':
-            for ii in np.arange(2, 7):
-                dir_dict['SHEBA' + str(ii)] = os.path.join(SHEBA_gipdeep_path, 'Batch_' + str(ii), 'SHEBA' + str(ii))
-        elif sys.platform == 'win32':  # Ran local
-            dir_dict['SHEBA5'] = r'C:\ran_data\Sheba\SHEBA5'
-
-    elif Dataset == 'PORTO_HE':
-        if sys.platform == 'linux':
-            dir_dict['PORTO_HE'] = r'/mnt/gipmed_new/Data/Lung/PORTO_HE'
-        elif sys.platform == 'win32':  # Ran local
-            dir_dict['PORTO_HE'] = r'C:\ran_data\Lung_examples\LUNG'
-        elif sys.platform == 'darwin':  # Omer local
-            dir_dict['PORTO_HE'] = 'All Data/LUNG'
-
-    elif Dataset == 'PORTO_PDL1':
-        if sys.platform == 'linux':
-            dir_dict['PORTO_PDL1'] = r'/mnt/gipmed_new/Data/Lung/sgils/LUNG/PORTO_PDL1'
-        elif sys.platform == 'win32':  # Ran local
-            #dir_dict['PORTO_PDL1'] = r'C:\ran_data\IHC_examples\PORTO_PDL1'
-            dir_dict['PORTO_PDL1'] = r'C:\ran_data\IHC_examples\temp_8_slides\PORTO_PDL1'
-
-    elif Dataset == 'LEUKEMIA':
-        if sys.platform == 'linux':  # GIPdeep
-            dir_dict['ALL'] = ALL_gipdeep_path
-            dir_dict['AML'] = AML_gipdeep_path
-
-    elif Dataset == 'AML':
-        if sys.platform == 'linux':  # GIPdeep
-            dir_dict['AML'] = ALL_gipdeep_path
-
-    elif Dataset == 'ALL':
-        if sys.platform == 'linux':  # GIPdeep
-            dir_dict['ALL'] = ALL_gipdeep_path
-
-    elif Dataset == 'IC':
-        if sys.platform == 'linux':  # GIPdeep
-            dir_dict['Ipatimup'] = Ipatimup_gipdeep_path
-            dir_dict['Covilha'] = Covilha_gipdeep_path
-
-    elif Dataset == 'HIC':
-        if sys.platform == 'linux':  # GIPdeep
-            dir_dict['Ipatimup'] = Ipatimup_gipdeep_path
-            dir_dict['Covilha'] = Covilha_gipdeep_path
-            dir_dict['HEROHE'] = HEROHE_gipdeep_path
-
-    elif Dataset == 'TMA_HE_02_008':
-        if sys.platform == 'linux':  # GIPdeep
-            dir_dict['TMA_HE_02_008'] = TMA_HE_02_008_gipdeep_path
-        else:
-            dir_dict['TMA_HE_02_008'] = TMA_HE_02_008_ran_path
-
-    elif Dataset == 'TMA_HE_01_011':
-        if sys.platform == 'linux':  # GIPdeep
-            dir_dict['TMA_HE_01_011'] = TMA_HE_01_011_gipdeep_path
-
-    elif Dataset == 'HAEMEK':
-        if sys.platform == 'linux':  # GIPdeep
-            for ii in np.arange(1, 2):
-                dir_dict['HAEMEK' + str(ii)] = os.path.join(HAEMEK_gipdeep_path, 'Batch_' + str(ii), 'HAEMEK' + str(ii))
-            #dir_dict['HAEMEK'] = HAEMEK_gipdeep_path
-
-    return dir_dict
-
-
 def assert_dataset_target(DataSet, target_kind):
     #Support multi targets
     if type(target_kind) != list:
@@ -1103,7 +885,7 @@ def assert_dataset_target(DataSet, target_kind):
         raise ValueError('Invalid target for SHEBA DataSet')
     elif DataSet == 'TCGA_LUNG' and not target_kind <= {'is_cancer', 'is_LUAD', 'is_full_cancer'}:
         raise ValueError('for TCGA_LUNG DataSet, target should be is_cancer or is_LUAD')
-    elif (DataSet in 'LEUKEMIA', 'ALL', 'AML') and not target_kind <= {'ALL','is_B','is_HR', 'is_over_6', 'is_over_10', 'is_over_15', 'WBC_over_20', 'WBC_over_50', 'is_HR_B', 'is_tel_aml_B', 'is_tel_aml_non_hr_B', 'MRD', 'AML'}:
+    elif (DataSet in ['LEUKEMIA', 'ALL', 'AML']) and not target_kind <= {'ALL','is_B','is_HR', 'is_over_6', 'is_over_10', 'is_over_15', 'WBC_over_20', 'WBC_over_50', 'is_HR_B', 'is_tel_aml_B', 'is_tel_aml_non_hr_B', 'MRD', 'AML'}:
         raise ValueError('for LEUKEMIA DataSets, target should be ALL, is_B, is_HR, is_over_6, is_over_10, is_over_15, WBC_over_20, WBC_over_50, is_HR_B, is_tel_aml_B, is_tel_aml_non_hr_B, MRD')
     elif (DataSet in ['ABCTB', 'ABCTB_TIF']) and not target_kind <= {'ER', 'PR', 'Her2', 'survival', 'Survival_Time', 'Survival_Binary'}:
         #raise ValueError('target should be one of: ER, PR, Her2, survival, Survival_Time, Survival_Binary')
@@ -1754,9 +1536,9 @@ def get_label(target, multi_target=False):
             return [1]
         elif target == 'Negative':
             return [0]
-        elif (isinstance(target, int) or isinstance(target, float)) and not np.isnan(target): #RanS 17.1.22, support multiclass
+        elif ((isinstance(target, int) or isinstance(target, float)) and not np.isnan(target)) or ((target.__class__ == str) and (target.isnumeric())): #support multiclass
             return [int(target)]
-        else: #unknown
+        else: # unknown
             return [-1]
 
 def num_2_bool(num):
@@ -2614,5 +2396,3 @@ def cohort_to_int(cohort_list: list) -> list:
                         }
 
     return [CohortDictionary[key] for key in cohort_list]
-
-

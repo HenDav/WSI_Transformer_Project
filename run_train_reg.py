@@ -41,7 +41,7 @@ else:
                     #'--target', 'temp',
                     #'--target', 'is_tel_aml_B',
                     #'--target', 'ER+PR+Her2',
-                    '--target', 'onco_score_18',
+                    '--target', 'onco_score_all',
                     #'--target', 'Her2',
                     '--batch_size', '1',
                     #'--batch_size', '4',

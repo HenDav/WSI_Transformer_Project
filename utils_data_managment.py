@@ -5,7 +5,7 @@ That includes:
 - Image segmentation.
 - Grid production
 """
-
+import Dataset_Maker.dataset_utils
 import utils
 import pandas as pd
 from tqdm import tqdm
@@ -31,6 +31,7 @@ from skimage.color import rgb2hed
 from colorsys import rgb_to_hsv
 import Segmentation.remove_control_tissue as remove_from_seg
 from enum import Enum
+from Dataset_Maker import slide_walker
 
 class OTSU_METHOD(Enum):
     OTSU3_FLEXIBLE_THRESH = 0
@@ -619,12 +620,9 @@ def make_slides_xl_file(DataSet: str = 'HEROHE', ROOT_DIR: str = 'All Data', out
     META_DATA_FILE['HEROHE'] = 'HEROHE_HER2_STATUS.xlsx'
     META_DATA_FILE['PORTO_HE'] = 'LISTA COMPLETA pdl1 - Gil - V3_batch1+2.xlsx'
     META_DATA_FILE['PORTO_PDL1'] = 'LISTA COMPLETA pdl1 - Gil - V3_batch1+2.xlsx'
-    #META_DATA_FILE['CARMEL'] = 'barcode_list.xlsx'
     META_DATA_FILE['ABCTB'] = 'ABCTB_Path_Data1.xlsx'  # RanS 17.2.21
     #META_DATA_FILE['SHEBA'] = 'CODED_Oncotype 5.2.21_binary.xlsx'  # RanS 25.3.21
     META_DATA_FILE['SHEBA'] = 'SHEBA ONCOTYPE 30_12_2021_Ran.xlsx'  # RanS 4.1.21
-    #META_DATA_FILE['LEUKEMIA'] = 'barcode_list.xlsx'
-    #META_DATA_FILE['TCGA_LUNG'] = 'barcode_list.xlsx'
 
     data_file = os.path.join(out_path, DataSet, SLIDES_DATA_FILE)
     new_file = False if os.path.isfile(data_file) else True
@@ -641,7 +639,10 @@ def make_slides_xl_file(DataSet: str = 'HEROHE', ROOT_DIR: str = 'All Data', out
         meta_data_DF = pd.read_excel(os.path.join(ROOT_DIR, META_DATA_FILE[DataSet_key])) #RanS 22.3.21, barcode list moved to main data folder
         barcode_list_format = False
     except:
-        meta_data_DF = pd.read_excel(os.path.join(ROOT_DIR, 'barcode_list.xlsx'))  # RanS 25.8.21, default
+        try:
+            meta_data_DF = pd.read_excel(os.path.join(ROOT_DIR, 'barcode_list_' + DataSet +'.xlsx'))
+        except:
+            meta_data_DF = pd.read_excel(os.path.join(ROOT_DIR, 'barcode_list.xlsx'))  # RanS 25.8.21, default
         barcode_list_format = True
 
     if DataSet == 'PORTO_HE':
@@ -1337,3 +1338,16 @@ def make_background_grid(DataSet: str = 'TCGA',
     grid_production_DF.to_excel(os.path.join(ROOT_DIR, DataSet, 'Non_Tissue_Grids' + added_extension, 'production_meta_data.xlsx'))
 
     print('Finished BackGround Grid production phase !')
+
+
+def determine_manipulated_objective_power(DataSet, ROOT_DIR):
+    slides_data_file = Dataset_Maker.dataset_utils.get_slides_data_file(ROOT_DIR, DataSet)
+    slides_data_df = Dataset_Maker.dataset_utils.open_excel_file(slides_data_file)
+    slides_data_df['Manipulated Objective Power'] = slides_data_df['Objective Power']
+    for i_row, _ in slides_data_df.iterrows():
+        slide_name = slides_data_df.at[i_row, 'file']
+        filetype = os.path.splitext(slide_name)[-1]
+        if filetype == '.mrxs':
+            slides_data_df.at[i_row, 'Manipulated Objective Power'] *= 2
+    slides_data_df.to_excel(slides_data_file)
+    print('adjusted "Manipulated Objective Power" column in slides_data file')

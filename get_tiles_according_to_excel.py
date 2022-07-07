@@ -1,4 +1,6 @@
 import pandas as pd
+
+import Dataset_Maker.dataset_utils
 import utils
 import os
 import openslide
@@ -71,10 +73,10 @@ for key in batches.keys():
 
     for file_idx in tqdm(range(len(tile_indices))):
         if sys.platform == 'darwin':
-            dir_dict = utils.get_datasets_dir_dict(Dataset=Dataset)
+            dir_dict = Dataset_Maker.dataset_utils.get_datasets_dir_dict(Dataset=Dataset)
             image_file = os.path.join(dir_dict['CARMEL'], slide_filenames[file_idx])
         elif sys.platform == 'linux':
-            dir_dict = utils.get_datasets_dir_dict(Dataset=Dataset)
+            dir_dict = Dataset_Maker.dataset_utils.get_datasets_dir_dict(Dataset=Dataset)
             file_id = slides_meta_data_DF.loc[slide_filenames[file_idx]]['id']
             image_file = os.path.join(dir_dict[file_id], slide_filenames[file_idx])
 

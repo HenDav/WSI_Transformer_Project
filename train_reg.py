@@ -15,14 +15,12 @@ import numpy as np
 import sys
 import pandas as pd
 from sklearn.utils import resample
-import smtplib, ssl
 import psutil
 import nets, PreActResNets, resnet_v2
 from sphere_res import StereoSphereRes
 from datetime import datetime
 from Cox_Loss import Cox_loss
 import re
-import matplotlib.pyplot as plt
 import logging
 import send_gmail
 
@@ -41,7 +39,6 @@ parser.add_argument('-d', dest='dx', action='store_true', help='Use ONLY DX cut 
 parser.add_argument('-ds', '--dataset', type=str, default='ABCTB', help='DataSet to use')
 parser.add_argument('-time', dest='time', action='store_true', help='save train timing data ?')
 parser.add_argument('-tar', '--target', default='Survival_Time', type=str, help='label: Her2/ER/PR/EGFR/PDL1')
-#parser.add_argument('-tar', '--target', action='append', default='Survival_Time', type=str, help='label: Her2/ER/PR/EGFR/PDL1') #RanS 8.12.21
 parser.add_argument('--n_patches_test', default=1, type=int, help='# of patches at test time')
 parser.add_argument('--n_patches_train', default=10, type=int, help='# of patches at train time')
 parser.add_argument('--lr', default=1e-5, type=float, help='learning rate')
@@ -50,19 +47,18 @@ parser.add_argument('-balsam', '--balanced_sampling', dest='balanced_sampling', 
 parser.add_argument('--transform_type', default='rvf', type=str, help='none / flip / wcfrs (weak color+flip+rotate+scale)')
 parser.add_argument('--batch_size', default=DEFAULT_BATCH_SIZE, type=int, help='size of batch')
 parser.add_argument('--model', default='PreActResNets.PreActResNet50_Ron()', type=str, help='net to use')
-#parser.add_argument('--model', default='nets.ResNet50(pretrained=True)', type=str, help='net to use')
 parser.add_argument('--bootstrap', action='store_true', help='use bootstrap to estimate test AUC error')
 parser.add_argument('--eval_rate', type=int, default=5, help='Evaluate validation set every # epochs')
 parser.add_argument('--c_param', default=0.1, type=float, help='color jitter parameter')
 parser.add_argument('-im', dest='images', action='store_true', help='save data images?')
 parser.add_argument('--mag', type=int, default=10, help='desired magnification of patches')
-parser.add_argument('--loan', action='store_true', help='Localized Annotation for strongly supervised training') #RanS 17.6.21
-parser.add_argument('--er_eq_pr', action='store_true', help='while training, take only er=pr examples') #RanS 27.6.21
-parser.add_argument('--focal', action='store_true', help='use focal loss with gamma=2') #RanS 18.7.21
-parser.add_argument('--slide_per_block', action='store_true', help='for carmel, take only one slide per block') #RanS 17.8.21
-parser.add_argument('-baldat', '--balanced_dataset', dest='balanced_dataset', action='store_true', help='take same # of positive and negative patients from each dataset')  # RanS 5.9.21
-parser.add_argument('--RAM_saver', action='store_true', help='use only a quarter of the slides + reshuffle every 100 epochs') #RanS 3.11.21
-parser.add_argument('-tl', '--transfer_learning', default='', type=str, help='use model trained on another experiment') #RanS 17.11.21
+parser.add_argument('--loan', action='store_true', help='Localized Annotation for strongly supervised training')
+parser.add_argument('--er_eq_pr', action='store_true', help='while training, take only er=pr examples')
+parser.add_argument('--focal', action='store_true', help='use focal loss with gamma=2')
+parser.add_argument('--slide_per_block', action='store_true', help='for carmel, take only one slide per block')
+parser.add_argument('-baldat', '--balanced_dataset', dest='balanced_dataset', action='store_true', help='take same # of positive and negative patients from each dataset')
+parser.add_argument('--RAM_saver', action='store_true', help='use only a quarter of the slides + reshuffle every 100 epochs')
+parser.add_argument('-tl', '--transfer_learning', default='', type=str, help='use model trained on another experiment')
 
 args = parser.parse_args()
 
@@ -221,12 +217,22 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                         correct_neg[i_target] += predicted[i_target, target_squeezed[i_target, :].cpu().eq(0)].eq(0).sum().item()
                     scores_train = np.hstack((scores_train, scores_train_batch))
                 else:
+                    #print('outputs:', outputs)  # temp
+                    #print('target:', target)  # temp
+                    #print('f_names:', f_names)
                     loss = criterion(outputs, target)
+                    #print('loss.shape:', loss.shape)  # temp
                     outputs = torch.nn.functional.softmax(outputs, dim=1)
                     _, predicted = outputs.max(1)
                     if N_classes == 2:
                         scores_train = np.concatenate((scores_train, outputs[:, 1].cpu().detach().numpy()))
                     else:
+                        #print('scores_train.shape:', scores_train.shape) #temp
+                        #print('outputs.shape:', outputs.shape)  # temp
+                        #print('outputs.cpu().shape:', outputs.cpu().shape)  # temp
+                        #print('outputs.cpu().detach().shape:', outputs.cpu().detach().shape)  # temp
+                        #print('outputs.cpu().detach().numpy().shape:', outputs.cpu().detach().numpy().shape)  # temp
+
                         scores_train = np.hstack((scores_train, outputs.cpu().detach().numpy().transpose()))
                     true_targets_train = np.concatenate((true_targets_train, target.cpu().detach().numpy()))
                     total_pos_train += target.eq(1).sum().item()
@@ -904,4 +910,4 @@ if __name__ == '__main__':
     else:
         train(model, train_loader, test_loader, DEVICE=DEVICE, optimizer=optimizer, print_timing=args.time)
 
-    send_gmail.send_gmail(experiment, is_train=True)
+    send_gmail.send_gmail(experiment, send_gmail.Mode.TRAIN)

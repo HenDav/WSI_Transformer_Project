@@ -16,7 +16,7 @@ is_mrxs = args.is_mrxs
 if not os.path.isdir(out_dir):
     os.mkdir(out_dir)
 
-excel_file = os.path.join(in_dir, '../barcode_list.xlsx')
+excel_file = os.path.join(in_dir, '../../barcode_list.xlsx')
 if os.path.isfile(excel_file):
     barcode_list = pd.read_excel(excel_file, engine='openpyxl')
 else:

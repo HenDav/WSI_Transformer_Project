@@ -4,7 +4,8 @@ import openslide
 import numpy as np
 import cv2
 import os
-from utils import get_optimal_slide_level, get_datasets_dir_dict
+from utils import get_optimal_slide_level
+from Dataset_Maker.dataset_utils import get_datasets_dir_dict
 import glob
 import argparse
 import re, sys

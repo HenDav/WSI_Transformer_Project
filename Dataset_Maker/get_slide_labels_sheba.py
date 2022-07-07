@@ -46,7 +46,7 @@ def get_onco_score_binary_status(meta_data_DF, onco_score, slide):
 def get_slide_labels_sheba(in_dir, batches, label_file):
 
     label_data_DF = pd.read_excel(os.path.join(in_dir, label_file))
-    data_field = label_data_DF.keys().to_list() # take all fields
+    data_field = label_data_DF.keys().to_list()  # take all fields
 
     for batch in batches:
         print('batch ', str(batch))
@@ -75,6 +75,7 @@ def get_slide_labels_sheba(in_dir, batches, label_file):
             meta_data_DF[field] = meta_data_DF[field].replace(np.nan, 'Missing Data', regex=True)
 
         meta_data_DF.to_excel(os.path.join(in_dir, 'slides_data_SHEBA' + str(batch) + '_labeled.xlsx'))
+
 
 def create_merged_metadata_file_sheba(in_dir, batches):
     df_list = []

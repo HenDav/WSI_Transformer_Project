@@ -503,4 +503,4 @@ print('Done !')
 if os.path.isfile(resume_file_name):
     os.remove(resume_file_name)
 
-send_gmail.send_gmail(experiment, is_train=False)
+send_gmail.send_gmail(experiment, send_gmail.Mode.INFERENCE)

@@ -1,5 +1,7 @@
 import pandas as pd
 import argparse
+
+import Dataset_Maker.dataset_utils
 import utils
 import os
 import numpy as np
@@ -12,7 +14,7 @@ parser.add_argument('--is_train', action='store_true', help='check trainset')
 args = parser.parse_args()
 
 # Get locations:
-dir_dict = utils.get_datasets_dir_dict(Dataset=args.dataset)
+dir_dict = Dataset_Maker.dataset_utils.get_datasets_dir_dict(Dataset=args.dataset)
 all_slides, all_patients, all_inconsistent_slides, all_inconsistent_patients = 0, 0, 0, 0
 
 for _, key in enumerate(dir_dict):

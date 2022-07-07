@@ -1,3 +1,4 @@
+import Dataset_Maker.dataset_utils
 import utils
 import argparse
 import datasets
@@ -17,7 +18,7 @@ if sys.platform == 'darwin':
 
 # Open Slide_data
 print('Loading slides_data')
-dir_dict = utils.get_datasets_dir_dict(Dataset=args.dataset)
+dir_dict = Dataset_Maker.dataset_utils.get_datasets_dir_dict(Dataset=args.dataset)
 for _, key in enumerate(dir_dict):
     slide_meta_data_file = os.path.join(dir_dict[key], 'slides_data_' + key + '.xlsx')
     if 'meta_data_DF' not in locals():

@@ -61,7 +61,7 @@ print('walk_dir = ' + walk_dir)
 start_time = time.time()
 prev_time = start_time
 
-excel_file = os.path.join(walk_dir, '../barcode_list.xlsx')
+excel_file = os.path.join(walk_dir, '../../barcode_list.xlsx')
 code_dict = OrderedDict()
 
 if not os.path.isdir(os.path.join(walk_dir, 'unreadable_labels')):

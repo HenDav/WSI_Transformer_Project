@@ -1,4 +1,4 @@
-from get_slide_labels_sheba import get_slide_labels_sheba
+from Dataset_Maker.get_slide_labels_sheba import get_slide_labels_sheba
 import numpy as np
 
 in_dir = r'C:\ran_data\Sheba'

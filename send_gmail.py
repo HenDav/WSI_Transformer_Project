@@ -8,12 +8,20 @@
 # =============================================================================
 import smtplib
 import os
+from enum import Enum
 
+
+class Mode(Enum):
+    TRAIN = 0
+    INFERENCE = 1
+    DATAMAKER = 2
 
 # =============================================================================
 # SET EMAIL LOGIN REQUIREMENTS
 # =============================================================================
-def send_gmail(experiment, is_train):
+
+
+def send_gmail(experiment, mode):
     if not os.path.isfile('mail_cfg.txt'):
         return
     else:
@@ -30,10 +38,17 @@ def send_gmail(experiment, is_train):
     # =============================================================================
     sent_from = gmail_user
     sent_to = receiver_email
-    if is_train:
+    '''if is_train:
         sent_subject = 'Subject: finished running experiment ' + str(experiment)
     else:
+        sent_subject = 'Subject: finished inference for experiment ' + str(experiment)'''
+
+    if mode == Mode.TRAIN:
+        sent_subject = 'Subject: finished running experiment ' + str(experiment)
+    elif mode == Mode.INFERENCE:
         sent_subject = 'Subject: finished inference for experiment ' + str(experiment)
+    elif mode == Mode.DATAMAKER:
+        sent_subject = 'Subject: finished running data maker'
 
     email_text = sent_subject
 

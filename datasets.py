@@ -12,7 +12,8 @@ from typing import List
 from utils import MyRotation, Cutout, _get_tiles, _choose_data, chunks, map_original_grid_list_to_equiv_grid_list
 from utils import define_transformations, assert_dataset_target
 from utils import dataset_properties_to_location, get_label, num_2_bool
-from utils import show_patches_and_transformations, get_datasets_dir_dict, balance_dataset
+from utils import show_patches_and_transformations, balance_dataset
+from Dataset_Maker.dataset_utils import get_datasets_dir_dict
 from utils import get_optimal_slide_level, cohort_to_int
 import openslide
 from tqdm import tqdm
@@ -177,7 +178,7 @@ class WSI_Master_Dataset(Dataset):
         logging.info(self.dir_dict)
         locations_list = []
 
-        # RanS 14.2.22, allow multiples in TMA dataset to use Amir dataset
+        # allow multiples in TMA dataset to use Amir dataset
         use_multiples = False
         # if self.DataSet[:3] == 'TMA' and self.desired_magnification == 7:
         #    use_multiples = True #temp RanS 22.2.22
@@ -236,6 +237,7 @@ class WSI_Master_Dataset(Dataset):
             all_censored = list(self.meta_data_DF['Censored'])
             all_targets_cont = list(self.meta_data_DF['Time (months)'])
             all_binary_targets = list(self.meta_data_DF['Survival Binary (5 Yr)'])
+            all_cohorts = cohort_to_int(list(self.meta_data_DF['id']))
 
             if self.target_kind == 'Survival_Binary':
                 all_targets = all_binary_targets
@@ -249,11 +251,10 @@ class WSI_Master_Dataset(Dataset):
                     all_targets[:, ii] = list(self.meta_data_DF[self.target_kind[ii] + ' status'])
             else:
                 all_targets = list(self.meta_data_DF[self.target_kind + ' status'])
-
+        #logging.info('all_targets')  # temp
+        #logging.info(all_targets) #temp
         all_patient_barcodes = list(self.meta_data_DF['patient barcode'])
-        all_cohorts = cohort_to_int(list(self.meta_data_DF['id']))
 
-        #RanS 17.8.21
         if slide_per_block:
             if DataSet == 'CARMEL':
                 all_blocks = []
@@ -286,9 +287,24 @@ class WSI_Master_Dataset(Dataset):
                 #valid_slide_indices = np.where(np.isin(all_targets[:, 0], ['Positive', 'Negative']) | np.isin(all_targets[:, 1], ['Positive', 'Negative']))[0]
                 valid_slide_indices = np.where(np.any((all_targets == 'Positive') | (all_targets == 'Negative'), axis=1))[0]
             else:
-                valid_slide_indices1 = np.where(np.isin(np.array(all_targets), ['Positive', 'Negative']) == True)[0]
-                valid_slide_indices2 = np.where(np.isin(np.array(all_targets), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) == True)[0] #Support up to 10 classes
+                all_targets_string = []
+                for target in all_targets:
+                    if (type(target) == int) or (type(target) == float):
+                        all_targets_string.append(str(int(target)))
+                    else:
+                        all_targets_string.append(str(target))
+
+                valid_slide_indices1 = np.where(np.isin(np.array(all_targets_string), ['Positive', 'Negative']) == True)[0]
+                #valid_slide_indices2 = np.where(np.isin(np.array(all_targets), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) == True)[0] #Support up to 10 classes
+                valid_slide_indices2 = np.where(np.isin(np.array(all_targets_string), ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']) == True)[0]
+                #valid_slide_indices = np.hstack((valid_slide_indices1, valid_slide_indices2, valid_slide_indices3))
                 valid_slide_indices = np.hstack((valid_slide_indices1, valid_slide_indices2))
+
+        #print('len(all_targets):', str(len(all_targets)))  # temp
+        #print('len(valid_slide_indices111):', str(len(valid_slide_indices1)))  # temp
+        #print('len(valid_slide_indices222):', str(len(valid_slide_indices2)))  # temp
+        #print('len(valid_slide_indices333):', str(len(valid_slide_indices3)))  # temp
+        #print('len(valid_slide_indices_QQQCF0):', str(len(valid_slide_indices)))  # temp
 
         #inference on unknown labels in case of (blind) test inference or Batched_Full_Slide_Inference_Dataset
         if len(valid_slide_indices) == 0 or self.train_type == 'Infer_All_Folds' or (self.target_kind == 'survival' and self.train_type == 'Infer'):
@@ -331,12 +347,16 @@ class WSI_Master_Dataset(Dataset):
                          '{} Slides were excluded from DataSet because they had less than {} available tiles or are non legitimate for training'
                          .format(len(slides_with_few_tiles), n_minimal_tiles))
 
+        #print('len(valid_slide_indices0):', str(len(valid_slide_indices)))  # temp
+
         #if (self.DataSet[:3] == 'TMA') and (self.desired_magnification == 7):
         if use_multiples:
             pass #RanS 14.2.22, the "set" kills multiple rows in slides_data
         else:
             valid_slide_indices = np.array(
                 list(set(valid_slide_indices) - slides_without_grid - slides_with_few_tiles - slides_with_0_tiles - slides_with_bad_seg - slides_with_er_not_eq_pr - excess_block_slides))
+
+        #print('len(valid_slide_indices2):', str(len(valid_slide_indices)))  # temp
 
         if RAM_saver:
             #randomly select 1/4 of the slides
@@ -381,6 +401,7 @@ class WSI_Master_Dataset(Dataset):
         correct_folds = self.meta_data_DF[fold_column_name][valid_slide_indices].isin(folds)
         valid_slide_indices = np.array(correct_folds.index[correct_folds])
 
+        #print('len(valid_slide_indices):', str(len(valid_slide_indices))) #temp
         all_image_file_names = list(self.meta_data_DF['file'])
         all_image_ids = list(self.meta_data_DF['id'])
 
@@ -440,11 +461,11 @@ class WSI_Master_Dataset(Dataset):
         self.slides = []
         self.grid_lists = []
         self.presaved_tiles = []
-        self.cohort = []
-
 
         if self.target_kind in ['Survival_Time', 'Survival_Binary']:
-            self.target_binary, self.target_cont, self.censored = [], [], []
+            self.target_binary, self.target_cont, self.censored, self.cohort = [], [], [], []
+
+        #print('len(valid_slide_indices11):', str(len(valid_slide_indices)))  # temp
 
         for _, index in enumerate(tqdm(valid_slide_indices)):
             if (self.DX and all_is_DX_cut[index]) or not self.DX:
@@ -455,12 +476,13 @@ class WSI_Master_Dataset(Dataset):
                 self.target.append(all_targets[index])
                 self.magnification.append(all_magnifications[index])
                 self.presaved_tiles.append(all_image_ids[index] == 'ABCTB_TILES')
-                self.cohort.append(all_cohorts[index])
+
 
                 if self.target_kind in ['Survival_Time', 'Survival_Binary']:
                     self.censored.append(all_censored[index])
                     self.target_binary.append(all_binary_targets[index])
                     self.target_cont.append(all_targets_cont[index])
+                    self.cohort.append(all_cohorts[index])
 
                 # Preload slides - improves speed during training.
                 grid_file = []
@@ -492,6 +514,8 @@ class WSI_Master_Dataset(Dataset):
                 except FileNotFoundError:
                     raise FileNotFoundError(
                         'Couldn\'t open slide {} or its Grid file {}'.format(image_file, grid_file))
+
+        #print('len(self.slides):', str(len(self.slides)))  # temp
 
         # Setting the transformation:
         if (self.DataSet[:3] == 'TMA'):
@@ -633,7 +657,7 @@ class WSI_Master_Dataset(Dataset):
                 'Target Binary': target_binary,
                 'Survival Time': self.target_cont[idx] if self.target_kind in ['Survival_Time', 'Survival_Binary'] else torch.LongTensor([-1]),
                 'Censored': bool(self.censored[idx]) if self.target_kind in ['Survival_Time', 'Survival_Binary'] else torch.LongTensor([-1]),
-                'Cohort': self.cohort[idx],
+                'Cohort': self.cohort[idx] if self.target_kind in ['Survival_Time', 'Survival_Binary'] else torch.LongTensor([-1]),
                 'is_Train': self.train
                 }
 
