@@ -16,11 +16,11 @@ import torchvision
 from pathlib import Path
 
 parser = argparse.ArgumentParser(description='WSI_REG Slide inference')
-parser.add_argument('-ex', '--experiment', nargs='+', type=int, default=[10645], help='Use models from this experiment')
+parser.add_argument('-ex', '--experiment', nargs='+', type=int, default=[10735], help='Use models from this experiment')
 parser.add_argument('-fe', '--from_epoch', nargs='+', type=int, default=[1000], help='Use this epoch models for inference')
-parser.add_argument('-nt', '--num_tiles', type=int, default=10, help='Number of tiles to use')
+parser.add_argument('-nt', '--num_tiles', type=int, default=500, help='Number of tiles to use')
 parser.add_argument('-ds', '--dataset', type=str, default='ABCTB', help='DataSet to use')
-parser.add_argument('-f', '--folds', type=int, nargs="+", default=1, help=' folds to infer')
+parser.add_argument('-f', '--folds', type=int, nargs="+", default=2, help=' folds to infer')
 parser.add_argument('--mag', type=int, default=10, help='desired magnification of patches') #RanS 8.2.21
 parser.add_argument('-mp', '--model_path', type=str, default='', help='fixed path of rons model') #RanS 16.3.21 r'/home/rschley/Pathnet/results/fold_1_ER_large/checkpoint/ckpt_epoch_1467.pth'
 parser.add_argument('-d', dest='dx', action='store_true', help='Use ONLY DX cut slides') #RanS 3.8.21, override run_data

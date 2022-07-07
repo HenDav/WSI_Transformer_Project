@@ -23,7 +23,7 @@ from random import shuffle
 import pandas as pd
 #from torch import linalg as LA
 
-utils.send_run_data_via_mail()
+# utils.send_run_data_via_mail()
 
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('-ex', '--experiment', type=int, default=0, help='Continue train of this experiment')

@@ -267,7 +267,7 @@ if __name__ == '__main__':
     #file_name = '/Users/wasserman/Developer/WSI_MIL/runs/Exp_10609-Survival_Binary-TestFold_1/Inference/Model_Epoch_1000-Folds_1_survival-Tiles_500.data'
     #file_name = '/Users/wasserman/Developer/WSI_MIL/runs/Exp_10607-Survival_Time_Cox-TestFold_1/Inference/Model_Epoch_960-Folds_1_survival-Tiles_500.data'
     #file_name = '/Users/wasserman/Developer/WSI_MIL/runs/Exp_10611-Survival_Time_L2-TestFold_1/Inference/Model_Epoch_1000-Folds_1_survival-Tiles_500.data'
-    file_location = '/Users/wasserman/Developer/WSI_MIL/runs/Exp_10645-Survival_Combined_Loss-TestFold_1/Inference/'
+    file_location = '/Users/wasserman/Developer/WSI_MIL/runs/Exp_10735-Survival_Binary-TestFold_2/Inference/'
     files = glob(os.path.join(file_location, '*.data'))
 
     folder = file_location
