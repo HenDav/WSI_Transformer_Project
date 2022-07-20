@@ -258,7 +258,7 @@ for ind, key in enumerate(inference_files.keys()):
             elif (dataset == 'HAEMEK'):
                 slides_data_file = r'C:\ran_data\Haemek\slides_data_HAEMEK1.xlsx'
             elif (dataset == 'SHEBA'):
-                slides_data_file = r'C:\ran_data\Sheba\slides_data_SHEBA_labeled_merged.xlsx'
+                slides_data_file = r'C:\ran_data\Sheba\slides_data_SHEBA_merged.xlsx'
             elif (dataset == 'BENIGN'):
                 slides_data_file = r'C:\ran_data\Benign\final slides_data\slides_data_BENIGN_merged.xlsx'
             elif (dataset == 'TMA_HE_01_011'):

@@ -833,11 +833,9 @@ def make_slides_xl_file(DataSet: str = 'HEROHE', ROOT_DIR: str = 'All Data', out
     print('{} data file \'{}\''.format(messege_prefix, data_file))
 
 
-def make_segmentations(DataSet: str = 'TCGA', ROOT_DIR: str = 'All Data', rewrite: bool = False, magnification: int = 1, out_path: str = 'All Data', num_workers: int = 1):
-    #if DataSet == 'TMA': #RanS 21.12.21, avoid moving TMA folder to a subdir
-    #    data_path = ROOT_DIR
-    #    out_path_dataset = out_path
-    #else:
+def make_segmentations(DataSet: str = 'TCGA', ROOT_DIR: str = 'All Data', rewrite: bool = False, magnification: int = 1,
+                       out_path: str = 'All Data', num_workers: int = 1):
+
     data_path = os.path.join(ROOT_DIR, DataSet)
     out_path_dataset = os.path.join(out_path, DataSet)
     print('Making Segmentation Maps for each slide file at location: {}'.format(data_path))
@@ -914,12 +912,9 @@ def _make_segmentation_for_image(file, DataSet, rewrite, out_path_dataset, slide
     fn, data_format = os.path.splitext(os.path.basename(file))
 
     if not rewrite:
-        # pic1 = os.path.exists(os.path.join(out_path_dataset, 'SegData', 'Thumbs', fn + '_thumb.png'))
-        pic1 = os.path.exists(os.path.join(out_path_dataset, 'SegData', 'Thumbs', fn + '_thumb.jpg'))  # RanS 24.2.21
+        pic1 = os.path.exists(os.path.join(out_path_dataset, 'SegData', 'Thumbs', fn + '_thumb.jpg'))
         pic2 = os.path.exists(os.path.join(out_path_dataset, 'SegData', 'SegMaps', fn + '_SegMap.png'))
-        # pic3 = os.path.exists(os.path.join(out_path_dataset, 'SegData', 'SegImages', fn + '_SegImage.png'))
-        pic3 = os.path.exists(
-            os.path.join(out_path_dataset, 'SegData', 'SegImages', fn + '_SegImage.jpg'))  # RanS 24.2.21
+        pic3 = os.path.exists(os.path.join(out_path_dataset, 'SegData', 'SegImages', fn + '_SegImage.jpg'))
         if pic1 and pic2 and pic3:
             return []
 
@@ -933,36 +928,13 @@ def _make_segmentation_for_image(file, DataSet, rewrite, out_path_dataset, slide
         # Get a thumbnail image to create the segmentation for:
         objective_pwr = slides_meta_data_DF.loc[os.path.basename(file), 'Manipulated Objective Power']
 
-        '''if os.path.splitext(file)[-1] != '.jpg':
-            try:
-                if DataSet == 'SHEBA':
-                    #objective_pwr = 40 #temp RanS 25.3.21, no magnification data is provided
-                    objective_pwr = 10  # temp RanS 13.12.21, no magnification data is provided
-                elif DataSet == 'ABCTB_TIF':
-                    objective_pwr = 10  # RanS 13.7.21, no mag data in slide file
-                else:
-                    objective_pwr = int(float(slide.properties[mag_dict[data_format]]))
-            except KeyError as err:
-                error_dict = {}
-                e = sys.exc_info()
-                error_dict['File'] = file
-                error_dict['Error'] = err
-                error_dict['Error Details 1'] = e[0]
-                error_dict['Error Details 2'] = e[1]
-                print('Exception for file {}'.format(file))
-                print('Couldn\'t find Magnification - Segmentation Map was not Created')
-                return error_dict
-
-        else:
-            objective_pwr = 20'''
-
         height = slide.dimensions[1]
         width = slide.dimensions[0]
         try:
             try:
                 thumb = slide.get_thumbnail(
                     (width / (objective_pwr / magnification), height / (objective_pwr / magnification)))
-            except:  # RanS 2.12.20, out of memory on my laptop
+            except:  # out of memory on personal laptop
                 thumb = slide.get_thumbnail(
                     (width / (8 * objective_pwr / magnification), height / (8 * objective_pwr / magnification)))
         except openslide.lowlevel.OpenSlideError as err:
@@ -1048,14 +1020,10 @@ def otsu3(img):
                 thresh = i,j
     return thresh
 
+
 def _get_image_maxima(image, threshold=0.5, neighborhood_size=5):
     import scipy.ndimage as ndimage
     import scipy.ndimage.filters as filters
-    #fname = '/tmp/slice0000.png'
-    #neighborhood_size = 5
-    #threshold = 1500
-
-    #data = scipy.misc.imread(fname)
 
     data_max = filters.maximum_filter(image, neighborhood_size)
     maxima = (image == data_max)
@@ -1075,9 +1043,8 @@ def _calc_simple_segmentation_for_image(image: Image, magnification: int, white_
     :return:
     """
 
-    #RanS 3.8.21 - take all pixels that aren't (almost) completely white
+    # take all pixels that aren't (almost) completely white
     image_array = np.array(image)
-    #image_is_white = np.prod(image_array, axis=2) > 250**3
     image_is_white = np.prod(image_array, axis=2) > white_thresh ** 3
     seg_map = np.ones_like(image_array)*255
     seg_map[image_is_white] = 0
@@ -1085,17 +1052,16 @@ def _calc_simple_segmentation_for_image(image: Image, magnification: int, white_
 
     edge_image = cv.Canny(seg_map, 1, 254)
     # Make the edge thicker by dilating:
-    kernel_dilation = np.ones((3, 3))  #cv.getStructuringElement(cv.MORPH_RECT, (3, 3))
+    kernel_dilation = np.ones((3, 3))
     edge_image = Image.fromarray(cv.dilate(edge_image, kernel_dilation, iterations=magnification * 2)).convert('RGB')
 
     return seg_map_PIL, edge_image
+
 
 def _calc_segmentation_for_image(image: Image, magnification: int, otsu_method: OTSU_METHOD,
                                  is_IHC_slide: bool) -> (Image, Image):
     """
     This function creates a segmentation map for an Image
-    :param magnification:
-    :return:
     """
 
     image_array = np.array(image.convert('CMYK'))[:, :, 1]
@@ -1210,16 +1176,15 @@ def _calc_segmentation_for_image(image: Image, magnification: int, otsu_method: 
         gray_contours = [contours[ii] for ii in large_contour_ind if gray_contours_bool[ii] == True]
         seg_map_filt = cv.drawContours(seg_map_filt, gray_contours, -1, (0, 0, 255), thickness=cv.FILLED)  # delete the small contours
 
-    #RanS 30.12.20, multiply seg_map with seg_map_filt
+    # multiply seg_map with seg_map_filt
     seg_map *= (seg_map_filt > 0)
 
     seg_map_PIL = Image.fromarray(seg_map)
 
     edge_image = cv.Canny(seg_map, 1, 254)
     # Make the edge thicker by dilating:
-    kernel_dilation = np.ones((3, 3))  #cv.getStructuringElement(cv.MORPH_RECT, (3, 3))
+    kernel_dilation = np.ones((3, 3))
     edge_image = Image.fromarray(cv.dilate(edge_image, kernel_dilation, iterations=magnification * 2)).convert('RGB')
-    #seg_image = Image.blend(image, edge_image, 0.5)
 
     return seg_map_PIL, edge_image
 

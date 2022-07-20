@@ -85,6 +85,7 @@ def remove_control_tissue_according_to_dataset(img, is_IHC_slide, slide_name, da
         img = Image.fromarray(remove_control_tissue_rows_from_segmentation(img_array=np.array(img), slide_name=slide_name, dataset=dataset))
     return img
 
+
 def remove_slide_artifacts_according_to_dataset(img, dataset):
     if dataset[:4] == 'HER2':
         img = Image.fromarray(remove_slide_artifacts_rows_from_segmentation(np.array(img)))

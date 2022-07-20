@@ -79,19 +79,12 @@ def get_slide_labels_sheba(in_dir, batches, label_file):
 
 def create_merged_metadata_file_sheba(in_dir, batches):
     df_list = []
-    df_list2 = []
 
     for batch in batches:
-        meta_data_file = os.path.join(in_dir, 'slides_data_SHEBA' + str(batch) + '.xlsx')
+        meta_data_file = os.path.join(in_dir, 'SHEBA' + str(batch), 'slides_data_SHEBA' + str(batch) + '.xlsx')
         meta_data_DF = pd.read_excel(meta_data_file)
         df_list.append(meta_data_DF)
 
-        meta_data_file2 = os.path.join(in_dir, 'slides_data_SHEBA' + str(batch) + '_labeled.xlsx')
-        meta_data_DF2 = pd.read_excel(meta_data_file2)
-        df_list2.append(meta_data_DF2)
-
     merged_DF = pd.concat(df_list)
-    merged_DF2 = pd.concat(df_list2)
 
-    merged_DF.to_excel(os.path.join(in_dir, 'slides_data_SHEBA' + str(batches) + '_merged.xlsx'))
-    merged_DF2.to_excel(os.path.join(in_dir, 'slides_data_SHEBA' + str(batches) + '_labeled_merged.xlsx'))
+    merged_DF.to_excel(os.path.join(in_dir, 'slides_data_SHEBA_merged.xlsx'))

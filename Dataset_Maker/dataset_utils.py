@@ -111,10 +111,10 @@ def get_datasets_dir_dict(Dataset: str):
 
     dir_dict = {}
     TCGA_gipdeep_path = path_init + r'Breast/TCGA'
-    ABCTB_gipdeep_path = path_init + r'Breast/ABCTB/ABCTB'
+    ABCTB_gipdeep_path = path_init + r'Breast/ABCTB_ndpi/ABCTB'
     HEROHE_gipdeep_path = path_init + r'Breast/HEROHE'
     SHEBA_gipdeep_path = path_init + r'Breast/Sheba'
-    ABCTB_TIF_gipdeep_path = path_init + r'ABCTB_TIF'
+    ABCTB_TIF_gipdeep_path = path_init + r'Breast/ABCTB_TIF'
     CARMEL_gipdeep_path = path_init + r'Breast/Carmel'
     TCGA_LUNG_gipdeep_path = path_init + r'Lung/TCGA_Lung/TCGA_LUNG'
     ALL_gipdeep_path = path_init + r'BoneMarrow/ALL'

@@ -12,8 +12,8 @@ import pickle
 import resnet_v2
 from collections import OrderedDict
 import nets, PreActResNets, resnet_v2
-import torchvision
 import send_gmail
+import logging
 
 parser = argparse.ArgumentParser(description='WSI_REG Slide inference')
 parser.add_argument('-ex', '--experiment', nargs='+', type=int, default=[10607], help='Use models from this experiment')
@@ -21,19 +21,21 @@ parser.add_argument('-fe', '--from_epoch', nargs='+', type=int, default=[960], h
 parser.add_argument('-nt', '--num_tiles', type=int, default=10, help='Number of tiles to use')
 parser.add_argument('-ds', '--dataset', type=str, default='ABCTB', help='DataSet to use')
 parser.add_argument('-f', '--folds', type=list, nargs="+", default=1, help=' folds to infer')
-parser.add_argument('--mag', type=int, default=10, help='desired magnification of patches') #RanS 8.2.21
-parser.add_argument('-mp', '--model_path', type=str, default='', help='fixed path of rons model') #RanS 16.3.21 r'/home/rschley/Pathnet/results/fold_1_ER_large/checkpoint/ckpt_epoch_1467.pth'
-parser.add_argument('--save_features', action='store_true', help='save features') #RanS 1.7.21
-parser.add_argument('-d', dest='dx', action='store_true', help='Use ONLY DX cut slides') #RanS 3.8.21, override run_data
-parser.add_argument('--resume', type=int, default=0, help='resume a failed feature extraction') #RanS 5.10.21
-parser.add_argument('--patch_dir', type=str, default='', help='patch locations directory, for use with predecided patches') #RanS 24.10.21
-parser.add_argument('-sd', '--subdir', type=str, default='', help='output sub-dir') #RanS 6.12.21
+parser.add_argument('--mag', type=int, default=10, help='desired magnification of patches')
+parser.add_argument('-mp', '--model_path', type=str, default='', help='fixed path of rons model')  # r'/home/rschley/Pathnet/results/fold_1_ER_large/checkpoint/ckpt_epoch_1467.pth'
+parser.add_argument('--save_features', action='store_true', help='save features')
+parser.add_argument('-d', dest='dx', action='store_true', help='Use ONLY DX cut slides')  # override run_data
+parser.add_argument('--resume', type=int, default=0, help='resume a failed feature extraction')
+parser.add_argument('--patch_dir', type=str, default='', help='patch locations directory, for use with predecided patches')
+parser.add_argument('-sd', '--subdir', type=str, default='', help='output sub-dir')
 args = parser.parse_args()
 
-args.folds = list(map(int, args.folds[0])) #RanS 14.6.21
+args.folds = list(map(int, args.folds[0]))
 
-# If args.experiment contains 1 number than all epochs are from the same experiments, BUT if it is bigger than 1 than all
-# the length of args.experiment should be equal to args.from_epoch
+utils.start_log(args)
+
+# If args.experiment contains 1 number than all epochs are from the same experiments,
+# BUT if it is bigger than 1 than all the length of args.experiment should be equal to args.from_epoch
 if len(args.experiment) > 1:
     if len(args.experiment) != len(args.from_epoch):
         raise Exception("number of from_epoch(-fe) should be equal to number of experiment(-ex)")
@@ -46,12 +48,12 @@ else:
 DEVICE = utils.device_gpu_cpu()
 data_path = ''
 
-print('Loading pre-saved models:')
+logging.info('Loading pre-saved models:')
 models = []
 dx = False
 
-#decide which epochs to save features from - if model_path is used, take it.
-# #else, if there only one epoch, take it. otherwise take epoch 1000
+# decide which epochs to save features from - if model_path is used, take it.
+# else, if there only one epoch, take it. otherwise take epoch 1000
 if args.save_features:
     if args.model_path != '':
         feature_epoch_ind = len(args.from_epoch)
@@ -70,7 +72,7 @@ for counter in range(len(args.from_epoch)):
     epoch = args.from_epoch[counter]
     experiment = args.experiment[counter] if different_experiments else args.experiment[0]
 
-    print('  Exp. {} and Epoch {}'.format(experiment, epoch))
+    logging.info('  Exp. {} and Epoch {}'.format(experiment, epoch))
     # Basic meta data will be taken from the first model (ONLY if all inferences are done from the same experiment)
     if counter == 0:
         run_data_output = utils.run_data(experiment=experiment)
@@ -160,7 +162,7 @@ elif sys.platform == 'win32':
 if (args.dataset[:3] == 'TMA') and (args.mag == 7):
     TILE_SIZE = 512
 
-#RanS 16.3.21, support ron's model as well
+# support ron's model as well
 if args.model_path != '':
     if os.path.exists(args.model_path):
         args.from_epoch.append('rons_model')
@@ -177,7 +179,7 @@ if args.model_path != '':
                 new_state_dict[name] = v
             model.load_state_dict(new_state_dict)
     else:
-        #RanS 27.10.21, use pretrained model
+        # use pretrained model
         args.from_epoch.append(args.model_path.split('.')[-1])
         model = eval(args.model_path)
         model.fc = torch.nn.Identity()
@@ -186,10 +188,8 @@ if args.model_path != '':
     models.append(model)
 
 if args.save_features:
-    print('features will be taken from model ', str(args.from_epoch[feature_epoch_ind]))
+    logging.info('features will be taken from model ', str(args.from_epoch[feature_epoch_ind]))
 
-#slide_num = 0
-#if args.resume > 0 and args.save_features: #RanS 5.10.21
 slide_num = args.resume
 
 inf_dset = datasets.Infer_Dataset(DataSet=args.dataset,
@@ -201,8 +201,8 @@ inf_dset = datasets.Infer_Dataset(DataSet=args.dataset,
                                   desired_slide_magnification=args.mag,
                                   dx=dx,
                                   resume_slide=slide_num,
-                                  patch_dir=args.patch_dir
-                                  )
+                                  patch_dir=args.patch_dir)
+
 inf_loader = DataLoader(inf_dset, batch_size=1, shuffle=False, num_workers=0, pin_memory=True)
 
 new_slide = True
@@ -210,7 +210,7 @@ new_slide = True
 NUM_MODELS = len(models)
 NUM_SLIDES = len(inf_dset.image_file_names)
 NUM_SLIDES_SAVE = 50
-print('NUM_SLIDES: ', str(NUM_SLIDES))
+logging.info('NUM_SLIDES: {}'.format(NUM_SLIDES))
 
 if multi_target:
     all_targets = np.zeros((N_targets, 0))
@@ -266,7 +266,6 @@ if not os.path.isdir(os.path.join(data_path, output_dir, 'Inference')):
 if not os.path.isdir(os.path.join(data_path, output_dir, 'Inference', args.subdir)):
     os.mkdir(os.path.join(data_path, output_dir, 'Inference', args.subdir))
 
-print('slide_num0 = ', str(slide_num)) #temp
 with torch.no_grad():
     for batch_idx, MiniBatch_Dict in enumerate(tqdm(inf_loader)):
 
@@ -283,11 +282,6 @@ with torch.no_grad():
             n_tiles = inf_loader.dataset.num_tiles[slide_num - args.resume]
 
             current_slide_tile_scores = [np.zeros((n_tiles, N_classes)) for ii in range(NUM_MODELS)]
-            #scores_0 = [np.zeros(n_tiles) for ii in range(NUM_MODELS)]
-            #scores_1 = [np.zeros(n_tiles) for ii in range(NUM_MODELS)]
-            #if multi_target:
-            #    scores_2 = [np.zeros(n_tiles) for ii in range(NUM_MODELS)]
-            #    scores_3 = [np.zeros(n_tiles) for ii in range(NUM_MODELS)]
             patch_locs_1_slide = np.zeros((n_tiles, 2))
             if args.save_features:
                 feature_arr = [np.zeros((n_tiles, 512))]
@@ -306,10 +300,10 @@ with torch.no_grad():
             if model._get_name() == 'PreActResNet_Ron':
                 scores, features = model(data)
             elif model._get_name() == 'ResNet':
-                #use resnet only for features, dump scores RanS 27.10.21
+                #use resnet only for features, dump scores
                 features = model(data)
                 scores = torch.zeros((len(data), 2))
-                print('Extracting features only for pretrained ResNet')
+                logging.info('Extracting features only for pretrained ResNet')
             else:
                 raise IOError('Net not supported yet for feature and score extraction, implement!')
 
@@ -431,7 +425,7 @@ with torch.no_grad():
                                       patch_locs_all[slide_num-NUM_SLIDES_SAVE:slide_num]]
                     with open(feature_file_name, 'wb') as filehandle:
                         pickle.dump(inference_data, filehandle)
-                    print('saved output for ', str(slide_num), ' slides')
+                    logging.info('saved output for ', str(slide_num), ' slides')
                     features_all = np.empty((NUM_SLIDES_SAVE, 1, args.num_tiles, 512))
                     features_all[:] = np.nan
 
@@ -453,22 +447,16 @@ if args.save_features and slide_num % NUM_SLIDES_SAVE != 0:
                       patch_locs_all[last_save:slide_num]]
     with open(feature_file_name, 'wb') as filehandle:
         pickle.dump(inference_data, filehandle)
-    print('saved output for ', str(slide_num), ' slides')
+    logging.info('saved output for ', str(slide_num), ' slides')
 
 for model_num in range(NUM_MODELS):
     if different_experiments:
         output_dir = Output_Dirs[model_num]
 
-    #RanS 20.12.21, remove targets = -1 from auc calculation
+    # remove targets = -1 from auc calculation
     try:
         if multi_target:
-            fpr, tpr = 0, 0 #calculate in open_inference
-            '''for i_target in range(N_targets):
-                my_scores = np.array(all_scores[:, model_num, i_target])
-                my_targets = np.array(all_targets[i_target, :])
-                my_scores = my_scores[my_targets >= 0]
-                my_targets = my_targets[my_targets >= 0]
-                fpr, tpr, _ = roc_curve(my_targets, my_scores)'''
+            fpr, tpr = 0, 0  # calculate in open_inference
         else:
             scores_arr = all_scores[:, model_num]
             targets_arr = np.array(all_targets)
@@ -476,7 +464,7 @@ for model_num in range(NUM_MODELS):
             targets_arr = targets_arr[targets_arr >= 0]
             fpr, tpr, _ = roc_curve(targets_arr, scores_arr)
     except ValueError:
-        fpr, tpr = 0, 0 #if all labels are unknown
+        fpr, tpr = 0, 0  # if all labels are unknown
 
     # Save roc_curve to file:
     file_name = os.path.join(data_path, output_dir, 'Inference', args.subdir, 'Model_Epoch_' + str(args.from_epoch[model_num])
@@ -485,19 +473,18 @@ for model_num in range(NUM_MODELS):
                       total_pos, correct_pos[model_num], total_neg, correct_neg[model_num], NUM_SLIDES,
                       np.squeeze(patch_scores[:, model_num, :]), all_slide_names, all_slide_datasets,
                       np.squeeze(patch_locs_all)]
-                      #np.squeeze(patch_scores[:, model_num, :]), all_slide_names, np.squeeze(patch_locs_all[:, model_num, :, :]), np.squeeze(patch_locs_inds_all[:, model_num, :, :]), all_slide_size, all_slide_size_ind]
 
     with open(file_name, 'wb') as filehandle:
         pickle.dump(inference_data, filehandle)
 
     experiment = args.experiment[model_num] if different_experiments else args.experiment[0]
     if not multi_target:
-        print('For model from Experiment {} and Epoch {}: {} / {} correct classifications'
+        logging.info('For model from Experiment {} and Epoch {}: {} / {} correct classifications'
               .format(experiment,
                       args.from_epoch[model_num],
                       int(len(all_labels[:, model_num]) - np.abs(np.array(all_targets) - np.array(all_labels[:, model_num])).sum()),
                       len(all_labels[:, model_num])))
-print('Done !')
+logging.info('Done!')
 
 #delete last resume file
 if os.path.isfile(resume_file_name):

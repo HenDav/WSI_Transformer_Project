@@ -31,6 +31,7 @@ from PIL import ImageFile
 from random import shuffle
 from fractions import Fraction
 import openslide
+import logging
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 Image.MAX_IMAGE_PIXELS = None
@@ -46,7 +47,8 @@ def make_dir(dirname):
         try:
             os.mkdir(dirname)
         except OSError:
-            print('Creation of directory ', dirname, ' failed...')
+            logging.info('Creation of directory {} failed'.format(dirname))
+            #print('Creation of directory ', dirname, ' failed...')
             raise
 
 
@@ -162,8 +164,6 @@ def _get_tiles(slide: openslide.OpenSlide,
             print((loc[1]/ld, loc[0]/ld))
             rect = Rectangle((loc[1]/ld, loc[0]/ld), adjusted_tile_sz / ld, adjusted_tile_sz / ld, color='r', linewidth=3, fill=False)
             ax.add_patch(rect)
-            #rect = Rectangle((loc[1] / ld, loc[0] / ld), tile_sz / ld, tile_sz / ld, color='g', linewidth=3, fill=False)
-            #ax.add_patch(rect)
 
         patch1 = slide.read_region((loc[1], loc[0]), 0, (600, 600)).convert('RGB')
         plt.figure()
@@ -175,9 +175,7 @@ def _get_tiles(slide: openslide.OpenSlide,
 
         plt.show()
 
-    #tiles_PIL = []
-
-    #RanS 28.4.21, preallocate list of images
+    # preallocate list of images
     empty_image = Image.fromarray(np.uint8(np.zeros((output_tile_sz, output_tile_sz, 3))))
     tiles_PIL = [empty_image] * len(locations)
 
@@ -241,8 +239,10 @@ def _get_tiles(slide: openslide.OpenSlide,
 
             image = slide.read_region((new_loc_init['Left'], new_loc_init['Top']), best_slide_level, (adjusted_tile_sz, adjusted_tile_sz)).convert('RGB')
         except:
-            print('failed to read slide ' + slide._filename + ' in location ' + str(loc[1]) + ',' + str(loc[0]))
-            print('taking blank patch instead')
+            logging.info('failed to read slide {} in location {},{}'.format(slide._filename, loc[1], loc[0]))
+            logging.info('taking blank patch instead')
+            #print('failed to read slide ' + slide._filename + ' in location ' + str(loc[1]) + ',' + str(loc[0]))
+            #print('taking blank patch instead')
             image = Image.fromarray(np.zeros([adjusted_tile_sz, adjusted_tile_sz, 3], dtype=np.uint8))
 
         # get localized labels - RanS 17.6.21
@@ -298,10 +298,12 @@ def _get_tiles(slide: openslide.OpenSlide,
 def device_gpu_cpu():
     if torch.cuda.is_available():
         device = torch.device('cuda')
-        print('Using CUDA')
+        logging.info('Using CUDA')
+        #print('Using CUDA')
     else:
         device = torch.device('cpu')
-        print('Using cpu')
+        logging.info('Using cpu')
+        #print('Using cpu')
 
     return device
 
@@ -317,7 +319,7 @@ def get_cpu():
         cpu = multiprocessing.cpu_count()
         platform = 'Windows'
 
-    print('Running on {} with {} CPUs'.format(platform, cpu))
+    logging.info('Running on {} with {} CPUs'.format(platform, cpu))
     return cpu
 
 
@@ -860,7 +862,7 @@ def define_transformations(transform_type, train, tile_size, color_param=0.1, no
 
 
 def assert_dataset_target(DataSet, target_kind):
-    #Support multi targets
+    # Support multi targets
     if type(target_kind) != list:
         target_kind = [target_kind]
     target_kind = set(target_kind)
@@ -885,10 +887,13 @@ def assert_dataset_target(DataSet, target_kind):
         raise ValueError('Invalid target for SHEBA DataSet')
     elif DataSet == 'TCGA_LUNG' and not target_kind <= {'is_cancer', 'is_LUAD', 'is_full_cancer'}:
         raise ValueError('for TCGA_LUNG DataSet, target should be is_cancer or is_LUAD')
-    elif (DataSet in ['LEUKEMIA', 'ALL', 'AML']) and not target_kind <= {'ALL','is_B','is_HR', 'is_over_6', 'is_over_10', 'is_over_15', 'WBC_over_20', 'WBC_over_50', 'is_HR_B', 'is_tel_aml_B', 'is_tel_aml_non_hr_B', 'MRD', 'AML'}:
-        raise ValueError('for LEUKEMIA DataSets, target should be ALL, is_B, is_HR, is_over_6, is_over_10, is_over_15, WBC_over_20, WBC_over_50, is_HR_B, is_tel_aml_B, is_tel_aml_non_hr_B, MRD')
+    elif (DataSet in ['LEUKEMIA', 'ALL', 'AML']) and not target_kind <= {'ALL', 'is_B', 'is_HR', 'is_over_6',
+                                                                         'is_over_10', 'is_over_15', 'WBC_over_20',
+                                                                         'WBC_over_50', 'is_HR_B', 'is_tel_aml_B',
+                                                                         'is_tel_aml_non_hr_B', 'MRD_day0', 'MRD_day15',
+                                                                         'MRD_day33', 'MRD_all_days', 'AML'}:
+        raise ValueError('Invalid target for DataSet')
     elif (DataSet in ['ABCTB', 'ABCTB_TIF']) and not target_kind <= {'ER', 'PR', 'Her2', 'survival', 'Survival_Time', 'Survival_Binary'}:
-        #raise ValueError('target should be one of: ER, PR, Her2, survival, Survival_Time, Survival_Binary')
         raise ValueError('target should be one of: ER, PR, Her2, survival, Survival_Time, Survival_Binary. {} was given as target'.format(target_kind))
     elif (DataSet == 'CARMEL+BENIGN') and not target_kind <= {'is_cancer'}:
         raise ValueError('target should be is_cancer')
@@ -989,7 +994,7 @@ def get_model(model_name, saved_model_path='none'):
     elif model_name == 'resnet50':
         model = nets.ResNet_50()
     else:
-        print('model not defined!')
+        logging.info('model not defined!')
     return model
 
 
@@ -1182,7 +1187,7 @@ def save_all_slides_and_models_data(all_slides_tile_scores, all_slides_final_sco
         all_slides_weights_before_sofrmax_DF.to_excel(tile_weights_before_softmax_file_name)
         all_slides_weights_after_softmax_DF.to_excel(tile_weights_after_softmax_file_name)
 
-        print('Tile scores for model {}/{} has been saved !'.format(num_model + 1, len(models)))
+        logging.info('Tile scores for model {}/{} has been saved !'.format(num_model + 1, len(models)))
 
 
 def map_original_grid_list_to_equiv_grid_list(adjusted_tile_size, grid_list):
@@ -1262,13 +1267,13 @@ def balance_dataset(meta_data_DF, censor_balance: bool = False, test_fold=1):
 
         # pick which censored slides to take:
         censored_patients_to_take = sample(censored_slides, k=len(not_censored_slides))
-        print('Not censored slides: {}'.format(len(not_censored_slides)))
-        print('Censored slides: {}'.format(len(censored_slides)))
+        logging.info('Not censored slides: {}'.format(len(not_censored_slides)))
+        logging.info('Censored slides: {}'.format(len(censored_slides)))
 
         for patient_to_take in censored_patients_to_take:
             if len(meta_data_DF.loc[meta_data_DF['file'] == patient_to_take]) > 1:
-                print(len(meta_data_DF.loc[meta_data_DF['file'] == patient_to_take]))
-                print(patient_to_take)
+                logging.info(len(meta_data_DF.loc[meta_data_DF['file'] == patient_to_take]))
+                logging.info(patient_to_take)
                 raise Exception('debug')
 
             meta_data_DF.loc[meta_data_DF['file'] == patient_to_take, 'use_in_balanced_dataset'] = 1
@@ -1373,7 +1378,7 @@ class EmbedSquare(object):
                 for col_idx in range(8):
                     basic_mask[256 * row_idx:256 * row_idx + 16, 256 * col_idx:256 * col_idx + 16] = True
 
-        print('Creating square embeded tiles...')
+        logging.info('Creating square embeded tiles...')
         for row_idx in tqdm(range(0, total_jumps)):
             '''if quit:
                 break'''
@@ -2197,7 +2202,7 @@ def send_run_data_via_mail():
         user = 'sgils'
 
     else:
-        print('This user parameters are not defined. Email will not be sent')
+        logging.info('This user parameters are not defined. Email will not be sent')
         return
 
     yag = yagmail.SMTP('gipmed.python@gmail.com')
@@ -2207,7 +2212,7 @@ def send_run_data_via_mail():
         attachments=filename,
     )
 
-    print('email sent to gipmed.python@gmail.com')
+    logging.info('email sent to gipmed.python@gmail.com')
 
 
 def fix_output_dir_due_different_user(model_user_name: str, output_dir):
@@ -2342,7 +2347,7 @@ def rgb2heb(imageRGB, color_values: list = None):
     try:
         imageHEB_flattened = np.matmul(RGBtoHE, -np.log10(image_rgb_flattened))
     except RuntimeWarning:
-        print('DEBUG ME !!!!')
+        logging.info('DEBUG ME !!!!')
 
     # Converting back to 3 channels:
     imageHEB = np.zeros_like(imageRGB)
@@ -2396,3 +2401,23 @@ def cohort_to_int(cohort_list: list) -> list:
                         }
 
     return [CohortDictionary[key] for key in cohort_list]
+
+
+def start_log(args, to_file=False):
+
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(logging.INFO)
+    if to_file:
+        logfile = os.path.join(args.output_dir, 'log.txt')
+        os.makedirs(args.output_dir, exist_ok=True)
+        handlers = [stream_handler,
+                    logging.FileHandler(filename=logfile)]
+    else:
+        handlers = [stream_handler]
+    logging.basicConfig(format='%(message)s',
+                        level=logging.INFO,
+                        handlers=handlers)
+    logging.info('*** START ARGS ***')
+    for k, v in vars(args).items():
+        logging.info('{}: {}'.format(k, v))
+    logging.info('*** END ARGS ***')

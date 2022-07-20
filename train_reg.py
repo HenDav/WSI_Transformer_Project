@@ -12,7 +12,6 @@ import argparse
 import os
 from sklearn.metrics import roc_curve, auc, roc_auc_score
 import numpy as np
-import sys
 import pandas as pd
 from sklearn.utils import resample
 import psutil
@@ -64,20 +63,6 @@ args = parser.parse_args()
 
 EPS = 1e-7
 
-def start_log(args):
-    logfile = os.path.join(args.output_dir, 'log.txt')
-    os.makedirs(args.output_dir, exist_ok=True)
-    stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(logging.INFO)
-    logging.basicConfig(format='%(message)s',
-                        level=logging.INFO,
-                        handlers=[stream_handler,
-                                  logging.FileHandler(filename=logfile)])
-    logging.info('*** START ARGS ***')
-    for k, v in vars(args).items():
-        logging.info('{}: {}'.format(k, v))
-    logging.info('*** END ARGS ***')
-
 
 def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader, DEVICE, optimizer, print_timing: bool=False):
     """
@@ -128,12 +113,9 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
         train_loss, total = 0, 0
 
         slide_names = []
-        #print('Epoch {}:'.format(e))
-        logging.info('Epoch {}:'.format(e)) #RanS 31.1.22
+        logging.info('Epoch {}:'.format(e))
 
-        # RanS 11.7.21
         process = psutil.Process(os.getpid())
-        #print('RAM usage:', np.round(process.memory_info().rss/1e9), 'GB, time: ', datetime.now(), ', exp: ', str(experiment))
         logging.info('RAM usage: {} GB, time: {}, exp: {}'.format(np.round(process.memory_info().rss/1e9),
                                                                   datetime.now(),
                                                                   str(experiment)))
@@ -170,14 +152,12 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             outputs, _ = model(data)
 
             temp_plot = False
-            if temp_plot: # RanS 24.1.22
+            if temp_plot:
                 import matplotlib.pyplot as plt
                 fig1, ax1 = plt.subplots(1,4)
                 for ii in range(4):
-                    #ax1[ii].imshow(torch.squeeze(data[ii, :, :, :].permute(1, 2, 0))) #normalized image looks bad (color truncation at 0)
-                    q1 = ax1[ii].imshow(torch.squeeze(data[ii, 1, :, :])) #red color only
+                    q1 = ax1[ii].imshow(torch.squeeze(data[ii, 1, :, :]))  # red color only
                     plt.colorbar(q1, ax=ax1[ii])
-                #fig1.colorbar()
 
             if print_timing:
                 time_fwd = time.time() - time_fwd_start
@@ -248,7 +228,7 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
 
                 loss.backward()
                 if temp_plot:
-                    utils.plot_grad_flow(model.named_parameters()) #RanS 24.1.22
+                    utils.plot_grad_flow(model.named_parameters())
 
                 optimizer.step()
 
@@ -260,11 +240,8 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             slide_names_batch = [os.path.basename(f_name) for f_name in f_names]
             slide_names.extend(slide_names_batch)
 
-            #all_writer.add_scalar('Loss', loss.item(), batch_idx + e * len(dloader_train))
-            # RanS 28.1.21
             if DEVICE.type == 'cuda' and print_timing:
                 res = nvidia_smi.nvmlDeviceGetUtilizationRates(handle)
-                #print(f'gpu: {res.gpu}%, gpu-mem: {res.memory}%')
                 all_writer.add_scalar('GPU/gpu', res.gpu, batch_idx + e * len(dloader_train))
                 all_writer.add_scalar('GPU/gpu-mem', res.memory, batch_idx + e * len(dloader_train))
             train_time = time.time() - train_start
@@ -273,7 +250,6 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                 time_writer.add_scalar('Time/Train (iter) [Sec]', train_time, time_stamp)
                 time_writer.add_scalar('Time/Forward Pass [Sec]', time_fwd, time_stamp)
                 time_writer.add_scalar('Time/Back Propagation [Sec]', time_backprop, time_stamp)
-                # print('Elapsed time of one train iteration is {:.2f} s'.format(train_time))
                 time_list = torch.stack(time_list, 1)
                 if len(time_list[0]) == 4:
                     time_writer.add_scalar('Time/Open WSI [Sec]', time_list[:, 0].mean().item(), time_stamp)
@@ -284,9 +260,8 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                     time_writer.add_scalar('Time/Avg to Extract Tile [Sec]', time_list[:, 0].mean().item(), time_stamp)
                     time_writer.add_scalar('Time/Augmentation [Sec]', time_list[:, 1].mean().item(), time_stamp)
                     time_writer.add_scalar('Time/Total To Collect Data [Sec]', time_list[:, 2].mean().item(), time_stamp)
-        #time_epoch = (time.time() - time_epoch_start) / 60
 
-        time_epoch = (time.time() - time_epoch_start) #sec
+        time_epoch = (time.time() - time_epoch_start)  # sec
         if print_timing:
             time_writer.add_scalar('Time/Full Epoch [min]', time_epoch / 60, e)
 
@@ -348,8 +323,8 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                       time_epoch % 60))
         previous_epoch_loss = train_loss
 
-        # Update 'Last Epoch' at run_data.xlsx file:
-        utils.run_data(experiment=experiment, epoch=e)
+        '''# Update 'Last Epoch' at run_data.xlsx file:
+        utils.run_data(experiment=experiment, epoch=e)'''
 
         # Save model to file:
         try:
@@ -364,6 +339,9 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                    os.path.join(args.output_dir, 'Model_CheckPoints', 'model_data_Last_Epoch.pt'))
 
         if e % args.eval_rate == 0:
+            # Update 'Last Epoch' at run_data.xlsx file:
+            utils.run_data(experiment=experiment, epoch=e)
+
             acc_test, bacc_test, roc_auc_test = check_accuracy(model, dloader_test, all_writer, DEVICE, e)
 
             # perform slide inference
@@ -395,11 +373,7 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                         'tile_size': TILE_SIZE,
                         'tiles_per_bag': 1},
                        os.path.join(args.output_dir, 'Model_CheckPoints', 'model_data_Epoch_' + str(e) + '.pt'))
-            #print('saved checkpoint to', args.output_dir) #RanS 23.6.21
             logging.info('saved checkpoint to {}'.format(args.output_dir))
-
-        #if (args.dataset[:3] == 'TMA') and (args.mag == 7): #temp RanS 24.1.22
-        #    scheduler.step()
 
     all_writer.close()
     if print_timing:
@@ -609,16 +583,11 @@ def check_accuracy(model: nn.Module, data_loader: DataLoader, all_writer, DEVICE
 ########################################################################################################
 ########################################################################################################
 
-if __name__ == '__main__':
-    # Device definition:
 
-    DEVICE = utils.device_gpu_cpu()
+if __name__ == '__main__':
 
     # Tile size definition:
-    TILE_SIZE = 128
-
-    if sys.platform == 'linux' or sys.platform == 'win32':
-        TILE_SIZE = 256
+    TILE_SIZE = 256
 
     if (args.dataset[:3] == 'TMA') and (args.mag == 7):
         TILE_SIZE = 512
@@ -626,7 +595,6 @@ if __name__ == '__main__':
     # Saving/Loading run meta data to/from file:
     if args.experiment == 0:
         run_data_results = utils.run_data(test_fold=args.test_fold,
-                                                     #transformations=args.transformation,
                                                      transform_type=args.transform_type,
                                                      tile_size=TILE_SIZE,
                                                      tiles_per_bag=1,
@@ -649,7 +617,7 @@ if __name__ == '__main__':
         if args.batch_size == DEFAULT_BATCH_SIZE:
             args.batch_size = batch_size_saved
 
-        #args.model = prev_model_name #temp cancelled RanS 3.1.21
+        args.model = prev_model_name
         print('args.dataset:', args.dataset)
         print('args.target:', args.target)
         print('args.batch_size:', args.batch_size)
@@ -660,19 +628,15 @@ if __name__ == '__main__':
 
         experiment = args.experiment
 
-    start_log(args)
+    utils.start_log(args, to_file=True)
+
+    # Device definition:
+    DEVICE = utils.device_gpu_cpu()
 
     # Get number of available CPUs and compute number of workers:
     cpu_available = utils.get_cpu()
     num_workers = cpu_available
-    #num_workers = cpu_available * 2 #temp RanS 9.8.21
-    #num_workers = cpu_available//2  # temp RanS 9.8.21
-    #num_workers = 4 #temp RanS 24.3.21
 
-    if sys.platform == 'win32':
-        num_workers = 0 #temp RanS 3.5.21
-
-    #print('num workers = ', num_workers)
     logging.info('num CPUs = {}'.format(cpu_available))
     logging.info('num workers = {}'.format(num_workers))
 
@@ -738,9 +702,9 @@ if __name__ == '__main__':
         model.model_name += '_Continous_Time'
 
     try:
-        N_classes = model.linear.out_features #for resnets and such
+        N_classes = model.linear.out_features  # for resnets and such
     except:
-        N_classes = model._final_1x1_conv.out_channels #for StereoSphereRes
+        N_classes = model._final_1x1_conv.out_channels  # for StereoSphereRes
 
     # Save model data and data-set size to run_data.xlsx file (Only if this is a new run).
     if args.experiment == 0:
@@ -757,7 +721,7 @@ if __name__ == '__main__':
     # In case we continue from an already trained model, than load the previous model and optimizer data:
     if args.experiment != 0:
         print('Loading pre-saved model...')
-        if from_epoch == 0: #RanS 25.7.21, load last epoch
+        if from_epoch == 0:  # load last epoch
             model_data_loaded = torch.load(os.path.join(args.output_dir,
                                                         'Model_CheckPoints',
                                                         'model_data_Last_Epoch.pt'),
@@ -774,8 +738,8 @@ if __name__ == '__main__':
         print('Resuming training of Experiment {} from Epoch {}'.format(args.experiment, from_epoch))
 
     elif args.transfer_learning != '':
-        #use model trained on another experiment
-        #transfer_learning should be of the form 'ex=390,epoch=1000'
+        # use model trained on another experiment
+        # transfer_learning should be of the form 'ex=390,epoch=1000'
         ex_str, epoch_str = args.transfer_learning.split(',')
         ex_model = int(re.sub("[^0-9]", "", ex_str))
         epoch_model = int(re.sub("[^0-9]", "", epoch_str))
@@ -791,33 +755,21 @@ if __name__ == '__main__':
         except:
             raise IOError('Cannot load the saved transfer_learning model, check if it fits the current model')
 
-
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    '''if (args.dataset[:3] == 'TMA') and (args.mag == 7): #temp RanS 13.1.22
-        modules = [{'params': model.parameters(), 'weight_decay': args.weight_decay}]
-        #optimizer = optim.SGD(modules, lr=args.lr, momentum=0.9, weight_decay=args.weight_decay, nesterov=True)
-        optimizer = optim.RAdam(modules, lr=args.lr, weight_decay=args.weight_decay) #RanS 7.3.22
-        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=60, gamma=0.1)'''
 
-    #if len(train_dset.target_kind) > 1:
     if isinstance(train_dset.target_kind, list):
         multi_target = True
         target_list = train_dset.target_kind
         N_targets = len(target_list)
-        #target0, target1 = args.target.split('+')
         if model.linear.out_features != 2*len(target_list):
             raise IOError('Model defined does not match number of targets, select model with ' + str(2*len(target_list)) + ' output channels')
-        #if model.linear.out_features != 4:
-            #raise IOError('Model defined does not support multitarget training, select model with 4 output channels')
     else:
         multi_target = False
 
     if DEVICE.type == 'cuda':
-        model = torch.nn.DataParallel(model) #DataParallel, RanS 1.8.21.
+        model = torch.nn.DataParallel(model)
         cudnn.benchmark = True
 
-        # RanS 28.1.21
-        # https://forums.fast.ai/t/show-gpu-utilization-metrics-inside-training-loop-without-subprocess-call/26594
         if args.time:
             import nvidia_smi
             nvidia_smi.nvmlInit()
@@ -843,7 +795,7 @@ if __name__ == '__main__':
             criterion = nn.CrossEntropyLoss()
 
     if args.RAM_saver:
-        shuffle_freq = 100 #reshuffle dataset every 200 epochs
+        shuffle_freq = 100  # reshuffle dataset every 200 epochs
         shuffle_epoch_list = np.arange(np.ceil((from_epoch+EPS) / shuffle_freq) * shuffle_freq, epoch, shuffle_freq).astype(int)
         shuffle_epoch_list = np.append(shuffle_epoch_list, epoch)
 
@@ -852,7 +804,7 @@ if __name__ == '__main__':
 
         for from_epoch, epoch in zip(shuffle_epoch_list[:-1], shuffle_epoch_list[1:]):
             print('Reshuffling dataset:')
-            #shuffle train and test set to get new slides
+            # shuffle train and test set to get new slides
             # Get data:
             train_dset = datasets.WSI_REGdataset(DataSet=args.dataset,
                                                  tile_size=TILE_SIZE,
