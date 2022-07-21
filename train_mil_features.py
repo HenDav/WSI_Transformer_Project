@@ -5,8 +5,7 @@ import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import torch
 import torch.optim as optim
-import nets_mil
-from PreActResNets import PreActResNet50_Ron
+from Nets.PreActResNets import PreActResNet50_Ron
 from tqdm import tqdm
 import time
 from torch.utils.tensorboard import SummaryWriter
@@ -15,7 +14,6 @@ import os
 from sklearn.metrics import roc_curve, auc
 import numpy as np
 import sys
-import pandas as pd
 import copy
 
 utils.send_run_data_via_mail()
@@ -36,8 +34,8 @@ parser.add_argument('-ppt', dest='per_patient_training', action='store_true', he
 parser.add_argument('-time', dest='time', action='store_true', help='save train timing data ?')
 parser.add_argument('-nb', '--num_bags', type=int, default=50, help='Number of bags in each minibatch')#FIXME: to 50
 parser.add_argument('-tpb', '--tiles_per_bag', type=int, default=100, help='Tiles Per Bag') #FIXME: to 100
-parser.add_argument('--lr', default=1e-5, type=float, help='learning rate') # RanS 8.12.20
-parser.add_argument('--weight_decay', default=5e-5, type=float, help='L2 penalty') # RanS 7.12.20
+parser.add_argument('--lr', default=1e-5, type=float, help='learning rate')
+parser.add_argument('--weight_decay', default=5e-5, type=float, help='L2 penalty')
 parser.add_argument('--model', default='nets_mil.MIL_Feature_Attention_MultiBag()', type=str, help='net to use')
 #parser.add_argument('--model', default='nets_mil.MIL_Feature_3_Attention_MultiBag()', type=str, help='net to use')
 parser.add_argument('--eval_rate', type=int, default=5, help='Evaluate validation set every # epochs')

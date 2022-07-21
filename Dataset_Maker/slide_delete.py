@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import argparse
 
+# TODO arrange this!
 #delete slides (move to a different folder) according to file
 #assume we already have a "deleted slides" folder with an slides_to_delete.xlsx file in it
 

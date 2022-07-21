@@ -3,7 +3,7 @@ import argparse
 from torch.utils.data import DataLoader
 import torch
 import numpy as np
-from Cox_Loss import Cox_loss
+from Survival.Cox_Loss import Cox_loss
 from sksurv.metrics import concordance_index_censored
 import torch.optim as optim
 from tqdm import tqdm
@@ -15,8 +15,6 @@ from pathlib import Path
 from sklearn.metrics import roc_curve, auc, roc_auc_score
 import pandas as pd
 import sys
-from itertools import cycle
-import PreActResNets
 
 parser = argparse.ArgumentParser(description='WSI_REG Training of PathNet Project')
 parser.add_argument('-tf', '--test_fold', default=1, type=int, help='fold to be as TEST FOLD')

@@ -4,7 +4,6 @@ for a slide.
 The computation uses a trained model and works.
 """
 
-import PreActResNets
 from datasets import Full_Slide_Inference_Dataset
 import torch
 from torch.utils.data import DataLoader

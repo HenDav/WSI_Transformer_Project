@@ -3,7 +3,6 @@ import datasets
 from torch.utils.data import DataLoader
 import torch
 import torch.nn as nn
-import nets_mil
 from tqdm import tqdm
 import argparse
 import os

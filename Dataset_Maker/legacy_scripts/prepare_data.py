@@ -14,7 +14,6 @@ parser.add_argument('--stats', dest='stats', action='store_true', help='need to 
 parser.add_argument('--hard_copy', dest='hard_copy', action='store_true', help='make hard copy of tiles?')
 parser.add_argument('-ds', '--dataset', type=str, default='TCGA', help='type of dataset to use (HEROHE/TCGA/LUNG)')
 parser.add_argument('--data_root', type=str, default='/mnt/gipmed_new/Data/Breast/', help='location of data root folder')
-#parser.add_argument('--data_root', type=str, default='All Data', help='location of data root folder')
 parser.add_argument('--tissue_coverage', type=float, default=0.3, help='min. tissue % for a valid tile')
 parser.add_argument('--sl2im', dest='sl2im', action='store_true', help='convert slides to png images?')
 parser.add_argument('--mag', type=int, default=10, help='desired magnification of patches')
@@ -73,8 +72,8 @@ if __name__ =='__main__':
     print('Data Preparation sequence is Done !')
 
     # finished training, send email if possible
-    if os.path.isfile('mail_cfg.txt'):
-        with open("mail_cfg.txt", "r") as f:
+    if os.path.isfile('../../mail_cfg.txt'):
+        with open("../../mail_cfg.txt", "r") as f:
             text = f.readlines()
             receiver_email = text[0][:-1]
             password = text[1]
@@ -91,9 +90,3 @@ if __name__ =='__main__':
             server.login(sender_email, password)
             server.sendmail(sender_email, receiver_email, message)
             print('email sent to ' + receiver_email)
-'''
-    utils_data_managment.make_grid(DataSet='TCGA',
-                                   tile_sz=256,
-                                   tissue_coverage=0.5,
-                                   num_workers=2
-                                   )'''

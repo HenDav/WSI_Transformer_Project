@@ -8,17 +8,12 @@ from torch.utils.data import DataLoader
 import torch
 import datasets
 import numpy as np
-from sklearn.metrics import roc_curve
 import os
 import sys, platform
 import argparse
 from tqdm import tqdm
-import pickle
-import resnet_v2
 from collections import OrderedDict
-import smtplib, ssl
-import nets, PreActResNets, resnet_v2
-import torchvision
+from Nets import resnet_v2
 import pandas as pd
 
 parser = argparse.ArgumentParser(description='WSI_REG Slide inference')

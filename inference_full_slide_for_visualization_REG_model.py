@@ -1,4 +1,3 @@
-import PreActResNets
 from datasets import Batched_Full_Slide_Inference_Dataset
 import utils
 import sys
@@ -8,8 +7,6 @@ import torch
 import os
 import numpy as np
 from tqdm import tqdm
-from sklearn.metrics import roc_curve, auc
-import pickle
 import random
 from pathlib import Path
 import pandas as pd
@@ -74,15 +71,7 @@ Path(path_for_output).mkdir(parents=True, exist_ok=True)
 original_x_dict, original_y_dict, score_dict = {}, {}, {}
 new_x_dict, new_y_dict = {}, {}
 slide_size_dict = {}
-'''
-if not os.path.isdir('Inference'):
-    os.mkdir('Inference')
-if not os.path.isdir(os.path.join(data_path, output_dir, 'Full Slides Inference')):
-    os.mkdir(os.path.join(data_path, output_dir, 'Full Slides Inference'))
-if not os.path.isdir(
-        os.path.join(data_path, output_dir, 'Full Slides Inference', 'Model_Epoch_' + str(args.from_epoch))):
-    os.mkdir(os.path.join(data_path, output_dir, 'Full Slides Inference', 'Model_Epoch_' + str(args.from_epoch)))
-'''
+
 with torch.no_grad():
     for batch_idx, minibatch in enumerate(tqdm(inf_loader)):
         data = minibatch['Data']

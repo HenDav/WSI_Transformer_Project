@@ -33,11 +33,9 @@ def auc_for_n_patches(patch_scores, n, all_targets):
         chosen_patches = patch_scores[:, patches]
         chosen_mean_scores = np.array([np.nanmean(chosen_patches[ii, chosen_patches[ii, :] > 0]) for ii in range(chosen_patches.shape[0])])
 
-        # TODO RanS 4.2.21 - handle slides with nans (less than max_n patches)
-        #temp fix - remove slides if all selected patches are nan
+        # remove slides if all selected patches are nan
         chosen_targets = np.array([all_targets[ii] for ii in range(len(all_targets)) if ~np.isnan(chosen_mean_scores[ii])])
         chosen_mean_scores = np.array([chosen_mean_score for chosen_mean_score in chosen_mean_scores if ~np.isnan(chosen_mean_score)])
-        #chosen_targets = np.array([all_targets[patch] for patch in patches])
         auc_array[iter] = roc_auc_score(chosen_targets, chosen_mean_scores)
 
     auc_res = np.nanmean(auc_array)
@@ -49,11 +47,10 @@ slide_score_all = []
 if len(inference_files) == 0:
     raise IOError('No inference files found!')
 
-# read is_cancer values from experiment 627, temp RanS 13.3.22
+# use is_cancer values from experiment 627
 is_cancer_improv = False
 if is_cancer_improv:
     is_cancer_inference_path = r'C:\Pathnet_results\MIL_general_try4\BENIGN_runs\is_cancer\exp627\Inference\CAT_Her2_fold1_patches_inference\Model_Epoch_500-Folds_[1]_is_cancer-Tiles_500.data'
-    #is_cancer_inference_path = r'C:\Pathnet_results\MIL_general_try4\BENIGN_runs\is_cancer\exp627\Inference\CAT_PR_fold1_patches_inference\Model_Epoch_500-Folds_[1]_is_cancer-Tiles_500.data'
     with open(os.path.join(inference_dir, is_cancer_inference_path), 'rb') as filehandle:
         inference_data_is_cancer = pickle.load(filehandle)
         _, _, _, _, _, _, _, _, _, num_slides_is_cancer, patch_scores_is_cancer, all_slide_names_is_cancer, _, patch_locs_is_cancer = inference_data_is_cancer
@@ -69,34 +66,34 @@ for ind, key in enumerate(inference_files.keys()):
     epoch = key.split('epoch')[-1]
 
     if infer_type == 'REG':
-        if len(inference_data) == 17: # survival format
+        if len(inference_data) == 17:  # survival format
             fpr, tpr, all_labels, all_targets, all_scores, total_pos, true_pos, total_neg, true_neg, \
             num_slides, patch_scores, all_slide_names, all_slide_datasets, patch_locs,\
             binary_targets_arr, time_targets_arr, censored_arr = inference_data
-        elif len(inference_data) == 14: #current format
+        elif len(inference_data) == 14:  #current format
             fpr, tpr, all_labels, all_targets, all_scores, total_pos, true_pos, total_neg, true_neg, \
             num_slides, patch_scores, all_slide_names, all_slide_datasets, patch_locs = inference_data
-        elif len(inference_data) == 13: #old format, before locations
+        elif len(inference_data) == 13:  # old format, before locations
             fpr, tpr, all_labels, all_targets, all_scores, total_pos, true_pos, total_neg, true_neg, \
             num_slides, patch_scores, all_slide_names, all_slide_datasets = inference_data
-        elif len(inference_data) == 12: #old format
+        elif len(inference_data) == 12:  # old format
             fpr, tpr, all_labels, all_targets, all_scores, total_pos, true_pos, total_neg, true_neg, \
             num_slides, patch_scores, all_slide_names = inference_data
-        elif len(inference_data) == 16: #temp old format with patch locs
+        elif len(inference_data) == 16:  # temp old format with patch locs
             fpr, tpr, all_labels,  all_targets, all_scores, total_pos, true_pos, total_neg, true_neg, \
             num_slides, patch_scores, all_slide_names, patch_locs, patch_locs_inds, all_slide_size, all_slide_size_ind = inference_data
         else:
             IOError('inference data is of unsupported size!')
 
 
-        if is_cancer_improv: #validate patches are the same
+        if is_cancer_improv:  # validate patches are the same
             test1 = num_slides_is_cancer == num_slides
             test2 = np.all(all_slide_names == all_slide_names_is_cancer)
             test3 = np.nanmax(patch_locs - patch_locs_is_cancer) == 0
             if (not test1) or (not test2) or (not test3):
                 raise IOError('mismatch between is_cancer patches and inference patches')
 
-        if ind == 0: #define figure and axes
+        if ind == 0:  # define figure and axes
             if all_scores.ndim == 2 and target != 'survival' and not multi_target:
                 N_classes = all_scores.shape[1]
                 multi_class = True
@@ -134,19 +131,6 @@ for ind, key in enumerate(inference_files.keys()):
                     ax1_patient.set_prop_cycle(custom_cycler)
                     legend_labels_patient = []
 
-        #auc per dataset
-        Temp = False
-        if Temp:
-            roc_auc1 = roc_auc_score(np.array(all_targets)[all_slide_datasets=='Ipatimup'], np.array(all_scores)[all_slide_datasets=='Ipatimup'])
-            roc_auc2 = roc_auc_score(np.array(all_targets)[all_slide_datasets == 'Covilha'],np.array(all_scores)[all_slide_datasets == 'Covilha'])
-            roc_auc3 = roc_auc_score(np.array(all_targets)[all_slide_datasets == 'HEROHE'],np.array(all_scores)[all_slide_datasets == 'HEROHE'])
-
-            q = pd.read_excel(r'C:\Pathnet_results\MIL_general_try4\ABCTB_runs\survival\exp20094\Inference\train\survival_fold2, 3, 4, 5_exp20094_epoch1000_patch_scores_fixed.xlsx')
-            roc_auc2 = roc_auc_score(np.array(q[q['test fold idx breast'] == 2]['slide_label']), np.array(q[q['test fold idx breast'] == 2]['slide_score']))
-            roc_auc3 = roc_auc_score(np.array(q[q['test fold idx breast'] == 3]['slide_label']), np.array(q[q['test fold idx breast'] == 3]['slide_score']))
-            roc_auc4 = roc_auc_score(np.array(q[q['test fold idx breast'] == 4]['slide_label']), np.array(q[q['test fold idx breast'] == 4]['slide_score']))
-            roc_auc5 = roc_auc_score(np.array(q[q['test fold idx breast'] == 5]['slide_label']), np.array(q[q['test fold idx breast'] == 5]['slide_score']))
-
         if save_csv and (epoch == str(csv_epoch)):
             if multi_target or multi_class:
                 N_files = np.max((N_targets, N_classes))
@@ -162,7 +146,7 @@ for ind, key in enumerate(inference_files.keys()):
                     if multi_class:
                         patch_scores_df.to_csv(
                             os.path.join(inference_dir, key + '_patch_scores_class' + str(i_file) + '.csv'))
-                    else: #multitarget
+                    else:  # multitarget
                         patch_scores_df.to_csv(
                             os.path.join(inference_dir, key + '_patch_scores_' + target_list[i_file] + '.csv'))
             else:
@@ -224,11 +208,7 @@ for ind, key in enumerate(inference_files.keys()):
                         pass
             else:
                 if is_cancer_improv:
-                    #patch_scores_with_is_cancer = patch_scores * patch_scores_is_cancer
-                    #tot_score_is_cancer = np.nansum(patch_scores_is_cancer,axis=1).reshape((patch_scores_is_cancer.shape[0],1))
-                    #patch_scores_with_is_cancer = patch_scores * patch_scores_is_cancer / tot_score_is_cancer
                     patch_scores_is_cancer1 = patch_scores_is_cancer
-                    #patch_scores_is_cancer1[patch_scores_is_cancer1 < 0.995] = np.nan
                     patch_scores_is_cancer1[patch_scores_is_cancer1 < 0.9] = np.nan
                     patch_scores_with_is_cancer = patch_scores * patch_scores_is_cancer1
                     scores_with_is_cancer = np.nanmean(patch_scores_with_is_cancer, axis=1)
@@ -266,13 +246,12 @@ for ind, key in enumerate(inference_files.keys()):
             elif (dataset == 'TMA_HE_02_008'):
                 slides_data_file = r'C:\ran_data\TMA\slides_data_TMA_HE_02_008.xlsx'
 
-            #temp RanS 27.1.22 for HAEMEK inference on CAT models
+            #temp for running HAEMEK inference on CAT models
             #slides_data_file = r'C:\ran_data\Haemek\slides_data_HAEMEK1.xlsx'
             #slides_data_file = r'C:\ran_data\Carmel_Slides_examples\add_ki67_labels\ER100_labels\slides_data_CARMEL_labeled_merged.xlsx'
 
             slides_data = pd.read_excel(slides_data_file)
 
-            #for name in all_slide_names:
             for name, slide_dataset in zip(all_slide_names, all_slide_datasets):
                 if slide_dataset == 'TCGA': #TCGA files
                     patient_all.append(name[8:12])
@@ -297,7 +276,7 @@ for ind, key in enumerate(inference_files.keys()):
             else:
                 patch_df = pd.DataFrame({'patient': patient_all, 'scores': slide_score_mean, 'targets': all_targets})
 
-            #Remove patients with multiple targets over different slides
+            # Remove patients with multiple targets over different slides
             patient_std_df = patch_df.groupby('patient').std()
             if multi_target:
                 patient_mean_score_df = patch_df[['patient']]
@@ -372,7 +351,7 @@ for ind, key in enumerate(inference_files.keys()):
         print('balanced_acc:', balanced_acc)
         print('np.sum(all_labels):', np.sum(all_labels))
 
-    #temp RanS - calc BACC for each thresold
+    # calc BACC for each thresold
     plot_threshold = False
     if plot_threshold:
         bacc1 = np.zeros(20)

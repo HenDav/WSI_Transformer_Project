@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 import torch
 import torch.nn as nn
 from tqdm import tqdm
-from Cox_Loss import Cox_loss, L2_Loss
+from Survival.Cox_Loss import Cox_loss, L2_Loss
 import torch.optim as optim
 import utils
 from torch.utils.tensorboard import SummaryWriter
@@ -13,13 +13,12 @@ import argparse
 from sklearn.metrics import roc_curve, auc
 import os
 from pathlib import Path
-from PreActResNets import PreActResNet50_Ron
+from Nets.PreActResNets import PreActResNet50_Ron
 import sys
 import time
 import psutil
 from datetime import datetime
 from itertools import cycle
-from random import shuffle
 import pandas as pd
 
 

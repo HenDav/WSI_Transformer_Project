@@ -10,9 +10,7 @@ import argparse
 from tqdm import tqdm
 import pickle
 from collections import OrderedDict
-import smtplib, ssl
-import nets, PreActResNets, resnet_v2
-import torchvision
+from Nets import resnet_v2
 from pathlib import Path
 
 parser = argparse.ArgumentParser(description='WSI_REG Slide inference')

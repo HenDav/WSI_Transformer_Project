@@ -1,4 +1,4 @@
-from compare_excel_lists import merge_excel_lists
+from Small_utils.compare_excel_lists import merge_excel_lists
 dir_name = r'C:\ran_data\TMA'
 fn1 = r'slides_data_TMA_HE_01-011_no_labels.xlsx'
 fn2 = r'slides_data_TMA_HE_01-011_labels_filename_zfilled.xlsx'

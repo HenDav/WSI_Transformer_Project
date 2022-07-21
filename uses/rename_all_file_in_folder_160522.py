@@ -1,4 +1,4 @@
-from file_rename import rename_all_files_in_folder
+from Small_utils.file_rename import rename_all_files_in_folder
 
 dirname = r'C:\Users\User\OneDrive - Technion\Her2_batch1_w_control_review\marked'
 delete_start = 'Inked'

@@ -9,9 +9,8 @@ import sys, platform
 import argparse
 from tqdm import tqdm
 import pickle
-import resnet_v2
 from collections import OrderedDict
-import nets, PreActResNets, resnet_v2
+from Nets import resnet_v2
 import send_gmail
 import logging
 

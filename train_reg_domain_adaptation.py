@@ -15,14 +15,12 @@ import numpy as np
 import sys
 import pandas as pd
 from sklearn.utils import resample
-import smtplib, ssl
 import psutil
-import PreActResNets
+from Nets import PreActResNets
 #from sphere_res import StereoSphereRes
 from datetime import datetime
-from Cox_Loss import Cox_loss
+from Survival.Cox_Loss import Cox_loss
 import re
-import matplotlib.pyplot as plt
 import logging
 
 utils.send_run_data_via_mail()

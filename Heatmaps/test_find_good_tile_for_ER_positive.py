@@ -4,8 +4,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import torch
 import numpy as np
-import PreActResNets
-import nets_mil
+from Nets import PreActResNets
 import os
 import matplotlib.pyplot as plt
 import matplotlib
@@ -13,6 +12,7 @@ import pandas as pd
 from pathlib import Path
 import sys
 from datetime import date
+
 
 def get_AvgValues_from_Diff_Heatmaps(small_heatmaps):
     if len(small_heatmaps) != 1025:

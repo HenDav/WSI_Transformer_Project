@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
 from torchvision.models import resnet, resnet50, resnet34
-from torchvision.models.resnet import ResNet
 import os
 try:
     from torchvision.models.utils import load_state_dict_from_url
@@ -34,7 +33,6 @@ class ResNet18(nn.Module):
     def forward(self, x):
         x = x.squeeze()
         x = self.basic_resnet(x)
-        #x = torch.nn.functional.softmax(x, dim=1) #cancelled RanS 11.4.21
         return x
 
 
@@ -48,16 +46,14 @@ class ResNet34(nn.Module):
     def forward(self, x):
         x = x.squeeze()
         x = self.basic_resnet(x)
-        #x = torch.nn.functional.softmax(x, dim=1) #cancelled RanS 11.4.21
         return x
 
 
-#RanS 17.11.21, resnet34 pretrained on Imagenet, with binary classifier
+# resnet34 pretrained on Imagenet, with binary classifier
 class MyResNet34(nn.Module):
     def __init__(self, train_classifier_only=False):
         super().__init__()
         self.model = resnet34(pretrained=True)
-        #model.fc.in_features = 2
         N_features = self.model.fc.in_features
         self.model.fc = nn.Identity()
         self.model.my_fc = nn.Linear(N_features, 2)
@@ -75,24 +71,7 @@ class MyResNet34(nn.Module):
         x = x.squeeze()
         features = self.model(x)
         out = self.model.my_fc(features)
-        # x = torch.nn.functional.softmax(x, dim=1) #cancelled RanS 11.4.21
         return out, features
-
-'''def MyResNet34(train_classifier_only=False):
-    model = resnet34(pretrained=True)
-    #model.fc.in_features = 2
-    model.fc = nn.Linear(model.fc.in_features, 2)
-    model.model_name = THIS_FILE + 'MyResNet34()'
-    print(model.model_name)
-
-    if train_classifier_only:
-        model.model_name = THIS_FILE + 'MyResNet34(train_classifier_only=True)'
-        for param in model.parameters():
-            param.requires_grad = False
-        for param in model.fc.parameters():
-            param.requires_grad = True
-
-    return model'''
 
 
 class ResNet50(nn.Module):
@@ -111,44 +90,14 @@ class ResNet50(nn.Module):
 
         self.linear = nn.Linear(1000, num_classes)
 
-
     def forward(self, x):
         if len(x.shape) == 5:
             num_of_bags, tiles_amount, _, tiles_size, _ = x.shape
             x = torch.reshape(x, (num_of_bags * tiles_amount, 3, tiles_size, tiles_size))
 
-        #x = self.linear(self.basic_resnet(x))
-        features = self.basic_resnet(x) #RanS 7.3.22
+        features = self.basic_resnet(x)
         x = self.linear(self.basic_resnet(x))
-        #x = torch.nn.functional.softmax(x, dim=1) #cancelled RanS 11.4.21
         return x, features
-
-
-
-'''
-def ResNet_18():
-    print('Using model ResNet_18')
-    model = models.resnet18(pretrained=False)
-    model.fc.out_features = 2
-    model.model_name = 'ResNet_18()'
-    return model
-
-
-def ResNet_34():
-    print('Using model ResNet_34')
-    model = models.resnet34(pretrained=False)
-    model.fc.out_features = 2
-    model.model_name = 'ResNet_34()'
-    return model
-
-
-def ResNet_50():
-    print('Using model ResNet_50')
-    model = models.resnet50(pretrained=False)
-    model.fc.out_features = 2
-    model.model_name = 'ResNet_50()'
-    return model
-'''
 
 
 class ResNet34_GN(nn.Module):
@@ -156,8 +105,8 @@ class ResNet34_GN(nn.Module):
         super(ResNet34_GN, self).__init__()
         self.model_name = THIS_FILE + 'ResNet34_GN()'
         print('Using model {}'.format(self.model_name))
-        # Replace all BatchNorm layers with GroupNorm:
 
+        # Replace all BatchNorm layers with GroupNorm:
         self.con_layers = resnet.ResNet(resnet.BasicBlock, [3, 4, 6, 3], num_classes=1000, zero_init_residual=False,
                                         groups=1, width_per_group=64, replace_stride_with_dilation=None,
                                         norm_layer=MyGroupNorm)
@@ -167,7 +116,6 @@ class ResNet34_GN(nn.Module):
     def forward(self, x):
         x = x.squeeze()
         x = self.linear(self.con_layers(x))
-        #x = torch.nn.functional.softmax(x, dim=1) #cancelled RanS 11.4.21
         return x
 
 
@@ -187,28 +135,16 @@ class ResNet50_GN(nn.Module):
     def forward(self, x):
         x = x.squeeze()
         x = self.linear(self.con_layers(x))
-        #x = torch.nn.functional.softmax(x, dim=1) #cancelled RanS 11.4.21
         return x
 
 
-# RanS 14.12.20
 class net_with_3FC(nn.Module):
     def __init__(self, pretrained_model, reinit_last_layer=True):
         super(net_with_3FC, self).__init__()
         self.model_name = THIS_FILE + 'net_with_3FC()'
         self.pretrained = pretrained_model
         num_ftrs = self.pretrained.fc.in_features
-        # RanS 18.11.20, change momentum to 0.5
-        # for layer in self.pretrained.modules():
-        # if layer._get_name() == 'BatchNorm2d':
-        # layer.momentum = 0.5
-        # print(layer)
-        # re-init last bottleneck.layer! RanS 17.11.20
-        # nn.init.kaiming_normal_(self.pretrained.layer4[0].downsample[0].weight, mode='fan_in', nonlinearity='relu')
-        # nn.init.constant_(self.pretrained.layer4[0].downsample[1].weight, 0)
-        # nn.init.constant_(self.pretrained.layer4[0].downsample[1].bias, 0)
-        # for ii in range(3):
-        # for ii in range(2,3):
+
         if reinit_last_layer:
             for ii in range(1, 3):
                 nn.init.kaiming_normal_(self.pretrained.layer4[ii].conv1.weight, mode='fan_in', nonlinearity='relu')
@@ -220,36 +156,24 @@ class net_with_3FC(nn.Module):
                 nn.init.constant_(self.pretrained.layer4[ii].bn1.bias, 0)
                 nn.init.constant_(self.pretrained.layer4[ii].bn2.bias, 0)
                 nn.init.constant_(self.pretrained.layer4[ii].bn3.bias, 0)
-                # RanS 18.11.20, reset all running bn stats
-                # self.pretrained.layer4[ii].bn1.reset_running_stats()
-                # self.pretrained.layer4[ii].bn2.reset_running_stats()
-                # self.pretrained.layer4[ii].bn3.reset_running_stats()
-            # nn.init.kaiming_normal_(self.pretrained.layer4[-1].conv1.weight, mode='fan_in', nonlinearity='relu')
-            # nn.init.kaiming_normal_(self.pretrained.layer4[-1].conv2.weight, mode='fan_in', nonlinearity='relu')
-            # nn.init.kaiming_normal_(self.pretrained.layer4[-1].conv3.weight, mode='fan_in', nonlinearity='relu')
+
         self.pretrained.fc = nn.Identity()
         self.dropout = nn.Dropout(p=0.5)
-        # self.fc = nn.Linear(num_ftrs, 2)
         self.fc1 = nn.Linear(num_ftrs, 512)
         self.fc2 = nn.Linear(512, 512)
         self.fc3 = nn.Linear(512, 2)
-        # nn.init.kaiming_normal_(self.fc.weight, mode='fan_in', nonlinearity='relu')  # RanS 17.11.20, try He init
-        nn.init.kaiming_normal_(self.fc1.weight, mode='fan_in', nonlinearity='relu')  # RanS 17.11.20, try He init
-        nn.init.kaiming_normal_(self.fc2.weight, mode='fan_in', nonlinearity='relu')  # RanS 17.11.20, try He init
-        nn.init.kaiming_normal_(self.fc3.weight, mode='fan_in', nonlinearity='relu')  # RanS 17.11.20, try He init
+        nn.init.kaiming_normal_(self.fc1.weight, mode='fan_in', nonlinearity='relu')
+        nn.init.kaiming_normal_(self.fc2.weight, mode='fan_in', nonlinearity='relu')
+        nn.init.kaiming_normal_(self.fc3.weight, mode='fan_in', nonlinearity='relu')
 
     def forward(self, x):
         x = self.pretrained(x)
-        # x = self.fc(x)
-        # x = self.fc(self.dropout(x))
         x = F.relu(self.fc1(self.dropout(x)))
         x = F.relu(self.fc2(self.dropout(x)))
         x = self.fc3(x)
-        #x = torch.nn.functional.softmax(x, dim=1) #cancelled RanS 11.4.21
         return x
 
 
-# RanS 17.12.20
 class resnet50_with_3FC(nn.Module):
     def __init__(self, pretrained=True):
         super(resnet50_with_3FC, self).__init__()
@@ -262,7 +186,6 @@ class resnet50_with_3FC(nn.Module):
         return x
 
 
-# RanS 21.12.20
 class net_with_2FC(nn.Module):
     def __init__(self, pretrained_model):
         super(net_with_2FC, self).__init__()
@@ -273,24 +196,17 @@ class net_with_2FC(nn.Module):
         self.dropout = nn.Dropout(p=0.5)
         self.fc1 = nn.Linear(num_ftrs, 512)
         self.fc2 = nn.Linear(512, 512)
-        nn.init.kaiming_normal_(self.fc1.weight, mode='fan_in', nonlinearity='relu')  # RanS 17.11.20, try He init
-        nn.init.kaiming_normal_(self.fc2.weight, mode='fan_in', nonlinearity='relu')  # RanS 17.11.20, try He init
+        nn.init.kaiming_normal_(self.fc1.weight, mode='fan_in', nonlinearity='relu')
+        nn.init.kaiming_normal_(self.fc2.weight, mode='fan_in', nonlinearity='relu')
 
     def forward(self, x):
-        # old version:
-        '''x = self.pretrained(x)
-        x = F.relu(self.fc1(self.dropout(x)))
-        x = self.fc2(x)'''
-
-        # RanS 14.1.21, Nikhil's version
+        # Nikhil's version
         x = self.pretrained(x)
         x = self.dropout(F.relu(self.fc1(x)))
         x = self.dropout(F.relu(self.fc2(x)))
-        #x = torch.nn.functional.softmax(x, dim=1) #cancelled RanS 11.4.21
         return x
 
 
-# RanS 21.12.20
 class ReceptorNet_feature_extractor(nn.Module):
     def __init__(self, pretrained=True):
         super(ReceptorNet_feature_extractor, self).__init__()
@@ -315,7 +231,6 @@ class ResNet_NO_downsample(nn.Module):
             norm_layer = nn.BatchNorm2d
         self._norm_layer = norm_layer
 
-        '''self.inplanes = 64'''
         self.inplanes = 16
         self.dilation = 1
         if replace_stride_with_dilation is None:
@@ -327,21 +242,10 @@ class ResNet_NO_downsample(nn.Module):
                              "or a 3-element tuple, got {}".format(replace_stride_with_dilation))
         self.groups = groups
         self.base_width = width_per_group
-        '''self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, padding=3,
-                               bias=False)'''
         self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1,
                                bias=False)
         self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
-        '''self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        self.layer1 = self._make_layer(block, 64, layers[0])
-        self.layer2 = self._make_layer(block, 128, layers[1], stride=2,
-                                       dilate=replace_stride_with_dilation[0])
-        self.layer3 = self._make_layer(block, 256, layers[2], stride=2,
-                                       dilate=replace_stride_with_dilation[1])
-        self.layer4 = self._make_layer(block, 512, layers[3], stride=2,
-                                       dilate=replace_stride_with_dilation[2])
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))'''
 
         self.layer1 = self._make_layer(block, 16, layers[0], stride=1)
         self.layer2 = self._make_layer(block, 32, layers[1], stride=2,
@@ -402,7 +306,6 @@ class ResNet_NO_downsample(nn.Module):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
-        # x = self.maxpool(x)
 
         x = self.layer1(x)
         x = self.layer2(x)
@@ -412,11 +315,9 @@ class ResNet_NO_downsample(nn.Module):
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
         x = self.fc(x)
-        #x = torch.nn.functional.softmax(x, dim=1) #cancelled RanS 11.4.21
         return x
 
 
-# def _resnet(arch, block, layers, pretrained, progress, **kwargs):
 def _resnet_NO_DOWNSAMPLE(arch, block, layers, progress, **kwargs):
     model = ResNet_NO_downsample(block, layers, **kwargs)
     return model
@@ -528,6 +429,7 @@ def resnet50_pretrained():
     model.fc.out_features = 2
     print('Using model: ', model.model_name)
     return model
+
 
 def ResNet_50_NO_downsample():
     """

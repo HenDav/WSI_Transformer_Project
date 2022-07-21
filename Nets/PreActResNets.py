@@ -363,8 +363,7 @@ class PreActResNet_Ron(nn.Module):
 
                 print('Finished saving 3 debug files from model code')
 
-            #return out
-            return out, features #RanS 1.7.21
+            return out, features
 
 
 class PreActResNet_Ron_DomainAdaptation(nn.Module):
@@ -473,43 +472,24 @@ def PreActResNet50_Ron(train_classifier_only=False, num_classes=2):
 
     if train_classifier_only:
         model.model_name = THIS_FILE + 'PreActResNet50_Ron(train_classifier_only=True)'
-        if num_classes != 2:  # RanS 3.1.21
+        if num_classes != 2:
             model.model_name = model.model_name[:-1] + ', num_classes=' + str(num_classes) + ')'
         for param in model.parameters():
             param.requires_grad = False
         for param in model.linear.parameters():
             param.requires_grad = True
 
-    elif num_classes != 2: #RanS 3.1.21
+    elif num_classes != 2:
         model.model_name = model.model_name[:-1] + 'num_classes=' + str(num_classes) + ')'
 
     return model
+
 
 def MIL_PreActResNet50_Ron():
     model = PreActResNet_Ron(PreActBottleneck_Ron, [3, 4, 6, 3], num_classes=500)
     model.model_name = THIS_FILE + 'PreActResNet50_Ron()'
     print(model.model_name)
     return model
-
-'''
-def get_gradients_lambda_reverser(lam: int = -1):
-    def reverse_add_lambda_to_backward(self, grad_input, grad_output):
-        print('input[0]: ', grad_input[0])
-        print('input[1]: ', grad_input[1])
-        print('input[2]: ', grad_input[2])
-        print('Lam: ', lam)
-
-        new_gi = []
-        for gi in grad_input:
-            if gi != None:
-                new_gi.append(gi * lam)
-            else:
-                new_gi.append(None)
-
-        return tuple(new_gi)
-
-    return reverse_add_lambda_to_backward
-'''
 
 
 def PreActResNet50_Ron_DomainAdaptation(train_classifier_only=False,
@@ -525,14 +505,14 @@ def PreActResNet50_Ron_DomainAdaptation(train_classifier_only=False,
 
     if train_classifier_only:
         model.model_name = THIS_FILE + 'PreActResNet50_Ron_DomainAdaptation(train_classifier_only=True)'
-        if num_classes != 2:  # RanS 3.1.21
+        if num_classes != 2:
             model.model_name = model.model_name[:-1] + ', num_classes=' + str(num_classes) + ')'
         for param in model.parameters():
             param.requires_grad = False
         for param in model.linear.parameters():
             param.requires_grad = True
 
-    elif num_classes != 2: #RanS 3.1.21
+    elif num_classes != 2:
         model.model_name = model.model_name[:-1] + 'num_classes=' + str(num_classes) + ')'
 
     return model
@@ -575,4 +555,3 @@ class domain_test(nn.Module):
 
     def forward(self, input):
         return self.lin(self.grl(input))
-

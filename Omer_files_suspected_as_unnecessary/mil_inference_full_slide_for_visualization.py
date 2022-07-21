@@ -1,4 +1,3 @@
-import nets_mil
 import datasets
 import utils
 import sys

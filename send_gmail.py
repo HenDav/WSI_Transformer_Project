@@ -38,10 +38,6 @@ def send_gmail(experiment, mode):
     # =============================================================================
     sent_from = gmail_user
     sent_to = receiver_email
-    '''if is_train:
-        sent_subject = 'Subject: finished running experiment ' + str(experiment)
-    else:
-        sent_subject = 'Subject: finished inference for experiment ' + str(experiment)'''
 
     if mode == Mode.TRAIN:
         sent_subject = 'Subject: finished running experiment ' + str(experiment)
@@ -49,6 +45,8 @@ def send_gmail(experiment, mode):
         sent_subject = 'Subject: finished inference for experiment ' + str(experiment)
     elif mode == Mode.DATAMAKER:
         sent_subject = 'Subject: finished running data maker'
+    else:
+        return
 
     email_text = sent_subject
 

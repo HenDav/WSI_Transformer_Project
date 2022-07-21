@@ -1,10 +1,7 @@
 import utils
 import datasets
 from torch.utils.data import DataLoader
-import torch.nn as nn
-import torch.backends.cudnn as cudnn
 import torch
-import torch.optim as optim
 from tqdm import tqdm
 import time
 from torch.utils.tensorboard import SummaryWriter
@@ -17,14 +14,7 @@ import pandas as pd
 from sklearn.utils import resample
 import smtplib, ssl
 import psutil
-import nets, PreActResNets, resnet_v2
-
-#RanS 1.8.21
 from torch import nn
-from torch.nn import functional as F
-from torch.utils.data import random_split
-from torchvision.datasets import MNIST
-from torchvision import transforms
 import pytorch_lightning as pl
 
 
@@ -37,25 +27,25 @@ parser.add_argument('-d', dest='dx', action='store_true', help='Use ONLY DX cut 
 parser.add_argument('-ds', '--dataset', type=str, default='TCGA', help='DataSet to use')
 #parser.add_argument('-ds', '--dataset', type=str, default='test_speed', help='DataSet to use')
 parser.add_argument('-time', dest='time', action='store_true', help='save train timing data ?')
-parser.add_argument('-tar', '--target', default='ER', type=str, help='label: Her2/ER/PR/EGFR/PDL1')  # RanS 7.12.20
-parser.add_argument('--n_patches_test', default=1, type=int, help='# of patches at test time') # RanS 7.12.20
-parser.add_argument('--n_patches_train', default=10, type=int, help='# of patches at train time') # RanS 7.12.20
-parser.add_argument('--lr', default=1e-5, type=float, help='learning rate') # RanS 8.12.20
-parser.add_argument('--weight_decay', default=5e-5, type=float, help='L2 penalty') # RanS 7.12.20
-parser.add_argument('-balsam', '--balanced_sampling', dest='balanced_sampling', action='store_true', help='balanced_sampling')  # RanS 7.12.20
-parser.add_argument('--transform_type', default='rvf', type=str, help='none / flip / wcfrs (weak color+flip+rotate+scale)') # RanS 7.12.20
-parser.add_argument('--batch_size', default=18, type=int, help='size of batch')  # RanS 8.12.20
-#parser.add_argument('--model', default='resnet_v2.PreActResNet50()', type=str, help='net to use') # RanS 15.12.20
-parser.add_argument('--model', default='PreActResNets.PreActResNet50_Ron()', type=str, help='net to use') # RanS 15.12.20
-#parser.add_argument('--model', default='nets.ResNet50(pretrained=True)', type=str, help='net to use') # RanS 15.12.20
-parser.add_argument('--bootstrap', action='store_true', help='use bootstrap to estimate test AUC error') #RanS 16.12.20
+parser.add_argument('-tar', '--target', default='ER', type=str, help='label: Her2/ER/PR/EGFR/PDL1')
+parser.add_argument('--n_patches_test', default=1, type=int, help='# of patches at test time')
+parser.add_argument('--n_patches_train', default=10, type=int, help='# of patches at train time')
+parser.add_argument('--lr', default=1e-5, type=float, help='learning rate')
+parser.add_argument('--weight_decay', default=5e-5, type=float, help='L2 penalty')
+parser.add_argument('-balsam', '--balanced_sampling', dest='balanced_sampling', action='store_true', help='balanced_sampling')
+parser.add_argument('--transform_type', default='rvf', type=str, help='none / flip / wcfrs (weak color+flip+rotate+scale)')
+parser.add_argument('--batch_size', default=18, type=int, help='size of batch')
+#parser.add_argument('--model', default='resnet_v2.PreActResNet50()', type=str, help='net to use')
+parser.add_argument('--model', default='PreActResNets.PreActResNet50_Ron()', type=str, help='net to use')
+#parser.add_argument('--model', default='nets.ResNet50(pretrained=True)', type=str, help='net to use')
+parser.add_argument('--bootstrap', action='store_true', help='use bootstrap to estimate test AUC error')
 parser.add_argument('--eval_rate', type=int, default=5, help='Evaluate validation set every # epochs')
 parser.add_argument('--c_param', default=0.1, type=float, help='color jitter parameter')
 parser.add_argument('-im', dest='images', action='store_true', help='save data images?')
-parser.add_argument('--mag', type=int, default=10, help='desired magnification of patches') #RanS 8.2.21
-parser.add_argument('--loan', action='store_true', help='Localized Annotation for strongly supervised training') #RanS 17.6.21
-parser.add_argument('--er_eq_pr', action='store_true', help='while training, take only er=pr examples') #RanS 27.6.21
-parser.add_argument('--focal', action='store_true', help='use focal loss with gamma=2') #RanS 18.7.21
+parser.add_argument('--mag', type=int, default=10, help='desired magnification of patches')
+parser.add_argument('--loan', action='store_true', help='Localized Annotation for strongly supervised training')
+parser.add_argument('--er_eq_pr', action='store_true', help='while training, take only er=pr examples')
+parser.add_argument('--focal', action='store_true', help='use focal loss with gamma=2')
 
 args = parser.parse_args()
 
@@ -99,7 +89,6 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
         slide_names = []
         print('Epoch {}:'.format(e))
 
-        # RanS 11.7.21
         process = psutil.Process(os.getpid())
         print('RAM usage:', process.memory_info().rss/1e9, 'GB')
 
@@ -127,7 +116,6 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             correct_pos += predicted[target.eq(1)].eq(1).sum().item()
             correct_neg += predicted[target.eq(0)].eq(0).sum().item()
             #all_writer.add_scalar('Loss', loss.item(), batch_idx + e * len(dloader_train))
-            # RanS 28.1.21
             if DEVICE.type == 'cuda' and print_timing:
                 res = nvidia_smi.nvmlDeviceGetUtilizationRates(handle)
                 #print(f'gpu: {res.gpu}%, gpu-mem: {res.memory}%')
@@ -190,7 +178,7 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                    os.path.join(args.output_dir, 'Model_CheckPoints', 'model_data_Last_Epoch.pt'))
 
         if e % args.eval_rate == 0:
-            #if (e % 20 == 0) or args.model == 'resnet50_3FC': #RanS 15.12.20, pretrained networks converge fast
+            #if (e % 20 == 0) or args.model == 'resnet50_3FC': # pretrained networks converge fast
             # perform slide inference
             patch_df = pd.DataFrame({'slide': slide_names, 'scores': scores_train, 'labels': true_targets_train})
             slide_mean_score_df = patch_df.groupby('slide').mean()
@@ -219,7 +207,7 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                         'tile_size': TILE_SIZE,
                         'tiles_per_bag': 1},
                        os.path.join(args.output_dir, 'Model_CheckPoints', 'model_data_Epoch_' + str(e) + '.pt'))
-            print('saved checkpoint to', args.output_dir) #RanS 23.6.21
+            print('saved checkpoint to', args.output_dir)
 
 
     all_writer.close()
@@ -267,13 +255,13 @@ def check_accuracy(model: nn.Module, data_loader: DataLoader, all_writer, DEVICE
                 fpr, tpr, _ = roc_curve(true_labels_test, scores_test)
                 roc_auc = auc(fpr, tpr)
 
-            #RanS 8.12.20, perform slide inference
+            # perform slide inference
             patch_df = pd.DataFrame({'slide': slide_names, 'scores': scores_test, 'labels': true_labels_test})
             slide_mean_score_df = patch_df.groupby('slide').mean()
             roc_auc_slide = np.nan
             if not all(slide_mean_score_df['labels'] == slide_mean_score_df['labels'][0]): #more than one label
                 roc_auc_slide = roc_auc_score(slide_mean_score_df['labels'], slide_mean_score_df['scores'])
-        else: #bootstrap, RanS 16.12.20
+        else: #bootstrap
             # load dataset
             # configure bootstrap
             n_iterations = 100
@@ -352,7 +340,7 @@ class LitModule(pl.LightningModule):
         self.model = eval(args.model)
         self.model_name = self.model.model_name
         if args.focal:
-            self.criterion = utils.FocalLoss(gamma=2)  # RanS 18.7.21
+            self.criterion = utils.FocalLoss(gamma=2)
         else:
             self.criterion = nn.CrossEntropyLoss()
 
@@ -429,10 +417,6 @@ if __name__ == '__main__':
     # Get number of available CPUs and compute number of workers:
     cpu_available = utils.get_cpu()
     num_workers = cpu_available
-    #num_workers = 4 #temp RanS 24.3.21
-
-    #if sys.platform == 'win32':
-    #    num_workers = 0 #temp RanS 3.5.21
 
     print('num workers = ', num_workers)
 
@@ -483,7 +467,6 @@ if __name__ == '__main__':
     test_loader  = DataLoader(test_dset, batch_size=args.batch_size*2, shuffle=False,
                               num_workers=num_workers, pin_memory=True)
 
-    # RanS 20.6.21
     if args.loan:
         train_labels_df = pd.DataFrame({'slide_name': train_loader.dataset.image_file_names, 'label': train_loader.dataset.target})
         test_labels_df = pd.DataFrame({'slide_name': test_loader.dataset.image_file_names, 'label': test_loader.dataset.target})
@@ -494,7 +477,7 @@ if __name__ == '__main__':
 
     # Load model
     #model = eval(args.model)
-    model = LitModule() #RanS 1.8.21
+    model = LitModule()
 
     # Save model data and data-set size to run_data.xlsx file (Only if this is a new run).
     if args.experiment == 0:
@@ -556,8 +539,8 @@ if __name__ == '__main__':
     #train(model, train_loader, test_loader, DEVICE=DEVICE, print_timing=args.time)
 
     #finished training, send email if possible
-    if os.path.isfile('mail_cfg.txt'):
-        with open("mail_cfg.txt", "r") as f:
+    if os.path.isfile('../mail_cfg.txt'):
+        with open("../mail_cfg.txt", "r") as f:
             text = f.readlines()
             receiver_email = text[0][:-1]
             password = text[1]

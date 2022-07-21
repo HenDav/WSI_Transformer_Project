@@ -2,13 +2,10 @@ import utils
 import datasets
 from torch.utils.data import DataLoader
 import torch
-import nets_mil
 from tqdm import tqdm
-import argparse
 import os
 from sklearn.metrics import roc_curve, auc
 import numpy as np
-import sys
 import matplotlib.pyplot as plt
 from cycler import cycler
 

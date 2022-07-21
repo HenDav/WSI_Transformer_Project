@@ -6,18 +6,14 @@ import torch.backends.cudnn as cudnn
 import torch
 import torch.optim as optim
 from tqdm import tqdm
-import time
 from torch.utils.tensorboard import SummaryWriter
 import argparse
 import os
-from sklearn.metrics import roc_curve, auc, roc_auc_score
+from sklearn.metrics import roc_curve, auc
 import numpy as np
 import sys
-import pandas as pd
-from sklearn.utils import resample
-import smtplib, ssl
 import psutil
-from Cox_Loss import Cox_loss
+from Survival.Cox_Loss import Cox_loss
 from sksurv.metrics import concordance_index_censored
 
 parser = argparse.ArgumentParser(description='WSI_REG Training of PathNet Project')

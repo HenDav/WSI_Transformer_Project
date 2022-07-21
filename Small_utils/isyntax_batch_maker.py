@@ -19,12 +19,11 @@ for root, subdirs, files in os.walk(args.indir):
         counter += 1
 
 batch_text += '\nECHO Done!'
-#fit to windown format
+#fit to windows format
 batch_text = batch_text.replace('/', '\\')
 batch_text = batch_text.replace('mnt', r'\gipnetappa')
 
-#text_file = open("/home/rschley/code/WSI_MIL/general_try4/python_batch4_050121.bat", "w")
-text_file = open(os.path.join(args.outdir, "python_batch5_250122.bat"), "w")
+text_file = open(os.path.join(args.outdir, "isyntax_batch_examples/python_batch5_250122.bat"), "w")
 text_file.write(batch_text)
 text_file.close()
 print('Finished')

@@ -1,5 +1,5 @@
 import utils
-import PreActResNets
+from Nets import PreActResNets
 from torch.utils.data import DataLoader
 import torch.nn as nn
 import torch.backends.cudnn as cudnn

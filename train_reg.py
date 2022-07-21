@@ -15,10 +15,10 @@ import numpy as np
 import pandas as pd
 from sklearn.utils import resample
 import psutil
-import nets, PreActResNets, resnet_v2
-from sphere_res import StereoSphereRes
+from Nets import nets, PreActResNets, resnet_v2
+from Nets.sphere_res import StereoSphereRes
 from datetime import datetime
-from Cox_Loss import Cox_loss
+from Survival.Cox_Loss import Cox_loss
 import re
 import logging
 import send_gmail

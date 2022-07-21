@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 import torch
 import torch.nn as nn
 from tqdm import tqdm
-from Cox_Loss import Cox_loss, L2_Loss
+from Survival.Cox_Loss import Cox_loss, L2_Loss
 import torch.optim as optim
 import utils
 from torch.utils.tensorboard import SummaryWriter

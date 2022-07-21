@@ -5,7 +5,6 @@ import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import torch
 import torch.optim as optim
-import nets_mil
 from tqdm import tqdm
 import time
 from torch.utils.tensorboard import SummaryWriter

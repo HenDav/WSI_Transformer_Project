@@ -81,8 +81,8 @@ except:
     message1 = fp.getvalue()
     print(message1)
 
-    if os.path.isfile('mail_cfg.txt'):
-        with open("mail_cfg.txt", "r") as f:
+    if os.path.isfile('../mail_cfg.txt'):
+        with open("../mail_cfg.txt", "r") as f:
             text = f.readlines()
             receiver_email = text[0][:-1]
             password = text[1]

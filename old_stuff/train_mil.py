@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import torch
 import torch.optim as optim
-from nets_mil import ResNet34_GN_GatedAttention, ResNet50_GN_GatedAttention
+from Nets.nets_mil import ResNet50_GN_GatedAttention
 from tqdm import tqdm
 import time
 from torch.utils.tensorboard import SummaryWriter
@@ -15,7 +15,6 @@ from sklearn.metrics import roc_curve, auc
 import numpy as np
 import sys
 import pandas as pd
-import torchvision.transforms as transforms
 
 parser = argparse.ArgumentParser(description='WSI_MIL Training of PathNet Project')
 parser.add_argument('-tf', '--test_fold', default=2, type=int, help='fold to be as TEST FOLD')

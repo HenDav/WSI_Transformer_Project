@@ -2,11 +2,8 @@ import utils
 import datasets
 from torch.utils.data import DataLoader
 import torch
-import nets_mil
-from nets_mil import ResNet34_GN_GatedAttention
 import numpy as np
 from sklearn.metrics import roc_curve, auc, roc_auc_score
-from matplotlib import pyplot as plt
 import os
 import sys
 import argparse

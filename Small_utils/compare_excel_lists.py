@@ -44,6 +44,7 @@ def merge_excel_lists(dirname, file1, file2, merge_key):
     df_m = pd.merge(df[0], df[1], how='outer', on=merge_key)
     df_m.to_excel(os.path.join(dirname, 'merged_file.xlsx'))
 
+
 def fix_TMA_slide_names_in_label_excel_list(dirname, fn, filename_key):
     df = pd.read_excel(os.path.join(dirname, fn))
     file_list = df[filename_key]
@@ -52,7 +53,8 @@ def fix_TMA_slide_names_in_label_excel_list(dirname, fn, filename_key):
         image_name = os.path.splitext(image_fn)[0]
         last_number = image_name.split('_')[-1]
         last_number_with_zeros = str(last_number).zfill(3)
-        new_image_name = '_'.join(image_name.split('_')[:-1]) + '_' + last_number_with_zeros + os.path.splitext(image_fn)[-1]
+        new_image_name = '_'.join(image_name.split('_')[:-1]) + '_' + \
+                         last_number_with_zeros + os.path.splitext(image_fn)[-1]
         new_names.append(new_image_name)
     df['new_file'] = new_names
     df.to_excel(os.path.join(dirname, fn + '_filename_zfilled.xlsx'))
