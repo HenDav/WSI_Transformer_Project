@@ -10,7 +10,7 @@ import argparse
 from tqdm import tqdm
 import pickle
 from collections import OrderedDict
-from Nets import resnet_v2
+from Nets import resnet_v2, PreActResNets
 import send_gmail
 import logging
 

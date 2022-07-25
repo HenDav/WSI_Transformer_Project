@@ -91,10 +91,10 @@ def prepare_dataset_step2(data_dir, Dataset, tile_size, tissue_coverage, mag, is
                                        desired_magnification=mag,
                                        num_workers=num_workers)
 
-        slide_inspector.create_slide_inspection_folder(in_dir=os.path.join(data_dir, Dataset),
-                                                       out_dir=os.path.join(data_dir, 'thumbs'),
-                                                       mag=mag,
-                                                       thumbs_only=True)
+    slide_inspector.create_slide_inspection_folder(in_dir=os.path.join(data_dir, Dataset),
+                                                   out_dir=os.path.join(data_dir, 'thumbs'),
+                                                   mag=mag,
+                                                   thumbs_only=False)
 
 
 def prepare_dataset_step3(data_dir, Dataset, hospital_metadata_file, fold_params, split_all_dataset_group, binary_label_list=[]):

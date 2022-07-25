@@ -4,13 +4,13 @@ import sys
 
 inference_files = {}
 
-exp = 813
+exp = 827
 fold = '5'
-target = 'MRD_all_days'
-dataset = 'ALL'
+target = 'onco_score_31'
+dataset = 'SHEBA'
 subdir = ''
 is_other = False
-csv_epoch = 1000
+csv_epoch = 2000
 
 patientless_list = ['TCGA_LUNG', 'HEROHE']
 if dataset in patientless_list or subdir in patientless_list:

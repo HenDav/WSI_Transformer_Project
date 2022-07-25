@@ -91,4 +91,4 @@ class fold_split_params:
         self.val_ratio = val_ratio  # percentage to be marked as "validation"
         self.test_ratio = test_ratio  # percentage to be marked as "test"
         self.n_folds = n_folds  # number of cross-validation folds
-        self.patient_column_name = patient_column_name # name of patient ID in slides_data
+        self.patient_column_name = patient_column_name  # name of patient ID in slides_data

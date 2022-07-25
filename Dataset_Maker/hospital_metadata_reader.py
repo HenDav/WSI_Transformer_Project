@@ -92,8 +92,9 @@ def add_hospital_labels_to_metadata(in_dir, dataset, hospital_metadata_file):
 
 
 def binarize_labels(binary_label_list):
-    pass #TODO
+    pass  # TODO
     # binary_data_fields = ['ER status', 'PR status', 'Her2 status', 'Ki67 status'] #fields which should be translated from 0,1 to Negative, Positive
+    # SAVE RAW DATA
     binary_data_fields = []  # fields which should be translated from 0,1 to Negative, Positive
 
 
