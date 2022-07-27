@@ -9,6 +9,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from cycler import cycler
 
+import utils_MIL
+
 '''
 parser = argparse.ArgumentParser(description='WSI_MIL Features Slide inference')
 parser.add_argument('-ex', '--experiment', type=int, default=10390, help='Continue train of this experiment')
@@ -191,7 +193,7 @@ for model_num, key in enumerate(MIL_models.keys()):
                 #all_slides_tile_scores_list_ran[model_num][slide_name[0]] = tile_scores_ran
 
                 features_to_save = torch.transpose(data.squeeze(0), 1, 0)
-                slide_tile_scores_list = utils.extract_tile_scores_for_slide(features_to_save, [model])
+                slide_tile_scores_list = utils_MIL.extract_tile_scores_for_slide(features_to_save, [model])
 
                 if len(slide_tile_scores_list[0]) != 500:
                     new_slide_tile_scores_list = np.zeros(500, )

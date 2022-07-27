@@ -12,6 +12,8 @@ import sys
 import matplotlib.pyplot as plt
 from cycler import cycler
 
+import utils_MIL
+
 parser = argparse.ArgumentParser(description='WSI_MIL Features Slide inference')
 parser.add_argument('-ex', '--experiment', type=int, default=10679, help='Use this model for inference')
 parser.add_argument('-fe', '--from_epoch', type=int, default=[500], help='Use this epoch model for inference')
@@ -126,9 +128,9 @@ if args.haemek_test_set:
 if dset == None:
     raise Exception('Dataset must be chosen')
 
-data_4_inference = utils.get_RegModel_Features_location_dict(train_DataSet=dset,
-                                                             target=run_data_output['Receptor'].replace('_Features', '', 1),  #run_data_output['Receptor'].split('_')[0],
-                                                             test_fold=run_data_output['Test Fold'])
+data_4_inference = utils_MIL.get_RegModel_Features_location_dict(train_DataSet=dset,
+                                                                 target=run_data_output['Receptor'].replace('_Features', '', 1),  #run_data_output['Receptor'].split('_')[0],
+                                                                 test_fold=run_data_output['Test Fold'])
 if '+ IS_TUMOR' in run_data_output['Dataset Name']:
     args.target = target.replace('_Features', '', 1)
     test_data_dir = (data_4_inference[0]['TestSet Location'], data_4_inference[1]['TestSet Location'])
@@ -345,7 +347,7 @@ for model_num, model_epoch in enumerate(args.from_epoch):
                         all_slides_tile_scores_list_ran[key][model_num][slide_name[0]] = tile_scores_ran
 
                         features_to_save = torch.transpose(data[key].squeeze(0), 1, 0)
-                        slide_tile_scores_list = utils.extract_tile_scores_for_slide(features_to_save, [model])
+                        slide_tile_scores_list = utils_MIL.extract_tile_scores_for_slide(features_to_save, [model])
 
                         if len(slide_tile_scores_list[0]) != 500:
                             new_slide_tile_scores_list = np.zeros(500, )
@@ -384,7 +386,7 @@ for model_num, model_epoch in enumerate(args.from_epoch):
                     all_slides_tile_scores_list_ran[model_num][slide_name[0]] = tile_scores_ran
 
                     features_to_save = torch.transpose(data.squeeze(0), 1, 0)
-                    slide_tile_scores_list = utils.extract_tile_scores_for_slide(features_to_save, [model])
+                    slide_tile_scores_list = utils_MIL.extract_tile_scores_for_slide(features_to_save, [model])
 
                     if len(slide_tile_scores_list[0]) != 500:
                         new_slide_tile_scores_list = np.zeros(500, )
@@ -431,9 +433,9 @@ for model_num, model_epoch in enumerate(args.from_epoch):
         all_tile_scores_dict = {'MIL': all_slides_tile_scores_list,
                                 'REG': all_slides_tile_scores_list_ran}
 
-        utils.save_all_slides_and_models_data(all_tile_scores_dict, all_slides_score_dict,
-                                              all_slides_weights_before_sftmx_list, all_slides_weights_after_sftmx_list,
-                                              [model], output_dir, args.from_epoch, '', true_test_path=key)
+        utils_MIL.save_all_slides_and_models_data(all_tile_scores_dict, all_slides_score_dict,
+                                                  all_slides_weights_before_sftmx_list, all_slides_weights_after_sftmx_list,
+                                                  [model], output_dir, args.from_epoch, '', true_test_path=key)
 
     #if not (args.carmel_test_set or args.haemek_test_set):  # We can skip this part when working with true test
     if compute_performance:

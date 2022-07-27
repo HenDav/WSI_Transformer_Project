@@ -323,9 +323,6 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                       time_epoch % 60))
         previous_epoch_loss = train_loss
 
-        '''# Update 'Last Epoch' at run_data.xlsx file:
-        utils.run_data(experiment=experiment, epoch=e)'''
-
         # Save model to file:
         try:
             model_state_dict = model.module.state_dict()

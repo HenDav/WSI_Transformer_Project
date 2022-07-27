@@ -1,4 +1,5 @@
 import utils
+import utils_MIL
 from datasets import Combined_Features_for_MIL_Training_dataset
 from torch.utils.data import DataLoader
 import torch.nn as nn
@@ -591,10 +592,10 @@ if __name__ == '__main__':
         print('Resuming training of Experiment {} from Epoch {}'.format(args.experiment, args.from_epoch))
 
     elif args.last_layer_freeze:  # This part will load the last linear layer from the REG model into the last layer (classifier part) of the attention module
-        datasets_location = utils.dataset_properties_to_location(dataset_name_list=train_dset.dataset_list,
-                                                                 receptor=args.target,
-                                                                 test_fold=args.test_fold,
-                                                                 is_train=True)
+        datasets_location = utils_MIL.dataset_properties_to_location(dataset_name_list=train_dset.dataset_list,
+                                                                     receptor=args.target,
+                                                                     test_fold=args.test_fold,
+                                                                     is_train=True)
 
         for idx in range(len(datasets_location)):
             dataset_name, _, _, basic_model_location = datasets_location[idx]

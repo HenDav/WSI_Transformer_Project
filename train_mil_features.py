@@ -5,6 +5,8 @@ import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import torch
 import torch.optim as optim
+
+import utils_MIL
 from Nets.PreActResNets import PreActResNet50_Ron
 from tqdm import tqdm
 import time
@@ -337,7 +339,7 @@ if __name__ == '__main__':
     # Data type definition:
     DATA_TYPE = 'Features'
 
-    data_location = utils.get_RegModel_Features_location_dict(train_DataSet=args.dataset, target=args.target, test_fold=args.test_fold)
+    data_location = utils_MIL.get_RegModel_Features_location_dict(train_DataSet=args.dataset, target=args.target, test_fold=args.test_fold)
 
     # TODO: WHAT DOES THIS DO ?
     if sys.platform == 'darwin' and type(data_location) == tuple and (data_location[0]['TrainSet Location'] == None and data_location[1]['TrainSet Location'] == None):

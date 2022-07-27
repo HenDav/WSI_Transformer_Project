@@ -1,3 +1,4 @@
+import Omer_files_suspected_as_unnecessary.omer_utils
 import utils
 import datasets
 from torch.utils.data import DataLoader
@@ -106,7 +107,7 @@ def train(models, optimizers, dloader_train: DataLoader, dloader_test: DataLoade
 
 
             # Update 'Last Epoch' at run_data.xlsx file:
-            utils.run_data_multi_model(experiments=experiments, epoch=e)
+            Omer_files_suspected_as_unnecessary.omer_utils.run_data_multi_model(experiments=experiments, epoch=e)
 
             # Save model to file:
             utils_multi_ops.save_models(models, optimizers, args.output_dir, e)
@@ -223,9 +224,9 @@ if __name__ == '__main__':
 
     # Save transformation data to 'run_data.xlsx'
     transformation_string = ', '.join([str(train_dset.transform.transforms[i]) for i in range(len(train_dset.transform.transforms))])
-    utils.run_data_multi_model(experiments=experiments, transformation_string=transformation_string)
+    Omer_files_suspected_as_unnecessary.omer_utils.run_data_multi_model(experiments=experiments, transformation_string=transformation_string)
 
-    utils.run_data_multi_model(experiments=experiments, models=models)
+    Omer_files_suspected_as_unnecessary.omer_utils.run_data_multi_model(experiments=experiments, models=models)
 
     epoch = args.epochs
     from_epoch = args.from_epoch

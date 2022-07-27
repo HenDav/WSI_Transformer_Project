@@ -7,6 +7,8 @@ import pandas as pd
 import os
 import sys
 
+import utils_MIL
+
 parser = argparse.ArgumentParser(description='Check traget inconsistency')
 parser.add_argument('-tf', '--test_fold', default=1, type=int, help='fold to be as TEST FOLD')
 parser.add_argument('-tar', '--target', default='Her2', type=str, help='label: Her2/ER/PR/EGFR/PDL1')
@@ -28,7 +30,7 @@ for _, key in enumerate(dir_dict):
 
 # Open feature files
 print('Opening feature files')
-data_location = utils.get_RegModel_Features_location_dict(train_DataSet=args.dataset, target=args.target, test_fold=args.test_fold)
+data_location = utils_MIL.get_RegModel_Features_location_dict(train_DataSet=args.dataset, target=args.target, test_fold=args.test_fold)
 
 train_dset = datasets.Features_MILdataset(dataset=args.dataset,
                                           data_location=data_location['TrainSet Location'],

@@ -1,3 +1,4 @@
+import Omer_files_suspected_as_unnecessary.omer_utils
 import utils
 import datasets
 from torch.utils.data import DataLoader
@@ -204,7 +205,7 @@ for tib_idx, tib in enumerate(TILES_IN_BAG):
             output_dir = Output_Dirs[model_num]
 
         # We'll now gather the data for computing performance per patient:
-        all_targets_per_patient, all_scores_for_class_1_per_patient = utils.gather_per_patient_data(all_targets, scores_class_1_per_bag[:, tib_idx, model_num], all_patient_barcodes)
+        all_targets_per_patient, all_scores_for_class_1_per_patient = Omer_files_suspected_as_unnecessary.omer_utils.gather_per_patient_data(all_targets, scores_class_1_per_bag[:, tib_idx, model_num], all_patient_barcodes)
 
         fpr_patient, tpr_patient, _ = roc_curve(all_targets_per_patient, all_scores_for_class_1_per_patient)
         roc_auc_patient = auc(fpr_patient, tpr_patient)

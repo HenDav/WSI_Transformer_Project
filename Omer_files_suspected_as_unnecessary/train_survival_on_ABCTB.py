@@ -1,4 +1,6 @@
 from sksurv.metrics import concordance_index_censored
+
+import Omer_files_suspected_as_unnecessary.omer_utils
 from datasets import WSI_REGdataset_Survival
 from torch.utils.data import DataLoader
 import torch
@@ -88,7 +90,7 @@ def train(from_epoch: int = 0, epochs: int = 2, data_loader=None):
             if args.time:
                 time_start = time.time()
 
-            minibatch = utils.concatenate_minibatch(minibatch, is_shuffle=True)
+            minibatch = Omer_files_suspected_as_unnecessary.omer_utils.concatenate_minibatch(minibatch, is_shuffle=True)
 
             data = minibatch['Data']
             target_time = minibatch['Time Target']
@@ -274,7 +276,7 @@ def test(current_epoch, test_data_loader, debug: bool = False):
     with torch.no_grad():
         for batch_idx, minibatch in enumerate(test_data_loader):
             if type(test_data_loader) != torch.utils.data.dataloader.DataLoader:
-                minibatch = utils.concatenate_minibatch(minibatch, is_shuffle=False)
+                minibatch = Omer_files_suspected_as_unnecessary.omer_utils.concatenate_minibatch(minibatch, is_shuffle=False)
 
             data = minibatch['Data']
             target_time = minibatch['Time Target']

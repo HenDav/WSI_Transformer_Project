@@ -5,6 +5,8 @@ from tqdm import tqdm
 import numpy as np
 from scipy.io import savemat, loadmat
 
+import utils_MIL
+
 compute_highest_and_lowest = True
 is_all_tiles = True
 dset = 'CARMEL 9-11'
@@ -15,7 +17,7 @@ which_carmel = 9
 filename_extension = dset + ' ' + target + ' TestFold_' + str(tf)
 if compute_highest_and_lowest:
     #data_dir_dict = utils.get_RegModel_Features_location_dict(train_DataSet='CAT with Location', target='ER', test_fold=1)
-    data_dir_dict = utils.get_RegModel_Features_location_dict(train_DataSet=dset, target=target, test_fold=tf)
+    data_dir_dict = utils_MIL.get_RegModel_Features_location_dict(train_DataSet=dset, target=target, test_fold=tf)
     if dset == 'CARMEL 9-11':
         data_location = data_dir_dict['TestSet Location']['Carmel ' + str(which_carmel)]
     else:

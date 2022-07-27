@@ -1,3 +1,4 @@
+import Omer_files_suspected_as_unnecessary.omer_utils
 import utils
 import datasets
 from torch.utils.data import DataLoader
@@ -9,6 +10,8 @@ import sys
 import argparse
 from tqdm import tqdm
 import pickle
+
+import utils_MIL
 
 parser = argparse.ArgumentParser(description='WSI_MIL Slide inference')
 parser.add_argument('-ex', '--experiment', type=int, default=[10547], help='Continue train of this experiment')
@@ -183,7 +186,7 @@ with torch.no_grad():
         if last_batch:
             # Save tile features and last models layer to file:
             if args.save_tile_scores:
-                slide_tile_scores_list = utils.extract_tile_scores_for_slide(all_features, models)
+                slide_tile_scores_list = utils_MIL.extract_tile_scores_for_slide(all_features, models)
                 for idx in range(len(models)):
                     if len(slide_tile_scores_list[idx]) != args.num_tiles:
                         new_slide_tile_scores_list = np.zeros(args.num_tiles, )
@@ -238,7 +241,7 @@ with torch.no_grad():
 if args.save_tile_scores:
     if not different_experiments:
         Output_Dirs = output_dir
-    utils.save_all_slides_and_models_data(all_slides_tile_scores_list, all_slides_scores_list, all_slides_weights_list, models, Output_Dirs, args.from_epoch, data_path)
+    utils_MIL.save_all_slides_and_models_data(all_slides_tile_scores_list, all_slides_scores_list, all_slides_weights_list, models, Output_Dirs, args.from_epoch, data_path)
 
 # Computing performance data for all models (over all slides scores data):
 for model_num in range(NUM_MODELS):
@@ -246,7 +249,7 @@ for model_num in range(NUM_MODELS):
         output_dir = Output_Dirs[model_num]
 
     # We'll now gather the data for computing performance per patient:
-    all_targets_per_patient, all_scores_for_class_1_per_patient = utils.gather_per_patient_data(all_targets, all_scores_for_class_1[:, model_num], all_patient_barcodes)
+    all_targets_per_patient, all_scores_for_class_1_per_patient = Omer_files_suspected_as_unnecessary.omer_utils.gather_per_patient_data(all_targets, all_scores_for_class_1[:, model_num], all_patient_barcodes)
 
     fpr_patient, tpr_patient, _ = roc_curve(all_targets_per_patient, all_scores_for_class_1_per_patient)
     roc_auc_patient = auc(fpr_patient, tpr_patient)
