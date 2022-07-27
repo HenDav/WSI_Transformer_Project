@@ -86,7 +86,7 @@ if __name__ == '__main__':
                     year = int(barcode[4])+14
                     barcode_adjust = str(year) + '-' + barcode[5:]
                 if re.search("\d{2}-\d+/\d+/\d+/\w", barcode_adjust) is not None or is_carmel is False:
-                    code_dict = {'SlideID': barcode_adjust, 'file': os.path.basename(img_file), 'box': box}
+                    code_dict = {'SlideID': barcode_adjust, 'file': os.path.basename(img_file), 'Box': box}
                     df = df.append(code_dict, ignore_index=True)
                     rect = patches.Rectangle((left, h_img - top - height), width, height,
                                              linewidth=2, edgecolor='r', facecolor='none')

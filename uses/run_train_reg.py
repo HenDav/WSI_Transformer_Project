@@ -3,7 +3,7 @@ import subprocess
 infer = False
 
 if infer:
-    subprocess.run(['python', 'inference_Multi_REG.py',
+    subprocess.run(['python', '../inference_Multi_REG.py',
                     '--folds', '12345',
                     #'--folds', '2',
                     #'--dataset', 'Breast',
@@ -26,22 +26,22 @@ if infer:
                     ])
 else:
     #subprocess.run(['python', 'train_reg.py',
-    subprocess.run(['python', 'train_reg.py',
+    subprocess.run(['python', '../train_reg.py',
                     '--test_fold', '1',
                     #'--epochs', '10',
                     #'--dataset', 'PORTO_PDL1',
                     #'--dataset', 'Breast',
                     #'--dataset', 'ABCTB',
                     #'--dataset', 'ABCTB_TCGA',
-                    '--dataset', 'SHEBA',
+                    #'--dataset', 'SHEBA',
                     #'--dataset', 'TMA',
-                    #'--dataset', 'LEUKEMIA',
+                    '--dataset', 'ALL',
                     #'--dataset', 'TCGA',
                     #'--target', 'ER',
                     #'--target', 'temp',
                     #'--target', 'is_tel_aml_B',
                     #'--target', 'ER+PR+Her2',
-                    '--target', 'onco_score_all',
+                    '--target', 'provisional risk',
                     #'--target', 'Her2',
                     '--batch_size', '1',
                     #'--batch_size', '4',

@@ -101,7 +101,7 @@ def prepare_dataset_step3(data_dir, Dataset, hospital_metadata_file, fold_params
 
     slide_remove.remove_slides_according_to_list(data_dir, Dataset)
 
-    rename_duplicate_slides() #TODO
+    slide_remove.rename_duplicate_slides(data_dir, Dataset)
 
     hospital_metadata_reader.add_hospital_labels_to_metadata(data_dir, Dataset, hospital_metadata_file)
 

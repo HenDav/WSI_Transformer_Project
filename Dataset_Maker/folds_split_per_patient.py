@@ -2,6 +2,7 @@ from Dataset_Maker import dataset_utils
 import numpy as np
 from random import shuffle
 import pandas as pd
+from dataclasses import dataclass
 
 
 def split_dataset_into_folds(data_dir, dataset, fold_params, split_all_dataset_group=False):
@@ -82,13 +83,10 @@ def split_single_dataset_into_folds_inline_w_dataset_group(in_file, fold_params)
     pass #todo
 
 
+@dataclass
 class fold_split_params:
-    def __init__(self,
-                 n_folds=5,
-                 test_ratio=0.25,
-                 val_ratio=0,
-                 patient_column_name='patient barcode'):
-        self.val_ratio = val_ratio  # percentage to be marked as "validation"
-        self.test_ratio = test_ratio  # percentage to be marked as "test"
-        self.n_folds = n_folds  # number of cross-validation folds
-        self.patient_column_name = patient_column_name  # name of patient ID in slides_data
+    n_folds: int = 5
+    test_ratio: float = 0.25
+    val_ratio: float = 0
+    patient_column_name: str = 'patient barcode'
+

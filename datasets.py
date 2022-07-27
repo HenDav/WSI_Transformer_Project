@@ -270,13 +270,14 @@ class WSI_Master_Dataset(Dataset):
                 logging.info('slide_per_block: removing ' + str(len(excess_block_slides)) + ' slides')
             else:
                 IOError('slide_per_block only implemented for CARMEL dataset')
-        elif (DataSet in ['LEUKEMIA', 'ALL']) and (target_kind in ['AML', 'ALL', 'is_B', 'is_HR', 'is_over_6', 'is_over_10', 'is_over_15', 'WBC_over_20', 'WBC_over_50', 'is_HR_B', 'is_tel_aml_B', 'is_tel_aml_non_hr_B', 'MRD_day0']):
-            #remove slides with diagnosis day != 0
-            excess_block_slides = set(self.meta_data_DF.index[self.meta_data_DF['Day_0/15/33_fixed'] != 0])
         elif (DataSet in ['LEUKEMIA', 'ALL']) and (target_kind == 'MRD_day33'):
             excess_block_slides = set(self.meta_data_DF.index[self.meta_data_DF['Day_0/15/33_fixed'] != 33])
         elif (DataSet in ['LEUKEMIA', 'ALL']) and (target_kind == 'MRD_day15'):
             excess_block_slides = set(self.meta_data_DF.index[self.meta_data_DF['Day_0/15/33_fixed'] != 15])
+        #elif (DataSet in ['LEUKEMIA', 'ALL']) and (target_kind in ['AML', 'ALL', 'is_B', 'is_HR', 'is_over_6', 'is_over_10', 'is_over_15', 'WBC_over_20', 'WBC_over_50', 'is_HR_B', 'is_tel_aml_B', 'is_tel_aml_non_hr_B', 'MRD_day0']):
+        elif (DataSet in ['LEUKEMIA', 'ALL']): #for leukemia, take only day0 as default
+            #remove slides with diagnosis day != 0
+            excess_block_slides = set(self.meta_data_DF.index[self.meta_data_DF['Day_0/15/33_fixed'] != 0])
         else:
             excess_block_slides = set()
 
@@ -290,7 +291,7 @@ class WSI_Master_Dataset(Dataset):
             else:
                 all_targets_string = []
                 for target in all_targets:
-                    if (type(target) == int) or (type(target) == float):
+                    if (type(target) == int or type(target) == float) and not np.isnan(target):
                         all_targets_string.append(str(int(target)))
                     else:
                         all_targets_string.append(str(target))

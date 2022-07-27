@@ -891,7 +891,8 @@ def assert_dataset_target(DataSet, target_kind):
                                                                          'is_over_10', 'is_over_15', 'WBC_over_20',
                                                                          'WBC_over_50', 'is_HR_B', 'is_tel_aml_B',
                                                                          'is_tel_aml_non_hr_B', 'MRD_day0', 'MRD_day15',
-                                                                         'MRD_day33', 'MRD_all_days', 'AML'}:
+                                                                         'MRD_day33', 'MRD_all_days', 'AML',
+                                                                         'provisional risk', 'provisional risk 10'}:
         raise ValueError('Invalid target for DataSet')
     elif (DataSet in ['ABCTB', 'ABCTB_TIF']) and not target_kind <= {'ER', 'PR', 'Her2', 'survival', 'Survival_Time', 'Survival_Binary'}:
         raise ValueError('target should be one of: ER, PR, Her2, survival, Survival_Time, Survival_Binary. {} was given as target'.format(target_kind))

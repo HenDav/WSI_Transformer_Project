@@ -4,13 +4,13 @@ import sys
 
 inference_files = {}
 
-exp = 827
+exp = 854
 fold = '5'
-target = 'onco_score_31'
-dataset = 'SHEBA'
+target = 'provisional risk'
+dataset = 'ALL'
 subdir = ''
 is_other = False
-csv_epoch = 2000
+csv_epoch = 1000
 
 patientless_list = ['TCGA_LUNG', 'HEROHE']
 if dataset in patientless_list or subdir in patientless_list:
@@ -18,8 +18,6 @@ if dataset in patientless_list or subdir in patientless_list:
 else:
     patient_level = True
 save_csv = True
-
-#patient_level = False #temp
 
 if sys.platform == 'win32':
     if is_other:
