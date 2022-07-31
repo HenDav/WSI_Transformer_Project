@@ -1,7 +1,7 @@
 from sksurv.metrics import concordance_index_censored
 
 import Omer_files_suspected_as_unnecessary.omer_utils
-from datasets import WSI_REGdataset_Survival
+from Omer_files_suspected_as_unnecessary.omer_datasets import WSI_REGdataset_Survival
 from torch.utils.data import DataLoader
 import torch
 import torch.nn as nn

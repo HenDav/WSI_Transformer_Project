@@ -4,9 +4,9 @@ import sys
 
 inference_files = {}
 
-exp = 854
+exp = 891
 fold = '5'
-target = 'provisional risk'
+target = 'is_over_10'
 dataset = 'ALL'
 subdir = ''
 is_other = False

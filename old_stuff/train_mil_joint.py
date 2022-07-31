@@ -1,3 +1,4 @@
+import Omer_files_suspected_as_unnecessary.omer_datasets
 import utils
 import datasets
 from torch.utils.data import DataLoader
@@ -464,35 +465,35 @@ if __name__ == '__main__':
     else:
         test_transform = 'none'
 
-    train_dset = datasets.WSI_MILdataset(DataSet=args.dataset,
-                                         tile_size=TILE_SIZE,
-                                         bag_size=TILES_PER_BAG,
-                                         target_kind=args.target,
-                                         test_fold=args.test_fold,
-                                         train=True,
-                                         print_timing=args.time,
-                                         #transform=args.transformation,
-                                         transform_type=args.transform_type,
-                                         DX=args.dx,
-                                         get_images=args.images,
-                                         color_param=args.c_param,
-                                         desired_slide_magnification=args.mag)
+    train_dset = Omer_files_suspected_as_unnecessary.omer_datasets.WSI_MILdataset(DataSet=args.dataset,
+                                                                                  tile_size=TILE_SIZE,
+                                                                                  bag_size=TILES_PER_BAG,
+                                                                                  target_kind=args.target,
+                                                                                  test_fold=args.test_fold,
+                                                                                  train=True,
+                                                                                  print_timing=args.time,
+                                                                                  #transform=args.transformation,
+                                                                                  transform_type=args.transform_type,
+                                                                                  DX=args.dx,
+                                                                                  get_images=args.images,
+                                                                                  color_param=args.c_param,
+                                                                                  desired_slide_magnification=args.mag)
 
-    test_dset = datasets.WSI_MILdataset(DataSet=args.dataset,
-                                        tile_size=TILE_SIZE,
-                                        #bag_size=TILES_PER_BAG,
-                                        bag_size=args.bag_size_test, #RanS 29.12.20
-                                        target_kind=args.target,
-                                        test_fold=args.test_fold,
-                                        train=False,
-                                        print_timing=False,
-                                        #transform=False,
-                                        #transform_type='none',
-                                        transform_type=test_transform,
-                                        DX=args.dx,
-                                        get_images=args.images,
-                                        test_time_augmentation=args.tta,
-                                        desired_slide_magnification=args.mag)
+    test_dset = Omer_files_suspected_as_unnecessary.omer_datasets.WSI_MILdataset(DataSet=args.dataset,
+                                                                                 tile_size=TILE_SIZE,
+                                                                                 #bag_size=TILES_PER_BAG,
+                                                                                 bag_size=args.bag_size_test,  #RanS 29.12.20
+                                                                                 target_kind=args.target,
+                                                                                 test_fold=args.test_fold,
+                                                                                 train=False,
+                                                                                 print_timing=False,
+                                                                                 #transform=False,
+                                                                                 #transform_type='none',
+                                                                                 transform_type=test_transform,
+                                                                                 DX=args.dx,
+                                                                                 get_images=args.images,
+                                                                                 test_time_augmentation=args.tta,
+                                                                                 desired_slide_magnification=args.mag)
 
 
     sampler = None

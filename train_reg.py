@@ -172,13 +172,8 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                     loss_array = torch.zeros(batch_len, N_targets)
                     for i_target in range(N_targets):
                         loss_array[:, i_target] = criterion(outputs[:, i_target*2 : i_target*2 + 2], target[:, i_target].reshape(batch_len))
-                    #loss_array[:, 0] = criterion(outputs[:, :2], target[:, 0].reshape(batch_len))
-                    #loss_array[:, 1] = criterion(outputs[:, 2:], target[:, 1].reshape(batch_len))
                     mask = loss_array != 0
                     loss = torch.mean((loss_array * mask).sum(dim=1) / mask.sum(dim=1))
-                    # outputs = torch.cat((torch.nn.functional.softmax(outputs[:, :2], dim=1), torch.nn.functional.softmax(outputs[:, 2:], dim=1)),dim=1)
-                    # predicted = torch.vstack((outputs[:, :2].max(1).indices, outputs[:, 2:].max(1).indices))
-                    # scores_train = np.hstack((scores_train, np.vstack((outputs[:, 1].cpu().detach().numpy(), outputs[:, 3].cpu().detach().numpy()))))
                     outputs_softmax = torch.zeros_like(outputs)
                     for i_target in range(N_targets):
                         outputs_softmax[:, i_target*2: i_target*2 + 2] = torch.nn.functional.softmax(outputs[:, i_target * 2: i_target*2 + 2], dim=1)
@@ -197,22 +192,12 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                         correct_neg[i_target] += predicted[i_target, target_squeezed[i_target, :].cpu().eq(0)].eq(0).sum().item()
                     scores_train = np.hstack((scores_train, scores_train_batch))
                 else:
-                    #print('outputs:', outputs)  # temp
-                    #print('target:', target)  # temp
-                    #print('f_names:', f_names)
                     loss = criterion(outputs, target)
-                    #print('loss.shape:', loss.shape)  # temp
                     outputs = torch.nn.functional.softmax(outputs, dim=1)
                     _, predicted = outputs.max(1)
                     if N_classes == 2:
                         scores_train = np.concatenate((scores_train, outputs[:, 1].cpu().detach().numpy()))
                     else:
-                        #print('scores_train.shape:', scores_train.shape) #temp
-                        #print('outputs.shape:', outputs.shape)  # temp
-                        #print('outputs.cpu().shape:', outputs.cpu().shape)  # temp
-                        #print('outputs.cpu().detach().shape:', outputs.cpu().detach().shape)  # temp
-                        #print('outputs.cpu().detach().numpy().shape:', outputs.cpu().detach().numpy().shape)  # temp
-
                         scores_train = np.hstack((scores_train, outputs.cpu().detach().numpy().transpose()))
                     true_targets_train = np.concatenate((true_targets_train, target.cpu().detach().numpy()))
                     total_pos_train += target.eq(1).sum().item()
@@ -265,7 +250,7 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
         if print_timing:
             time_writer.add_scalar('Time/Full Epoch [min]', time_epoch / 60, e)
 
-        train_loss /= len(dloader_train) #normalize loss
+        train_loss /= len(dloader_train)  # normalize loss
         train_acc = 100 * correct_labeling / total
         balanced_acc_train = 100. * ((correct_pos + EPS) / (total_pos_train + EPS) + (correct_neg + EPS) / (total_neg_train + EPS)) / 2
 
@@ -279,12 +264,6 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                     all_writer.add_scalars('Train/Balanced Accuracy', {target_list[i_target]: balanced_acc_train[i_target]}, e)
                     all_writer.add_scalars('Train/Roc-Auc', {target_list[i_target]: roc_auc_train[i_target]}, e)
                     all_writer.add_scalars('Train/Accuracy', {target_list[i_target]: train_acc[i_target]}, e)
-            '''if len(np.unique(true_targets_train[1, true_targets_train[1,:] >= 0])) > 1:  # more than one label
-                fpr_train, tpr_train, _ = roc_curve(true_targets_train[1, true_targets_train[1,:] >= 0], scores_train[1, true_targets_train[1,:] >= 0])
-                roc_auc_train[1] = auc(fpr_train, tpr_train)
-            all_writer.add_scalars('Train/Balanced Accuracy', {target0: balanced_acc_train[0], target1: balanced_acc_train[1]}, e)
-            all_writer.add_scalars('Train/Roc-Auc', {target0: roc_auc_train[0], target1: roc_auc_train[1]}, e)
-            all_writer.add_scalars('Train/Accuracy', {target0: train_acc[0], target1: train_acc[1]}, e)'''
         elif N_classes > 2: #multiclass
             #calculate binary AUC scores for each threshold
             for i_thresh in range(N_classes-1):
@@ -301,19 +280,13 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             all_writer.add_scalar('Train/Accuracy', train_acc, e)
         else:
             roc_auc_train = np.float64(np.nan)
-            if len(np.unique(true_targets_train[true_targets_train >= 0])) > 1:  #more than one label
+            if len(np.unique(true_targets_train[true_targets_train >= 0])) > 1:  # more than one label
                 fpr_train, tpr_train, _ = roc_curve(true_targets_train, scores_train)
                 roc_auc_train = auc(fpr_train, tpr_train)
             all_writer.add_scalar('Train/Balanced Accuracy', balanced_acc_train, e)
             all_writer.add_scalar('Train/Roc-Auc', roc_auc_train, e)
             all_writer.add_scalar('Train/Accuracy', train_acc, e)
         all_writer.add_scalar('Train/Loss Per Epoch', train_loss, e)
-        '''print('Finished Epoch: {}, Loss: {:.2f}, Loss Delta: {:.3f}, Train AUC per patch: {:.2f} , Time: {:.0f} m'
-              .format(e,
-                      train_loss,
-                      previous_epoch_loss - train_loss,
-                      roc_auc_train if roc_auc_train.size == 1 else roc_auc_train[0],
-                      time_epoch))'''
         logging.info('Finished Epoch: {}, Loss: {:.4f}, Loss Delta: {:.3f}, Train AUC per patch: {:.2f} , Time: {:.0f} m {:.0f} s'
               .format(e,
                       train_loss,
@@ -398,7 +371,6 @@ def check_accuracy(model: nn.Module, data_loader: DataLoader, all_writer, DEVICE
     model.eval()
 
     with torch.no_grad():
-        #for idx, (data, targets, time_list, f_names, _) in enumerate(data_loader):
         for batch_idx, minibatch in enumerate(data_loader):
             data = minibatch['Data']
             targets = minibatch['Target']

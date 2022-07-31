@@ -67,6 +67,14 @@ def correct_barcode_position():
     return code_x, code_y
 
 
+def format_empty_spaces_as_string(worksheet, ind):
+    text_format = workbook.add_format({'num_format': '@'})
+    for col in ['C', 'D', 'E', 'F', 'G']:
+        worksheet.write(col + str(ind + 2), '', text_format)
+        #worksheet.write_string(col + str(ind + 2), 'aa')
+    return worksheet
+
+
 if __name__ == '__main__':
     start_time = time.time()
     prev_time = start_time
@@ -177,6 +185,7 @@ if __name__ == '__main__':
         img_file = os.path.join(img_dir, 'out', 'temp_fig' + str(ii) + '.png')
         worksheet.write_string('A' + str(ii + 2), filenames[ii])
         worksheet.write_string('B' + str(ii + 2), boxnames[ii])
+        worksheet = format_empty_spaces_as_string(worksheet, ii)
         worksheet.insert_image('H' + str(ii + 2), img_file, {'x_scale': 0.2, 'y_scale': 0.2})
         formula_string = '=CONCATENATE(C' + str(ii + 2) + ',"-",D' + str(ii + 2) + ',"/",E' + str(
             ii + 2) + ',"/",F' + str(ii + 2) + ',"/",G' + str(ii + 2) + ')'

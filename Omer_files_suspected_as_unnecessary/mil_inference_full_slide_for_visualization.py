@@ -1,3 +1,4 @@
+import Omer_files_suspected_as_unnecessary.omer_datasets
 import datasets
 import utils
 import sys
@@ -48,12 +49,12 @@ model.features_part = True
 if sys.platform == 'darwin':
     TILE_SIZE = 128
 
-inf_dset = datasets.Full_Slide_Inference_Dataset(DataSet=args.dataset,
-                                                 tile_size=TILE_SIZE,
-                                                 tiles_per_iter=20,
-                                                 target_kind=args.target,
-                                                 folds=args.folds,
-                                                 desired_slide_magnification=desired_magnification)
+inf_dset = Omer_files_suspected_as_unnecessary.omer_datasets.Full_Slide_Inference_Dataset(DataSet=args.dataset,
+                                                                                          tile_size=TILE_SIZE,
+                                                                                          tiles_per_iter=20,
+                                                                                          target_kind=args.target,
+                                                                                          folds=args.folds,
+                                                                                          desired_slide_magnification=desired_magnification)
 
 inf_loader = DataLoader(inf_dset, batch_size=1, shuffle=False, num_workers=0, pin_memory=True)
 

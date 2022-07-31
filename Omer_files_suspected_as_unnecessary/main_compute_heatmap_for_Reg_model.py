@@ -4,7 +4,7 @@ for a slide.
 The computation uses a trained model and works.
 """
 
-from datasets import Full_Slide_Inference_Dataset
+from Omer_files_suspected_as_unnecessary.omer_datasets import Full_Slide_Inference_Dataset
 import torch
 from torch.utils.data import DataLoader
 import utils

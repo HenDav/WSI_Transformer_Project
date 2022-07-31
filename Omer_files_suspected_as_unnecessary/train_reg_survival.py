@@ -1,3 +1,4 @@
+import Omer_files_suspected_as_unnecessary.omer_datasets
 import utils
 import datasets
 from torch.utils.data import DataLoader
@@ -341,10 +342,10 @@ if __name__ == '__main__':
         binary_target = False
 
     if args.dataset == 'Survival Synthetic':
-        train_dset = datasets.C_Index_Test_Dataset(train=True,
-                                                   binary_target=binary_target)
-        test_dset = datasets.C_Index_Test_Dataset(train=False,
-                                                  binary_target=binary_target)
+        train_dset = Omer_files_suspected_as_unnecessary.omer_datasets.C_Index_Test_Dataset(train=True,
+                                                                                            binary_target=binary_target)
+        test_dset = Omer_files_suspected_as_unnecessary.omer_datasets.C_Index_Test_Dataset(train=False,
+                                                                                           binary_target=binary_target)
     else:
         print('NOT Implemented')
         exit()

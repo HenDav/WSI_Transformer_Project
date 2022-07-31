@@ -15,6 +15,8 @@ import numpy as np
 import sys
 import pandas as pd
 
+import Omer_files_suspected_as_unnecessary.omer_datasets
+
 parser = argparse.ArgumentParser(description='WSI_MIL Training of PathNet Project')
 parser.add_argument('-tf', '--test_fold', default=2, type=int, help='fold to be as TEST FOLD')
 parser.add_argument('-e', '--epochs', default=2, type=int, help='Epochs to run')
@@ -395,29 +397,29 @@ if __name__ == '__main__':
         experiment = args.experiment
 
     # Get data:
-    train_dset = datasets_new.WSI_MILdataset(DataSet=args.dataset,
-                                             tile_size=TILE_SIZE,
-                                             bag_size=args.tiles_per_bag,
-                                             target_kind=args.target,
-                                             test_fold=args.test_fold,
-                                             train=True,
-                                             print_timing=args.time,
-                                             transform_type=args.transform_type,
-                                             DX=args.dx,
-                                             get_images=args.images,
-                                             desired_slide_magnification=10)
+    train_dset = Omer_files_suspected_as_unnecessary.omer_datasets.WSI_MILdataset(DataSet=args.dataset,
+                                                                                  tile_size=TILE_SIZE,
+                                                                                  bag_size=args.tiles_per_bag,
+                                                                                  target_kind=args.target,
+                                                                                  test_fold=args.test_fold,
+                                                                                  train=True,
+                                                                                  print_timing=args.time,
+                                                                                  transform_type=args.transform_type,
+                                                                                  DX=args.dx,
+                                                                                  get_images=args.images,
+                                                                                  desired_slide_magnification=10)
 
-    test_dset = datasets_new.WSI_MILdataset(DataSet=args.dataset,
-                                            tile_size=TILE_SIZE,
-                                            bag_size=args.tiles_per_bag,
-                                            target_kind=args.target,
-                                            test_fold=args.test_fold,
-                                            train=False,
-                                            print_timing=False,
-                                            transform_type='none',
-                                            DX=args.dx,
-                                            get_images=args.images,
-                                            desired_slide_magnification=10)
+    test_dset = Omer_files_suspected_as_unnecessary.omer_datasets.WSI_MILdataset(DataSet=args.dataset,
+                                                                                 tile_size=TILE_SIZE,
+                                                                                 bag_size=args.tiles_per_bag,
+                                                                                 target_kind=args.target,
+                                                                                 test_fold=args.test_fold,
+                                                                                 train=False,
+                                                                                 print_timing=False,
+                                                                                 transform_type='none',
+                                                                                 DX=args.dx,
+                                                                                 get_images=args.images,
+                                                                                 desired_slide_magnification=10)
 
 
     train_loader = DataLoader(train_dset, batch_size=args.num_bags, shuffle=True, num_workers=cpu_available, pin_memory=True)

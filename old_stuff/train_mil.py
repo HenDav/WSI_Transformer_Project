@@ -1,3 +1,4 @@
+import Omer_files_suspected_as_unnecessary.omer_datasets
 import utils
 import datasets
 from torch.utils.data import DataLoader
@@ -426,27 +427,27 @@ if __name__ == '__main__':
 
     # Get data:
     if not args.multi_slides:
-        train_dset = datasets.WSI_MILdataset(DataSet=args.dataset,
-                                             tile_size=TILE_SIZE,
-                                             bag_size=TILES_PER_BAG,
-                                             target_kind=args.look_for,
-                                             test_fold=args.test_fold,
-                                             train=True,
-                                             print_timing=args.time,
-                                             transform_type=args.transform_type,
-                                             DX=args.dx,
-                                             get_images=args.images)
+        train_dset = Omer_files_suspected_as_unnecessary.omer_datasets.WSI_MILdataset(DataSet=args.dataset,
+                                                                                      tile_size=TILE_SIZE,
+                                                                                      bag_size=TILES_PER_BAG,
+                                                                                      target_kind=args.look_for,
+                                                                                      test_fold=args.test_fold,
+                                                                                      train=True,
+                                                                                      print_timing=args.time,
+                                                                                      transform_type=args.transform_type,
+                                                                                      DX=args.dx,
+                                                                                      get_images=args.images)
 
-        test_dset = datasets.WSI_MILdataset(DataSet=args.dataset,
-                                            tile_size=TILE_SIZE,
-                                            bag_size=TILES_PER_BAG,
-                                            target_kind=args.look_for,
-                                            test_fold=args.test_fold,
-                                            train=False,
-                                            print_timing=False,
-                                            transform_type='none',
-                                            DX=args.dx,
-                                            get_images=args.images)
+        test_dset = Omer_files_suspected_as_unnecessary.omer_datasets.WSI_MILdataset(DataSet=args.dataset,
+                                                                                     tile_size=TILE_SIZE,
+                                                                                     bag_size=TILES_PER_BAG,
+                                                                                     target_kind=args.look_for,
+                                                                                     test_fold=args.test_fold,
+                                                                                     train=False,
+                                                                                     print_timing=False,
+                                                                                     transform_type='none',
+                                                                                     DX=args.dx,
+                                                                                     get_images=args.images)
     else:
         train_dset = datasets.WSI_MIL3_dataset(DataSet=args.dataset,
                                                tile_size=TILE_SIZE,
