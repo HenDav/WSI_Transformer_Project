@@ -336,3 +336,10 @@ def load_backup_slides_data(in_dir, dataset, extension=''):
         backup_dataset_metadata(slides_data_file, extension=extension)
     slides_data_DF = open_excel_file(slides_data_file)
     return slides_data_file, slides_data_DF
+
+
+def format_empty_spaces_as_string(workbook, worksheet, ind):
+    text_format = workbook.add_format({'num_format': '@'})
+    for col in ['C', 'D', 'E', 'F', 'G']:
+        worksheet.write(col + str(ind + 2), '', text_format)
+    return worksheet

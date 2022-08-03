@@ -5,13 +5,6 @@ import pandas as pd
 from Dataset_Maker import dataset_utils
 from pathlib import Path
 
-parser = argparse.ArgumentParser(description='hospital metadata reader')
-parser.add_argument('--in_dir', default=r'C:\ran_data\Benign', type=str, help='input dir')
-parser.add_argument('--dataset', default=r'BENIGN', type=str, help='name of dataset') #CARMEL, HAEMEK, BENIGN
-args = parser.parse_args()
-
-in_dir = args.in_dir
-
 
 def add_hospital_labels_to_metadata(in_dir, dataset, hospital_metadata_file):
     # TODO split to subfunctions
@@ -91,12 +84,28 @@ def add_hospital_labels_to_metadata(in_dir, dataset, hospital_metadata_file):
     dataset_utils.save_df_to_excel(meta_data_DF, slides_data_file)
 
 
-def binarize_labels(binary_label_list):
-    pass  # TODO
-    # binary_data_fields = ['ER status', 'PR status', 'Her2 status', 'Ki67 status'] #fields which should be translated from 0,1 to Negative, Positive
+def binarize_labels(in_dir, dataset, binary_data_fields):
+    # fields which should be translated from 0,1 to Negative, Positive
+    # binary_data_fields = ['ER status', 'PR status', 'Her2 status', 'Ki67 status']
+    backup_ext = '_before_data_fields_binarization'
+
+    slides_data_file, slides_data_DF = dataset_utils.load_backup_slides_data(in_dir, dataset, extension=backup_ext)
+
     # SAVE RAW DATA
-    binary_data_fields = []  # fields which should be translated from 0,1 to Negative, Positive
+    #binary_data_fields = []
+    for field in binary_data_fields:
+        slides_data_DF[field] = slides_data_DF[field].replace(1, 'Positive', regex=True)
+        slides_data_DF[field] = slides_data_DF[field].replace(0, 'Negative', regex=True)
+
+    dataset_utils.save_df_to_excel(slides_data_DF, slides_data_file)
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='hospital metadata reader')
+    parser.add_argument('--in_dir', default=r'C:\ran_data\Benign', type=str, help='input dir')
+    parser.add_argument('--dataset', default=r'BENIGN', type=str, help='name of dataset')  # CARMEL, HAEMEK, BENIGN
+    args = parser.parse_args()
+
+    in_dir = args.in_dir
+
     pass  # TODO

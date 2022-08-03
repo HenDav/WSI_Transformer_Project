@@ -11,6 +11,7 @@ import time
 import argparse
 import xlsxwriter
 from Barcode_detection.get_barcode_list_from_box_images import get_box_name
+from Dataset_Maker.dataset_utils import format_empty_spaces_as_string
 
 parser = argparse.ArgumentParser(description='Barcode_detection')
 parser.add_argument('-in', '--img_dir', type=str, default=r'C:\ran_data\RAMBAM\AH7-AH8_taken', help='input directory')
@@ -65,14 +66,6 @@ def correct_barcode_position():
                     print('failed to validate barcode position')
 
     return code_x, code_y
-
-
-def format_empty_spaces_as_string(worksheet, ind):
-    text_format = workbook.add_format({'num_format': '@'})
-    for col in ['C', 'D', 'E', 'F', 'G']:
-        worksheet.write(col + str(ind + 2), '', text_format)
-        #worksheet.write_string(col + str(ind + 2), 'aa')
-    return worksheet
 
 
 if __name__ == '__main__':
@@ -157,7 +150,6 @@ if __name__ == '__main__':
             fig.savefig(os.path.join(img_dir, 'out', os.path.splitext(os.path.basename(img_file))[0] + '_results.jpg'),
                         dpi=300)
             plt.close(fig)
-        # df.to_excel(os.path.join(img_dir, 'out', 'barcode_list.xlsx'))  #save after every image
         image_time = time.time()
         print('processing time: ' + str(image_time - prev_time) + ' sec')
         prev_time = image_time
@@ -185,7 +177,7 @@ if __name__ == '__main__':
         img_file = os.path.join(img_dir, 'out', 'temp_fig' + str(ii) + '.png')
         worksheet.write_string('A' + str(ii + 2), filenames[ii])
         worksheet.write_string('B' + str(ii + 2), boxnames[ii])
-        worksheet = format_empty_spaces_as_string(worksheet, ii)
+        worksheet = format_empty_spaces_as_string(workbook, worksheet, ii)
         worksheet.insert_image('H' + str(ii + 2), img_file, {'x_scale': 0.2, 'y_scale': 0.2})
         formula_string = '=CONCATENATE(C' + str(ii + 2) + ',"-",D' + str(ii + 2) + ',"/",E' + str(
             ii + 2) + ',"/",F' + str(ii + 2) + ',"/",G' + str(ii + 2) + ')'

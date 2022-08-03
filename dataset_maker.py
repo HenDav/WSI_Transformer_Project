@@ -7,16 +7,16 @@ import utils_data_managment
 import os
 
 parser = argparse.ArgumentParser(description='Data preparation script')
-parser.add_argument('--step', type=int, help='dataset maker step (0-3')
+parser.add_argument('--step', type=int, help='dataset maker step (0-3)')
 parser.add_argument('--data_dir', type=str, help='location of data root folder')
 parser.add_argument('--Dataset', type=str, help='name of dataset')
 parser.add_argument('--get_slide_labels', action='store_true', help='collect slide labels')
 parser.add_argument('--scan_barcodes', action='store_true', help='try to scan barcodes from the slides label images')
 parser.add_argument('--tile_size', type=int, default=256, help='size of tiles')
-parser.add_argument('--tissue_coverage', type=float, default=0.3, help='min. tissue % for a valid tile')
 parser.add_argument('--mag', type=int, default=10, help='desired magnification of patches')
 parser.add_argument('--control_tissue', action='store_true', help='collect slide labels')
 parser.add_argument('--reorder_rename_slides', action='store_true', help='rename slides according to barcodes')
+parser.add_argument('--tissue_coverage', type=float, default=0.3, help='min. tissue percentage for a valid tile')
 
 args = parser.parse_args()
 num_workers = get_cpu()
@@ -97,7 +97,8 @@ def prepare_dataset_step2(data_dir, Dataset, tile_size, tissue_coverage, mag, is
                                                    thumbs_only=False)
 
 
-def prepare_dataset_step3(data_dir, Dataset, hospital_metadata_file, fold_params, split_all_dataset_group, binary_label_list=[]):
+def prepare_dataset_step3(data_dir, Dataset, hospital_metadata_file, fold_params, split_all_dataset_group=False,
+                          binary_label_list=[], do_split=True):
 
     slide_remove.remove_slides_according_to_list(data_dir, Dataset)
 
@@ -105,18 +106,22 @@ def prepare_dataset_step3(data_dir, Dataset, hospital_metadata_file, fold_params
 
     hospital_metadata_reader.add_hospital_labels_to_metadata(data_dir, Dataset, hospital_metadata_file)
 
-    hospital_metadata_reader.binarize_labels(binary_label_list)
+    hospital_metadata_reader.binarize_labels(data_dir, Dataset, binary_label_list)
 
-    folds_split_per_patient.split_dataset_into_folds(data_dir, Dataset, fold_params, split_all_dataset_group)
+    if do_split:
+        folds_split_per_patient.split_dataset_into_folds(data_dir, Dataset, fold_params, split_all_dataset_group)
 
 
 if __name__ == '__main__':
-    step = args.step
-    data_dir = args.data_dir
-    Dataset = args.Dataset
-    scan_barcodes = args.scan_barcodes
-    get_slide_labels = args.get_slide_labels
-    prepare_dataset_for_training(Dataset, data_dir, scan_barcodes, get_slide_labels, step, args.tile_size,
-                                 args.mag, args.tissue_coverage, args.control_tissue, args.reorder_rename_slides)
+    fold_params = folds_split_per_patient.fold_split_params()
+    prepare_dataset_for_training(Dataset=args.Dataset,
+                                 data_dir=args.data_dir,
+                                 scan_barcodes=args.scan_barcodes, get_slide_labels=args.get_slide_labels,
+                                 step=args.step,
+                                 tile_size=args.tile_size,
+                                 mag=args.mag,
+                                 tissue_coverage=args.tissue_coverage,
+                                 is_w_control_tissue=args.control_tissue,
+                                 fold_params=fold_params,
+                                 reorder_rename_slides=args.reorder_rename_slides)
     send_gmail.send_gmail(0, send_gmail.Mode.DATAMAKER)
-

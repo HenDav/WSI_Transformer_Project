@@ -9,23 +9,13 @@ from shutil import copyfile
 import argparse
 import pandas as pd
 import pickle
-import dataset_utils
+from Dataset_Maker import dataset_utils
 import sys
 
 curr_dir = os.path.dirname(os.path.realpath(__file__))
 parent_dir = os.path.dirname(curr_dir)
 sys.path.append(parent_dir)
 from utils import _choose_data
-
-parser = argparse.ArgumentParser(description='Slide inspector')
-parser.add_argument('--in_dir', default=r'/mnt/gipnetapp_public/sgils/BCF scans/Carmel Slides/Batch_6/CARMEL6',
-                    type=str, help='input dir')
-parser.add_argument('--out_dir', default=r'/mnt/gipnetapp_public/sgils/BCF scans/Carmel Slides/Batch_6/thumbs',
-                    type=str, help='output dir')
-parser.add_argument('--mag', type=int, default=10, help='desired magnification of patches')
-parser.add_argument('--grid_only', action='store_true', help='plot grid images only')
-parser.add_argument('--grid_path_name', default='', type=str, help='extension of grid_images path')
-parser.add_argument('--thumbs_only', action='store_true', help='create only thumbnails')
 
 rewrite_figs = True
 
@@ -157,6 +147,15 @@ def get_grid_image_path(in_dir, grid_path_name, thumbs_only):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Slide inspector')
+    parser.add_argument('--in_dir', default=r'/mnt/gipnetapp_public/sgils/BCF scans/Carmel Slides/Batch_6/CARMEL6',
+                        type=str, help='input dir')
+    parser.add_argument('--out_dir', default=r'/mnt/gipnetapp_public/sgils/BCF scans/Carmel Slides/Batch_6/thumbs',
+                        type=str, help='output dir')
+    parser.add_argument('--mag', type=int, default=10, help='desired magnification of patches')
+    parser.add_argument('--grid_only', action='store_true', help='plot grid images only')
+    parser.add_argument('--grid_path_name', default='', type=str, help='extension of grid_images path')
+    parser.add_argument('--thumbs_only', action='store_true', help='create only thumbnails')
     args = parser.parse_args()
     create_slide_inspection_folder(in_dir=args.in_dir,
                                    out_dir=args.out_dir,

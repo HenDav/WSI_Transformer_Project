@@ -1,9 +1,6 @@
 import os
-
 from Dataset_Maker import dataset_utils
 from Dataset_Maker import slide_walker
-
-
 UKNOWN_SLIDE_ID = '-1'
 
 

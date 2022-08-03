@@ -11,6 +11,7 @@ from tqdm import tqdm
 import xlsxwriter
 from Dataset_Maker import dataset_utils
 
+
 BARCODE_CONVENTION_NONE = 0
 BARCODE_CONVENTION_CARMEL = 1
 BARCODE_CONVENTION_HAEMEK = 2
@@ -76,7 +77,9 @@ def add_barcodes_to_slide_list(data_dir, dataset_name, scan_barcodes=True):
 def merge_manual_barcodes_to_barcode_list(data_dir, dataset_name):
     manual_barcodes_file = get_manual_barcode_file(data_dir, dataset_name)
     manual_barcodes_df = dataset_utils.open_excel_file(manual_barcodes_file)
-    N_manual = len(manual_barcodes_df) - manual_barcodes_df['barcode (auto)'].isna().sum() - (manual_barcodes_df['barcode (auto)']==0).sum()
+    N_manual = len(manual_barcodes_df) \
+               - manual_barcodes_df['barcode (auto)'].isna().sum() \
+               - (manual_barcodes_df['barcode (auto)'] == 0).sum()
 
     if N_manual:
         barcode_list_file = get_barcode_list_file(data_dir, dataset_name)
@@ -90,7 +93,7 @@ def write_label_images_to_excel(slide_list_df, label_image_name_list, data_dir, 
     img_dir = os.path.join(data_dir, 'unreadable_labels')
     # write images to workbook
     manual_barcodes_file = get_manual_barcode_file(data_dir, dataset_name)
-    workbook = xlsxwriter.Workbook(os.path.join(img_dir, 'barcode_list_images_' + dataset_name + '.xlsx'))
+    workbook = xlsxwriter.Workbook(manual_barcodes_file)
     worksheet = workbook.add_worksheet()
     worksheet.write_string('A1', 'dir')
     worksheet.write_string('B1', 'file')
@@ -107,6 +110,7 @@ def write_label_images_to_excel(slide_list_df, label_image_name_list, data_dir, 
         img_file = os.path.join(img_dir, img)
         worksheet.write_string('A' + str(ii + 2), slide_list_df['dir'][ii])
         worksheet.write_string('B' + str(ii + 2), slide_list_df['file'][ii])
+        worksheet = dataset_utils.format_empty_spaces_as_string(workbook, worksheet, ii)
         if img != '':
             worksheet.insert_image('H' + str(ii + 2), img_file, {'x_scale': 0.12, 'y_scale': 0.12})
             formula_string = '=CONCATENATE(C' + str(ii + 2) + ',"-",D' + str(ii + 2) + ',"/",E' + str(
