@@ -4,13 +4,13 @@ import sys
 
 inference_files = {}
 
-exp = 891
+exp = 876
 fold = '5'
-target = 'is_over_10'
-dataset = 'ALL'
+target = 'onco_score_all'
+dataset = 'SHEBA'
 subdir = ''
 is_other = False
-csv_epoch = 1000
+csv_epoch = 2000
 
 patientless_list = ['TCGA_LUNG', 'HEROHE']
 if dataset in patientless_list or subdir in patientless_list:
@@ -33,28 +33,19 @@ elif sys.platform == 'darwin':
 
 
 inference_dir = os.path.join(inference_dir, subdir)
-#auto find epochs
+# auto find epochs
 file_list = glob.glob(os.path.join(inference_dir, '*.data'))
 epochs = [int(re.findall(r"\bModel_Epoch_+\d+\b", os.path.basename(fn))[0][12:]) for fn in file_list]
 epochs.sort()
 
 key_list = [''.join((target, '_fold', str(fold), '_exp', str(exp), '_epoch', str(epoch), '_test_500')) for epoch in epochs]
-
-
 val_list = [''.join(('Model_Epoch_', str(epoch), '-Folds_[', str(fold), ']_', target, '-Tiles_500.data')) for epoch in epochs]
-#val_list = [''.join(('Model_Epoch_', str(epoch), '-Folds_[', str(fold), ']', '-Tiles_500.data')) for epoch in epochs]
-#key_list = [''.join(('exp', str(exp), '_fold', str(fold), '_epoch', str(epoch), '_test_500_herohe')) for epoch in epochs]
 
-#manual
+# manual
 temp = False
 if temp:
-    #val_list = ['Model_Epoch_resnet34(pretrained=True)-Folds_[1, 2, 3, 4, 5]_ER-Tiles_30.data']
-    #val_list = ['Model_Epoch_16-Folds_[1, 2, 3, 4, 5]_ER-Tiles_30.data']
-    #val_list = ['Model_Epoch_resnet34(pretrained=True)-Folds_[1]_ER-Tiles_500.data']
     val_list = ['Model_Epoch_1000-Folds_[1, 2, 3, 4, 5]_ER+PR+Her2-Tiles_5.data']
     key_list = ['temp']
-    #inference_dir = r'C:\Users\User\Dropbox\Technion work 2020\Code\WSI_MIL\WSI_MIL\runs\Exp_321-ER-TestFold_2\Inference'
-    #inference_dir = r'C:\Pathnet_results\MIL_general_try4\CAT_runs\ER\exp355\Inference\w_locs_fixed'
     inference_dir = r'C:\Users\User\Dropbox\Technion work 2020\Code\WSI_MIL\WSI_MIL\runs\Exp_621-ER+PR+Her2-TestFold_1\Inference'
 
 inference_files = dict(zip(key_list, val_list))

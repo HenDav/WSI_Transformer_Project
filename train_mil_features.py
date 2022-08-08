@@ -5,7 +5,6 @@ import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import torch
 import torch.optim as optim
-
 import utils_MIL
 from Nets.PreActResNets import PreActResNet50_Ron
 from tqdm import tqdm
@@ -21,11 +20,6 @@ import copy
 utils.send_run_data_via_mail()
 
 parser = argparse.ArgumentParser(description='WSI_MIL Training of PathNet Project')
-#parser.add_argument('-tt', '--transform_type', type=str, default='none', help='keyword for transform type')
-#parser.add_argument('-d', dest='dx', action='store_true', help='Use ONLY DX cut slides')
-#parser.add_argument('-diffslides', dest='different_slides', action='store_true', help='Use more than one slide in each bag')
-#parser.add_argument('--mag', type=int, default=10, help='desired magnification of patches')
-#parser.add_argument('--c_param', default=0.1, type=float, help='color jitter parameter')
 parser.add_argument('-ds', '--dataset', type=str, default='TCGA_ABCTB', help='DataSet to use')
 parser.add_argument('-tar', '--target', type=str, default='ER', help='Target to train for') #FIXME: to Her2+is_Tumor
 parser.add_argument('-tf', '--test_fold', default=2, type=int, help='fold to be as TEST FOLD')
@@ -39,10 +33,7 @@ parser.add_argument('-tpb', '--tiles_per_bag', type=int, default=100, help='Tile
 parser.add_argument('--lr', default=1e-5, type=float, help='learning rate')
 parser.add_argument('--weight_decay', default=5e-5, type=float, help='L2 penalty')
 parser.add_argument('--model', default='nets_mil.MIL_Feature_Attention_MultiBag()', type=str, help='net to use')
-#parser.add_argument('--model', default='nets_mil.MIL_Feature_3_Attention_MultiBag()', type=str, help='net to use')
 parser.add_argument('--eval_rate', type=int, default=5, help='Evaluate validation set every # epochs')
-#parser.add_argument('-slide_reps', '--slide_repetitions', type=int, default=1, help='Slide repetitions per epoch')
-parser.add_argument('-im', dest='images', action='store_true', help='save data images?')
 parser.add_argument('-llf', dest='last_layer_freeze', action='store_true', help='get last layer and freeze it ?')
 parser.add_argument('-dl', '--data_limit', type=int, default=None, help='Data Limit to a specified number of feature tiles')
 parser.add_argument('-repData', dest='repeating_data', action='store_false', help='sample data with repeat ?')
@@ -57,6 +48,7 @@ if not (isinstance(args.is_tumor_mode, int) and args.is_tumor_mode in [0, 1, 2])
 
 EPS = 1e-7
 
+
 def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader, DEVICE, optimizer, print_timing: bool=False):
     """
     This function trains the model
@@ -64,8 +56,6 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
     """
     writer_folder = os.path.join(args.output_dir, 'writer')
     all_writer = SummaryWriter(os.path.join(writer_folder, 'all'))
-    if args.images:
-        image_writer = SummaryWriter(os.path.join(writer_folder, 'image'))
     if print_timing:
         time_writer = SummaryWriter(os.path.join(writer_folder, 'time'))
 
@@ -73,30 +63,14 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
         all_writer.add_text('Experiment No.', str(experiment))
         all_writer.add_text('Train type', 'MIL')
         all_writer.add_text('Model type', str(type(model)))
-        #all_writer.add_text('Data type', dloader_train.dataset.DataSet)
-        #all_writer.add_text('Train Folds', str(dloader_train.dataset.folds).strip('[]'))
-        #all_writer.add_text('Test Folds', str(dloader_test.dataset.folds).strip('[]'))
-        #all_writer.add_text('Transformations', str(dloader_train.dataset.transform))
-        #all_writer.add_text('Receptor Type', str(dloader_train.dataset.target_kind))
 
     print()
     print('Training will be conducted with {} bags and {} tiles per bag in each MiniBatch'.format(args.num_bags, args.tiles_per_bag))
     print('Start Training...')
     previous_epoch_loss = 1e5
 
-    '''    
-    # The following part saves the random slides on file for further debugging
-    if os.path.isfile('random_slides.xlsx'):
-        random_slides = pd.read_excel('random_slides.xlsx')
-    else:
-        random_slides = pd.DataFrame()
-    '''
-
     for e in range(from_epoch, epoch + from_epoch):
         time_epoch_start = time.time()
-        if e == 0:
-            data_list = []
-            # slide_random_list = []
 
         # The following 3 lines initialize variables to compute AUC for train dataset.
         total_train, correct_pos_train, correct_neg_train = 0, 0, 0
@@ -107,7 +81,6 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
         print('Epoch {}:'.format(e))
         model.train()
         for batch_idx, minibatch in enumerate(tqdm(dloader_train)):
-            labels = minibatch['labels']
             target = minibatch['targets']
             data = minibatch['features']
             if '+is_Tumor' in args.target:
@@ -164,21 +137,6 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             if print_timing:
                 time_stamp = batch_idx + e * len(dloader_train)
                 time_writer.add_scalar('Time/Train (iter) [Sec]', train_time, time_stamp)
-                # print('Elapsed time of one train iteration is {:.2f} s'.format(train_time))
-                if len(time_list) == 4:
-                    time_writer.add_scalar('Time/Open WSI [Sec]'     , time_list[0], time_stamp)
-                    time_writer.add_scalar('Time/Avg to Extract Tile [Sec]', time_list[1], time_stamp)
-                    time_writer.add_scalar('Time/Augmentation [Sec]' , time_list[2], time_stamp)
-                    time_writer.add_scalar('Time/Total To Collect Data [Sec]', time_list[3], time_stamp)
-                else:
-                    time_writer.add_scalar('Time/Avg to Extract Tile [Sec]', time_list[0], time_stamp)
-                    time_writer.add_scalar('Time/Augmentation [Sec]', time_list[1], time_stamp)
-                    time_writer.add_scalar('Time/Total To Collect Data [Sec]', time_list[2], time_stamp)
-
-        '''
-        random_slides = random_slides.append(pd.DataFrame(slide_random_list))
-        random_slides.to_excel('random_slides.xlsx')
-        '''
 
         time_epoch = (time.time() - time_epoch_start) / 60
         if print_timing:
@@ -197,15 +155,6 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
         all_writer.add_scalar('Train/Weights mean Total (per bag)', np.mean(np.sum(weights, axis=1)), e)
         all_writer.add_scalar('Train/Weights mean Variance (per bag)', np.mean(np.var(weights, axis=1)), e)
 
-        '''print('Finished Epoch: {}, Loss: {:.2f}, Loss Delta: {:.3f}, Train Accuracy: {:.2f}% ({} / {}), Time: {:.0f} m'
-              .format(e,
-                      train_loss,
-                      previous_epoch_loss - train_loss,
-                      train_acc,
-                      int(correct_labeling),
-                      len(train_loader.dataset),
-                      time_epoch))'''
-
         print('Finished Epoch: {}, Loss: {:.2f}, Loss Delta: {:.3f}, Train AUC per patch: {:.2f} , Time: {:.0f} m'
               .format(e,
                       train_loss,
@@ -214,14 +163,6 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                       time_epoch))
 
         previous_epoch_loss = train_loss
-
-        '''
-        if train_loss < best_train_loss:
-            best_train_loss = train_loss
-            best_train_acc = train_acc
-            best_epoch = e
-            best_model = model
-        '''
 
         if e % args.eval_rate == 0:
             acc_test, bacc_test = check_accuracy(model, dloader_test, all_writer, DEVICE, e)
@@ -245,28 +186,9 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                         'tiles_per_bag': args.tiles_per_bag},
                        os.path.join(args.output_dir, 'Model_CheckPoints', 'model_data_Epoch_' + str(e) + '.pt'))
 
-            '''
-            if e % 20 == 0 and args.images:
-                image_writer.add_images('Train Images/Before Transforms', basic_tiles.squeeze().detach().cpu().numpy(),
-                                        global_step=e, dataformats='NCHW')
-                image_writer.add_images('Train Images/After Transforms', data.squeeze().detach().cpu().numpy(),
-                                        global_step=e, dataformats='NCHW')
-                image_writer.add_images('Train Images/After Transforms (De-Normalized)',
-                                        norm_img(data.squeeze().detach().cpu().numpy()), global_step=e,
-                                        dataformats='NCHW')
-            '''
-        else:
-            acc_test, bacc_test = None, None
-
-        '''if e == 0:
-            pd.DataFrame(data_list).to_excel('validate_data.xlsx')
-            print('Saved validation data')'''
-
     all_writer.close()
     if print_timing:
         time_writer.close()
-    if args.images:
-        image_writer.close()
 
 
 def check_accuracy(model: nn.Module, data_loader: DataLoader, writer_all, DEVICE, epoch: int):
@@ -314,17 +236,10 @@ def check_accuracy(model: nn.Module, data_loader: DataLoader, writer_all, DEVICE
         writer_all.add_scalar('Test/Balanced Accuracy', balanced_acc, epoch)
         writer_all.add_scalar('Test/Roc-Auc', roc_auc, epoch)
 
-        '''print('Accuracy of {:.2f}% ({} / {}) over Test set'.format(acc, correct_labeling_test, len(data_loader.dataset)))'''
         print('Slide AUC of {:.2f} over Test set'.format(roc_auc))
 
     model.train()
-    '''
-    for module in model.modules():
-        if isinstance(module, nn.BatchNorm2d):
-            module.track_running_stats = False
-    '''
     return acc, balanced_acc
-
 
 ##################################################################################################
 
@@ -378,7 +293,6 @@ if __name__ == '__main__':
             run_data_output['Receptor'], run_data_output['MultiSlide'], run_data_output['Model Name'], run_data_output['Desired Slide Magnification']
 
         experiment = args.experiment
-
 
     # Fix target:
     if args.target == 'ER_for_is_Tumor':

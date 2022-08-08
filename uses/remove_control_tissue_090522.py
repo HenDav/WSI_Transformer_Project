@@ -1,4 +1,4 @@
-from Segmentation.remove_control_tissue import remove_control_tissue_rows_from_segmentation
+from Dataset_Maker.remove_control_tissue import remove_control_tissue_rows_from_segmentation
 import os
 from PIL import Image
 import numpy as np

@@ -24,6 +24,7 @@ custom_cycler = (cycler(color=['#377eb8', '#ff7f00', '#4daf4a',
 
 infer_type = 'REG'
 
+
 def auc_for_n_patches(patch_scores, n, all_targets):
     max_n = patch_scores.shape[1]
     n_iter = 10
@@ -70,7 +71,7 @@ for ind, key in enumerate(inference_files.keys()):
             fpr, tpr, all_labels, all_targets, all_scores, total_pos, true_pos, total_neg, true_neg, \
             num_slides, patch_scores, all_slide_names, all_slide_datasets, patch_locs,\
             binary_targets_arr, time_targets_arr, censored_arr = inference_data
-        elif len(inference_data) == 14:  #current format
+        elif len(inference_data) == 14:  # current format
             fpr, tpr, all_labels, all_targets, all_scores, total_pos, true_pos, total_neg, true_neg, \
             num_slides, patch_scores, all_slide_names, all_slide_datasets, patch_locs = inference_data
         elif len(inference_data) == 13:  # old format, before locations
@@ -84,7 +85,6 @@ for ind, key in enumerate(inference_files.keys()):
             num_slides, patch_scores, all_slide_names, patch_locs, patch_locs_inds, all_slide_size, all_slide_size_ind = inference_data
         else:
             IOError('inference data is of unsupported size!')
-
 
         if is_cancer_improv:  # validate patches are the same
             test1 = num_slides_is_cancer == num_slides
@@ -228,7 +228,7 @@ for ind, key in enumerate(inference_files.keys()):
 
         slide_score_all.append(slide_score_mean)
 
-        #results per patient
+        # results per patient
         if patient_level:
             patient_all = []
             if dataset in ['LEUKEMIA', 'ALL', 'AML']:
@@ -253,9 +253,9 @@ for ind, key in enumerate(inference_files.keys()):
             slides_data = pd.read_excel(slides_data_file)
 
             for name, slide_dataset in zip(all_slide_names, all_slide_datasets):
-                if slide_dataset == 'TCGA': #TCGA files
+                if slide_dataset == 'TCGA':  # TCGA files
                     patient_all.append(name[8:12])
-                elif slide_dataset == 'ABCTB': #ABCTB files
+                elif slide_dataset == 'ABCTB':  # ABCTB files
                     patient_all.append(name[:9])
                 elif slide_dataset[:6] == 'CARMEL':  # CARMEL files
                     patient_all.append(slides_data[slides_data['file'] == name]['patient barcode'].item())
@@ -377,12 +377,11 @@ for ind, key in enumerate(inference_files.keys()):
         rand_roc_auc = np.zeros(n_iter)
         N = len(all_labels)
         for ii in range(n_iter):
-            #rand_preds = np.random.binomial(1, 0.79, size=[N, 1])
             rand_scores1 = np.random.permutation(all_scores)
             rand_roc_auc[ii] = roc_auc_score(all_targets, rand_scores1)
         p_value = np.sum(roc_auc1 <= rand_roc_auc)/n_iter
 
-        #per patient
+        # per patient
         n_iter = 10000
         rand_roc_auc = np.zeros(n_iter)
         N = len(patient_mean_score_df)
@@ -392,11 +391,10 @@ for ind, key in enumerate(inference_files.keys()):
         p_value_patient = np.sum(roc_auc_patient <= rand_roc_auc) / n_iter
 
 
-#combine several models
+# combine several models
 combine_all_models = False
 if patient_level and combine_all_models:
     slide_score_mean_all = np.mean(np.array(slide_score_all), axis=0)
-    #patient_all = [all_slide_names[i][8:12] for i in range(all_slide_names.shape[0])]  # only TCGA!
     patch_all_df = pd.DataFrame({'patient': patient_all, 'scores': slide_score_mean_all, 'targets': all_targets})
     patient_mean_score_all_df = patch_all_df.groupby('patient').mean()
     roc_auc_all_patient = roc_auc_score(patient_mean_score_all_df['targets'], patient_mean_score_all_df['scores'])

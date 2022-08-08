@@ -19,7 +19,7 @@ parser.add_argument('-ex', '--experiment', nargs='+', type=int, default=[10607],
 parser.add_argument('-fe', '--from_epoch', nargs='+', type=int, default=[960], help='Use this epoch models for inference')
 parser.add_argument('-nt', '--num_tiles', type=int, default=10, help='Number of tiles to use')
 parser.add_argument('-ds', '--dataset', type=str, default='ABCTB', help='DataSet to use')
-parser.add_argument('-f', '--folds', type=list, nargs="+", default=1, help=' folds to infer')
+parser.add_argument('-f', '--folds', type=list, nargs="+", default=1, help='folds to infer')
 parser.add_argument('--mag', type=int, default=10, help='desired magnification of patches')
 parser.add_argument('-mp', '--model_path', type=str, default='', help='fixed path of rons model')  # r'/home/rschley/Pathnet/results/fold_1_ER_large/checkpoint/ckpt_epoch_1467.pth'
 parser.add_argument('--save_features', action='store_true', help='save features')
@@ -63,7 +63,7 @@ if args.save_features:
             try:
                 feature_epoch_ind = (args.from_epoch).index(1000)
             except ValueError:
-                feature_epoch_ind = (args.from_epoch).index(2000) #If 1000 is not on the list, take epoch 2000
+                feature_epoch_ind = (args.from_epoch).index(2000)  # If 1000 is not on the list, take epoch 2000
     elif len(args.from_epoch) == 1:
         feature_epoch_ind = 0
 
@@ -120,9 +120,6 @@ for counter in range(len(args.from_epoch)):
         multi_target = True
         target_list = args.target.split('+')
         N_targets = len(target_list)
-        #target0, target1 = args.target.split('+')
-        #if counter == 0 and model_name[-15:] != '(num_classes=4)':
-        #    model_name = model_name[:-2] + '(num_classes=4)' #manually add num_classes since the arguments are not saved in run_data
     else:
         multi_target = False
 
@@ -138,11 +135,14 @@ for counter in range(len(args.from_epoch)):
     model.eval()
     models.append(model)
 
-#get number of classes based on the first model
-try:
-    N_classes = models[0].linear.out_features #for resnets and such
-except:
-    N_classes = models[0]._final_1x1_conv.out_channels #for StereoSphereRes
+# get number of classes based on the first model
+if multi_target:
+    N_classes = 2
+else:
+    try:
+        N_classes = models[0].linear.out_features  # for resnets and such
+    except:
+        N_classes = models[0]._final_1x1_conv.out_channels  # for StereoSphereRes
 
 # override run_data dx if args.dx is true
 if args.dx:
@@ -240,11 +240,6 @@ all_slide_datasets = np.zeros(NUM_SLIDES, dtype=object)
 patch_scores[:] = np.nan
 patch_locs_all[:] = np.nan
 
-# The following 2 lines initialize variables to compute AUC for train dataset.
-#correct_pos = [0 for ii in range(NUM_MODELS)]
-#correct_neg = [0 for ii in range(NUM_MODELS)]
-
-
 if args.resume:
     # load the inference state
     resume_file_name = os.path.join(data_path, output_dir, 'Inference', args.subdir,
@@ -299,7 +294,7 @@ with torch.no_grad():
             if model._get_name() == 'PreActResNet_Ron':
                 scores, features = model(data)
             elif model._get_name() == 'ResNet':
-                #use resnet only for features, dump scores
+                # use resnet only for features, dump scores
                 features = model(data)
                 scores = torch.zeros((len(data), 2))
                 logging.info('Extracting features only for pretrained ResNet')
@@ -311,17 +306,10 @@ with torch.no_grad():
                 for i_target in range(N_targets):
                     outputs_softmax[:, i_target * 2: i_target * 2 + 2] = torch.nn.functional.softmax(scores[:, i_target * 2: i_target * 2 + 2], dim=1)
                 scores = outputs_softmax
-                #scores = torch.cat((torch.nn.functional.softmax(scores[:, :2], dim=1),
-                #                     torch.nn.functional.softmax(scores[:, 2:], dim=1)), dim=1)
             else:
                 scores = torch.nn.functional.softmax(scores, dim=1)
 
             current_slide_tile_scores[model_ind][slide_batch_num * tiles_per_iter: slide_batch_num * tiles_per_iter + len(data), :] = scores.cpu().detach().numpy()
-            #scores_0[model_ind][slide_batch_num * tiles_per_iter: slide_batch_num * tiles_per_iter + len(data)] = scores[:, 0].cpu().detach().numpy()
-            #scores_1[model_ind][slide_batch_num * tiles_per_iter: slide_batch_num * tiles_per_iter + len(data)] = scores[:, 1].cpu().detach().numpy()
-            #if multi_target:
-            #    scores_2[model_ind][slide_batch_num * tiles_per_iter: slide_batch_num * tiles_per_iter + len(data)] = scores[:, 2].cpu().detach().numpy()
-            #    scores_3[model_ind][slide_batch_num * tiles_per_iter: slide_batch_num * tiles_per_iter + len(data)] = scores[:, 3].cpu().detach().numpy()
 
             if args.save_features:
                 if model_ind == feature_epoch_ind:
@@ -338,8 +326,6 @@ with torch.no_grad():
                 for i_target in range(N_targets):
                     total_pos[i_target] += torch.squeeze(target[:, i_target]).eq(1).sum().item()
                     total_neg[i_target] += torch.squeeze(target[:, i_target]).eq(0).sum().item()
-                #total_pos += np.array((torch.squeeze(target[:, 0]).eq(1).sum().item(), torch.squeeze(target[:, 1]).eq(1).sum().item()))
-                #total_neg += np.array((torch.squeeze(target[:, 0]).eq(0).sum().item(), torch.squeeze(target[:, 1]).eq(0).sum().item()))
             else:
                 all_targets.append(target.cpu().numpy()[0][0])
                 if N_classes == 2:
@@ -361,17 +347,10 @@ with torch.no_grad():
                         predicted[i_target, :] = current_slide_tile_scores[model_ind][:, i_target * 2: i_target * 2 + 2].mean(0).argmax()
                         patch_scores[slide_num, model_ind, :n_tiles, i_target] = current_slide_tile_scores[model_ind][:, i_target * 2 + 1]
                         all_scores[slide_num, model_ind, i_target] = current_slide_tile_scores[model_ind][:, i_target * 2 + 1].mean()
-                    #patch_scores[slide_num, model_ind, :n_tiles, 0] = current_slide_tile_scores[model_ind][:, 1]
-                    #patch_scores[slide_num, model_ind, :n_tiles, 1] = current_slide_tile_scores[model_ind][:, 3]
-                    #all_scores[slide_num, model_ind, 0] = current_slide_tile_scores[model_ind][:, 1].mean()
-                    #all_scores[slide_num, model_ind, 1] = current_slide_tile_scores[model_ind][:, 3].mean()
                     correct_pos[model_ind] += np.squeeze((predicted == 1).cpu().numpy() & (target_squeezed.eq(1).cpu().numpy()))
                     correct_neg[model_ind] += np.squeeze((predicted == 0).cpu().numpy() & (target_squeezed.eq(0).cpu().numpy()))
                 else:
                     predicted = current_slide_tile_scores[model_ind].mean(0).argmax()
-                    # = np.vstack((scores_0[model_num], scores_1[model_num]))
-                    #predicted = current_slide_tile_scores.mean(1).argmax()
-                    #patch_scores[slide_num, model_ind, :len(scores_1[model_ind])] = scores_1[model_ind]
                     if N_classes == 2:
                         patch_scores[slide_num, model_ind, :n_tiles] = current_slide_tile_scores[model_ind][:, 1]
                         all_scores[slide_num, model_ind] = current_slide_tile_scores[model_ind][:, 1].mean()
@@ -379,7 +358,7 @@ with torch.no_grad():
                             correct_pos[model_ind] += 1
                         elif target == 0 and predicted == 0:
                             correct_neg[model_ind] += 1
-                    else: #multiclass
+                    else:  # multiclass
                         patch_scores[slide_num, model_ind, :n_tiles, :] = current_slide_tile_scores[model_ind]
                         all_scores[slide_num, model_ind, :] = current_slide_tile_scores[model_ind].mean(0)
 
@@ -391,7 +370,7 @@ with torch.no_grad():
 
             # save features every NUM_SLIDES_SAVE slides
             if slide_num % NUM_SLIDES_SAVE == 0:
-                #save the inference state
+                # save the inference state
                 prev_resume_file_name = resume_file_name
                 resume_file_name = os.path.join(data_path, output_dir, 'Inference', args.subdir,
                                                  'Exp_' + str(args.experiment[0])
@@ -404,11 +383,11 @@ with torch.no_grad():
 
                 with open(resume_file_name, 'wb') as filehandle:
                     pickle.dump(resume_data, filehandle)
-                #delete previous resume file
+                # delete previous resume file
                 if os.path.isfile(prev_resume_file_name):
                     os.remove(prev_resume_file_name)
 
-                #save features
+                # save features
                 if args.save_features:
                     feature_file_name = os.path.join(data_path, output_dir, 'Inference', args.subdir,
                                                      'Model_Epoch_' + str(args.from_epoch[feature_epoch_ind])
@@ -428,9 +407,8 @@ with torch.no_grad():
                     features_all = np.empty((NUM_SLIDES_SAVE, 1, args.num_tiles, 512))
                     features_all[:] = np.nan
 
-#save features for last slides
+# save features for last slides
 if args.save_features and slide_num % NUM_SLIDES_SAVE != 0:
-    #for model_num in range(NUM_MODELS):
     feature_file_name = os.path.join(data_path, output_dir, 'Inference', args.subdir,
                                      'Model_Epoch_' + str(args.from_epoch[feature_epoch_ind])
                                      + '-Folds_' + str(args.folds) + '_' + str(
@@ -485,7 +463,7 @@ for model_num in range(NUM_MODELS):
                       len(all_labels[:, model_num])))
 logging.info('Done!')
 
-#delete last resume file
+# delete last resume file
 if os.path.isfile(resume_file_name):
     os.remove(resume_file_name)
 

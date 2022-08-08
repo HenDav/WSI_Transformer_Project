@@ -47,21 +47,6 @@ def remove_control_tissue_rows_from_segmentation(img_array, slide_name, dataset)
     return img_array
 
 
-'''
-def remove_control_tissue_from_segmentation(img_array, red_color=(231, 27, 28)):
-    #this is a preparation for a more complete implementation, removing only what's inside the red circle
-    red_mask = np.all(img_array == red_color, axis=2)
-    red_mask *= 255
-    red_mask = red_mask.astype(np.uint8)
-    kernel_size = 100
-    kernel_smooth = np.ones((kernel_size, kernel_size), dtype=np.float32) / kernel_size ** 2
-    red_mask_filt = cv2.filter2D(red_mask, -1, kernel_smooth)
-    red_mask_filt[red_mask_filt<255] = 0
-    contours, _ = cv2.findContours(red_mask_filt, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-    #to be completed
-'''
-
-
 def avoid_control_tissue_bottom(thumb, bottom_percent=0.4):
     # detect edges of tissue, dump lower part
     thumb_arr = np.array(thumb)
@@ -81,12 +66,12 @@ def remove_control_tissue_according_to_dataset(img, is_IHC_slide, slide_name, da
         # PORTO second batch IHC contains control tissue
         #identified with " pdl1" in the filename
         img = avoid_control_tissue_bottom(img)
-    elif dataset[:4] == 'HER2':
+    elif dataset[:4].casefold() == 'HER2'.casefold():
         img = Image.fromarray(remove_control_tissue_rows_from_segmentation(img_array=np.array(img), slide_name=slide_name, dataset=dataset))
     return img
 
 
 def remove_slide_artifacts_according_to_dataset(img, dataset):
-    if dataset[:4] == 'HER2':
+    if dataset[:4].casefold() == 'HER2'.casefold():
         img = Image.fromarray(remove_slide_artifacts_rows_from_segmentation(np.array(img)))
     return img

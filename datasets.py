@@ -8,8 +8,7 @@ from torchvision import transforms
 import time
 from torch.utils.data import Dataset
 from typing import List
-from utils import _get_tiles, _choose_data, chunks, map_original_grid_list_to_equiv_grid_list, assert_dataset_target, \
-    balance_dataset
+from utils import _get_tiles, _choose_data, chunks, map_original_grid_list_to_equiv_grid_list
 from transformations import define_transformations
 from utils import assert_dataset_target
 from utils import get_label
@@ -69,7 +68,7 @@ class WSI_Master_Dataset(Dataset):
         self.desired_magnification = desired_slide_magnification
         self.tile_size = tile_size
         self.target_kind = target_kind
-        self.test_fold = test_fold
+        self.test_fold = 'test' if test_fold == 0 else test_fold
         self.bag_size = bag_size
         self.train = train
         self.print_time = print_timing
@@ -284,10 +283,11 @@ class WSI_Master_Dataset(Dataset):
                 if self.test_fold == 'All':
                     folds = list(self.meta_data_DF[fold_column_name].unique())
                 else:
-                    folds = [self.test_fold]
-                    folds.append('val')
+                    folds = [self.test_fold, 'val']
 
         elif self.train_type == 'Infer':
+            if 0 in infer_folds:
+                infer_folds[infer_folds.index(0)] = 'test'
             folds = infer_folds
         elif self.train_type == 'Infer_All_Folds':
             folds = list(self.meta_data_DF[fold_column_name].unique())

@@ -11,7 +11,6 @@ import pandas as pd
 from tqdm import tqdm
 import os
 import pickle
-import shutil
 import numpy as np
 from PIL import Image
 from typing import List, Tuple
@@ -27,9 +26,8 @@ import multiprocessing
 from functools import partial
 from datetime import date
 import time
-from skimage.color import rgb2hed
 from colorsys import rgb_to_hsv
-import Segmentation.remove_control_tissue as remove_from_seg
+import Dataset_Maker.remove_control_tissue as remove_from_seg
 from enum import Enum
 Image.MAX_IMAGE_PIXELS = None
 
@@ -938,7 +936,7 @@ def _make_segmentation_for_image(file, DataSet, rewrite, out_path_dataset, slide
             thumb_arr[thumb_arr_equal1 & thumb_arr_equal2, :] = 255
             thumb = Image.fromarray(thumb_arr)
 
-        if DataSet == 'PORTO_PDL1' or DataSet[:4] == 'HER2':
+        if DataSet == 'PORTO_PDL1' or DataSet[:4].casefold() == 'HER2'.casefold():
             is_IHC_slide = True
         else:
             is_IHC_slide = False
