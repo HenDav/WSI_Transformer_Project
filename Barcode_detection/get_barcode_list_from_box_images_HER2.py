@@ -177,7 +177,7 @@ if __name__ == '__main__':
         img_file = os.path.join(img_dir, 'out', 'temp_fig' + str(ii) + '.png')
         worksheet.write_string('A' + str(ii + 2), filenames[ii])
         worksheet.write_string('B' + str(ii + 2), boxnames[ii])
-        worksheet = format_empty_spaces_as_string(workbook, worksheet, ii)
+        worksheet = format_empty_spaces_as_string(workbook, worksheet, ii, ['C', 'D', 'E', 'F', 'G'])
         worksheet.insert_image('H' + str(ii + 2), img_file, {'x_scale': 0.2, 'y_scale': 0.2})
         formula_string = '=CONCATENATE(C' + str(ii + 2) + ',"-",D' + str(ii + 2) + ',"/",E' + str(
             ii + 2) + ',"/",F' + str(ii + 2) + ',"/",G' + str(ii + 2) + ')'

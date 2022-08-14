@@ -1,17 +1,12 @@
-import os
-os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = str(pow(2,40))
 import cv2
 import numpy as np
-from scipy.spatial import Delaunay, Voronoi, voronoi_plot_2d
+from scipy.spatial import Delaunay
 from scipy.spatial.distance import cdist
 from tqdm import tqdm
-from scipy.interpolate import griddata, interp2d
+from scipy.interpolate import griddata
 import os
 from random import randint
-import matplotlib.pyplot as plt
-
-import pandas as pd
-
+os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = str(pow(2, 40))
 
 
 def get_convex_triangle_area(delanuay, simplex_match):
@@ -44,13 +39,11 @@ def get_closest_mid_point_index(pix_original_location, simplex_areas):
 	distances = np.sqrt((differences ** 2).sum(1))
 	distances /= (simplex_areas + EPS * simplex_areas.mean())  # Normalize distance by triangle area
 	closest_simplex = np.argmin(distances)
-
 	return closest_simplex
 
 
 def get_closest_gils_value(pix_original_location, inv_simplices_values):
 	pix_original_location = np.hstack((pix_original_location, 1)).reshape(3, 1)
-	#distances = abs(np.matmul(inv_simplices_values, pix_original_location)).squeeze(2).mean(1)
 	distances = np.linalg.norm(np.matmul(inv_simplices_values, pix_original_location).squeeze(2), axis=1)
 	closest_simplex = np.argmin(distances)
 	return closest_simplex
@@ -62,7 +55,6 @@ def get_closest_combined(pix_original_location, inv_simplices_values, alpha):
 	true_distances = np.sqrt((differences ** 2).sum(1))
 	pix_original_location = np.hstack((pix_original_location, 1)).reshape(3, 1)
 	gils_distances = abs(np.matmul(inv_simplices_values, pix_original_location)).squeeze(2).mean(1)
-
 	total_distances = alpha * true_distances + (1 - alpha) * gils_distances
 	closest_simplex = np.argmin(total_distances)
 	return closest_simplex
@@ -73,11 +65,9 @@ def get_closest_simplex(pix_original_location, simplices_inv_values, simplex_are
 
 	true_distances = cdist(mid_points, pix_original_location)  # np.sqrt(((mid_points - pix_original_location) ** 2).sum(1))
 	pix_original_location = np.hstack((pix_original_location, np.ones((pix_original_location.shape[0], 1)))).transpose()
-	# gils_distances = abs(np.matmul(inv_simplices_values, pix_original_location)).squeeze(2).mean(1)  # non matrix calculations
 	gils_distances = abs(np.matmul(inv_simplices_values, pix_original_location)).mean(1)
 
 	total_distances = alpha * true_distances + (1 - alpha) * gils_distances
-	# closest_simplex = np.argmin(total_distances)  # non matrix calculations
 	closest_simplex = np.argmin(total_distances, axis=0)
 	return closest_simplex
 
@@ -238,9 +228,7 @@ def create_pixel_location_matrix(img1, simplex_match, simplex_areas, simplex_inv
 
 	pix_transformed_coordinates = apply_points_transform(pix_original_location, transform=transform_matrices[in_triangle])
 
-
 	print('Fixing this')
-
 
 	for _, col in enumerate(tqdm(range(W))):
 		for row in range(H):
@@ -270,20 +258,7 @@ def create_pixel_location_matrix(img1, simplex_match, simplex_areas, simplex_inv
 	cv2.imshow('voronoi', vor_image)
 	cv2.waitKey(0)
 
-
 	return grid_x, grid_y
-
-
-'''def zeroize_transforms(transforms, which):
-	if which >= len(transforms):
-		raise Exception('Number too big')
-
-	all_nums = [num for num in range(len(transforms))]
-	all_nums.remove(which)
-	for i in all_nums:
-		transforms[i] = np.zeros_like(transforms[i ])
-
-	return transforms'''
 
 
 def pick_and_show_point(event, x, y, flags, params):
@@ -390,67 +365,18 @@ def click_event(event, x, y, flags, params):
 		coordinates_Left.append((x,y))
 		cv2.imshow('image', img)
 
-	'''
-	# checking for right mouse clicks
-	if event==cv2.EVENT_RBUTTONDOWN:
-		# displaying the coordinates
-		# on the Shell
-		print(x, ' ', y)
 
-		# displaying the coordinates
-		# on the image window
-		font = cv2.FONT_HERSHEY_SIMPLEX
-		b = img[y, x, 0]
-		g = img[y, x, 1]
-		r = img[y, x, 2]
-		cv2.putText(img, str(b) + ',' +
-					str(g) + ',' + str(r),
-					(x,y), font, 1,
-					(255, 255, 0), 2)
-		cv2.imshow('image', img)
-	'''
-
-
-
-if __name__=="__main__":
+if __name__ == "__main__":
 
 	coordinates_Left = []
 	# reading the image
-
-	'''file1 = '/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL/Immuno_ER/19-5229_2_1_e.jpg'
-	file2 = '/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL/Immuno_ER/19-5229_2_1_l.jpg'
-	HE_cord = [(324, 217), (306, 324), (268, 383), (239, 404), (209, 369), (409, 500), (428, 532), (407, 587),
-			   (366, 569), (376, 552), (378, 493), (439, 409), (312, 391), (267, 445), (224, 458), (156, 387), (188, 319),
-			   (240, 219), (339, 119), (463, 81), (592, 237), (455, 139), (643, 189), (685, 271), (681, 327), (385, 296),
-			   (338, 278), (249, 273), (364, 347), (455, 351), (483, 385), (555, 667), (545, 735), (375, 688), (690, 375),
-			   (756, 365), (642, 643), (555, 526), (594, 547), (555, 638), (487, 658), (456, 606), (473, 564), (512, 565)]
-	IHC_cord = [(1258, 193), (1228, 305), (1180, 351), (1153, 366), (1131, 339), (1318, 485), (1333, 531), (1307, 578),
-				(1268, 545), (1280, 518), (1284, 471), (1351, 404), (1230, 369), (1187, 409), (1132, 418), (1071, 347),
-				(1105, 295), (1180, 195), (1264, 121), (1414, 78), (1509, 244), (1401, 138), (1559, 199), (1580, 291),
-				(1574, 345), (1305, 282), (1259, 261), (1179, 239), (1285, 325), (1366, 348), (1389, 383), (1422, 666), (1393, 724),
-				(1261, 668), (1600, 407), (1666, 396), (1522, 647), (1455, 531), (1479, 546), (1441, 638), (1374, 648),
-				(1350, 603), (1372, 555), (1411, 559)]'''
 
 	file1 = '/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL/Immuno_ER/thumbs/19-5229_2_1_e_TOP.jpg'
 	file2 = '/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL/Immuno_ER/thumbs/19-5229_2_1_l.jpg'
 
 
 	HE_cord = [[4143, 2773], [3913, 4141], [3427, 4895], [3056, 5164], [2672, 4716], [5230, 6391], [5473, 6800], [5204, 7503], [4680, 7273], [4808, 7056], [4833, 6301], [5613, 5228], [3989, 4998], [3414, 5688], [2864, 5854], [1994, 4946], [2404, 4077], [3069, 2799], [4335, 1521], [5920, 1035], [7570, 3029], [5818, 1776], [8222, 2415], [8759, 3464], [8708, 4179], [4923, 3783], [4322, 3553], [3184, 3489], [4654, 4435], [5818, 4486], [6176, 4921], [7097, 8526], [6969, 9395], [4795, 8794], [8823, 4793], [9667, 4665], [8209, 8219], [7097, 6723], [7596, 6992], [7097, 8155], [6227, 8411], [5831, 7746], [6048, 7209], [6547, 7222]]
-
-
 	IHC_cord = [[16087, 2467], [15703, 3898], [15089, 4486], [14744, 4678], [14463, 4333], [16854, 6199], [17046, 6787], [16713, 7388], [16215, 6966], [16368, 6621], [16419, 6020], [17276, 5164], [15729, 4716], [15179, 5228], [14476, 5343], [13695, 4435], [14130, 3770], [15089, 2492], [16164, 1546], [18082, 997], [19297, 3119], [17915, 1764], [19936, 2543], [20205, 3719], [20128, 4410], [16688, 3604], [16100, 3336], [15077, 3055], [16432, 4154], [17468, 4448], [17762, 4895], [18184, 8513], [17813, 9254], [16125, 8538], [20460, 5202], [21304, 5062], [19463, 8270], [18606, 6787], [18913, 6979], [18427, 8155], [17570, 8283], [17263, 7708], [17545, 7094], [18043, 7145]]
-
-	#HE_cord = [(322, 206), (313, 395), (482, 385)]
-	#IHC_cord = [(1259, 180), (1226, 368), (1387, 392)]
-	'''HE_cord = [(341, 114), (162, 374), (547, 732)]
-	IHC_cord = [(1273, 111), (1075, 342), (1398, 721)]'''
-
-
-	# 18-7361_1_7_b.jpg
-	#HE_cord = [(270, 238), (86, 664), (191, 885), (22, 1201), (207, 1468), (388, 1371), (362, 1086), (541, 1376), (929, 1023), (1454, 865), (1344, 630), (1281, 258), (1323, 70), (815, 125)]
-	#IHC_cord = [(553, 2207), (938, 2441), (1189, 2371), (1542, 2567), (1789, 2376), (1711, 2199), (1389, 2206), (1715, 2060), (1372, 1613), (1299, 1103), (1011, 1193), (675, 1221), (476, 1204), (482, 1676)]
-
-
 
 	img1 = cv2.imread(file1, 1)
 	location = '/'.join(file1.split('/')[:-1])
@@ -460,28 +386,10 @@ if __name__=="__main__":
 	file_name_2 = file2.split('/')[-1]
 	img2_original = cv2.imread(file2, 1)
 
-
-	'''
-	img1 = cv2.imread('/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL/Immuno_ER/18-7361_1_7_b.jpg', 1)
-	img2 = cv2.imread('/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL/Immuno_ER/18-7361_1_7_c.jpg', 1)
-	img2_original = cv2.imread('/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL/Immuno_ER/18-7361_1_7_c.jpg', 1)
-	'''
-
-	'''
-	img1 = cv2.imread('/Users/wasserman/Downloads/Dog', 1)
-	img2 = cv2.imread('/Users/wasserman/Downloads/Dog', 1)
-	HE_cord = [(24, 9), (19, 218), (164, 131)]
-	IHC_cord = [(93, 45), (37, 107), (148, 158)]
-	'''
-
-
-
-
 	H, W, _ = img1.shape
 
 	if False:
-		#img = np.concatenate((img1, img2), axis=1)
-		img=img1
+		img = np.concatenate((img1, img2), axis=1)
 		# displaying the image
 		cv2.imshow('image', img)
 
@@ -498,55 +406,16 @@ if __name__=="__main__":
 		print(HE_cord)
 		print(IHC_cord)
 
-		'''
-		mark_points(HE_cord, img1)
-		cv2.waitKey(0)
-		mark_points(IHC_cord, img2)
-		cv2.waitKey(0)
-		'''
-
-
-	#HE_cord = [(240, 264), (657, 88), (1246, 27), (1450, 217), (1378, 381), (1081, 359), (1357, 543), (1052, 910), (872, 1432), (281, 1280), (86, 1121)]
-	#IHC_cord = [(2210, 542), (2437, 926), (2558, 1521), (2361, 1759), (2204, 1704), (2199, 1383), (2057, 1718), (1608, 1399), (1113, 1300), (1209, 650), (1397, 460)]
-
-	#HE_cord = [(244, 264), (1367, 540), (865, 1445)]
-	#IHC_cord = [(2211, 553), (2040, 1715), (1125, 1267)]
-
-
-
 	HE_tri = Delaunay(HE_cord)
-	#draw_delaunay(img1, HE_cord, HE_tri.simplices)
-
 	draw_delaunay(img2, IHC_cord, HE_tri.simplices)
 
-
 	transform_matrices = get_transforms(HE_cord, IHC_cord, HE_tri.simplices)
-
-
-	#mid_points, simplex_match = compute_mid_points_for_convex_hull(HE_tri)
 
 	# Extrapulations outside the triangles
 	mid_points, simplex_match = compute_CG_points_for_simplices(HE_tri)
 	areas = get_convex_triangle_area(HE_tri, simplex_match)
 	inv_simplices_values, simplex_match = compute_Gils_value_simplices(HE_tri)
 
-
-	'''cv2.imwrite(os.path.join(location, 'With_Triangles_' + file_name_1), img1)
-	cv2.imwrite(os.path.join(location, 'With_Triangles_' + file_name_2), img2)'''
-
-
-
-	#img = np.concatenate((img1, img2), axis=1)
-
-	'''
-	cv2.imshow('image2', img)
-	cv2.setMouseCallback('image2', pick_and_show_point)
-	cv2.waitKey(0)
-	cv2.destroyAllWindows()
-	'''
-
-	#x_cords, y_cords = create_pixel_location_matrix(img1, simplex_match, areas)
-	#x_cords, y_cords = create_pixel_location_matrix(img1, simplex_match, inv_simplices_values, is_by_gils_values=True)
 	x_cords, y_cords = create_pixel_location_matrix(img1=img1,
 													simplex_match=simplex_match,
 													simplex_areas=areas,
@@ -562,11 +431,9 @@ if __name__=="__main__":
 	new_img = interpolate_image(img2, x_cords, y_cords)
 	cv2.imwrite(os.path.join(location, 'CONVERTED_With_Triangles_' + file_name_2), new_img)
 
-
 	converted_image = np.concatenate((img, np.concatenate((img1, new_img), axis=1)), axis=0)
 
 	cv2.imshow('Converted_Image', converted_image)
 	cv2.waitKey(0)
 
 	print('Done')
-

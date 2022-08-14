@@ -41,22 +41,22 @@ def delete_empty_folders(data_dir, Dataset):
     for path, _, _ in walk[::-1]:
         if (os.path.join(data_dir, Dataset) in path) or ('unreadable_labels' in path):
             continue
-        if 'thumbs.db' in os.listdir(path):
+        if 'Thumbs.db' in os.listdir(path):
             move_thumbs_db_file(data_dir, path)
         if len(os.listdir(path)) == 0:
             try:
-                os.remove(path)
+                os.rmdir(path)
             except Exception as E:
                 print('could not erase folder ' + path)
                 print(E)
 
 
 def move_thumbs_db_file(data_dir, path):
-    if not os.path.isdir(os.path.join(data_dir, 'thumbs_db')):
-        os.mkdir(os.path.join(data_dir, 'thumbs_db'))
-    new_filename = 'thumbs_' + os.path.basename(path) + '.db'
-    orig_name = os.path.join(path, 'thumbs.db')
-    os.rename(orig_name, os.path.join(data_dir, 'thumbs_db', new_filename))
+    if not os.path.isdir(os.path.join(data_dir, 'Thumbs_db')):
+        os.mkdir(os.path.join(data_dir, 'Thumbs_db'))
+    new_filename = 'Thumbs_' + os.path.basename(path) + '.db'
+    orig_name = os.path.join(path, 'Thumbs.db')
+    os.rename(orig_name, os.path.join(data_dir, 'Thumbs_db', new_filename))
 
 
 def rename_slide_file_and_folder(slide_data, out_dir):

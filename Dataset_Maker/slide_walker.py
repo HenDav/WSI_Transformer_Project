@@ -10,6 +10,7 @@ from collections import OrderedDict
 from tqdm import tqdm
 import xlsxwriter
 from Dataset_Maker import dataset_utils
+import numpy as np
 
 
 BARCODE_CONVENTION_NONE = 0
@@ -75,8 +76,9 @@ def add_barcodes_to_slide_list(data_dir, dataset_name, scan_barcodes=True):
 
 
 def merge_manual_barcodes_to_barcode_list(data_dir, dataset_name):
-    manual_barcodes_file = get_manual_barcode_file(data_dir, dataset_name)
+    manual_barcodes_file = get_manual_barcode_file(data_dir, dataset_name, extension='_fixed')
     manual_barcodes_df = dataset_utils.open_excel_file(manual_barcodes_file)
+    manual_barcodes_df.loc[manual_barcodes_df['barcode (auto)'] == '-///', 'barcode (auto)'] = np.nan
     N_manual = len(manual_barcodes_df) \
                - manual_barcodes_df['barcode (auto)'].isna().sum() \
                - (manual_barcodes_df['barcode (auto)'] == 0).sum()
@@ -97,24 +99,25 @@ def write_label_images_to_excel(slide_list_df, label_image_name_list, data_dir, 
     worksheet = workbook.add_worksheet()
     worksheet.write_string('A1', 'dir')
     worksheet.write_string('B1', 'file')
-    worksheet.write_string('H1', 'barcode image')
-    worksheet.write_string('C1', 'Year')
-    worksheet.write_string('D1', 'SampleID')
-    worksheet.write_string('E1', 'TissueID')
-    worksheet.write_string('F1', 'BlockID')
-    worksheet.write_string('G1', 'SlideID')
-    worksheet.write_string('I1', 'barcode (auto)')
+    worksheet.write_string('C1', 'box')
+    worksheet.write_string('I1', 'barcode image')
+    worksheet.write_string('D1', 'Year')
+    worksheet.write_string('E1', 'SampleID')
+    worksheet.write_string('F1', 'TissueID')
+    worksheet.write_string('G1', 'BlockID')
+    worksheet.write_string('H1', 'SlideID')
+    worksheet.write_string('J1', 'barcode (auto)')
     worksheet.set_default_row(35)
 
     for ii, img in enumerate(label_image_name_list):
         img_file = os.path.join(img_dir, img)
         worksheet.write_string('A' + str(ii + 2), slide_list_df['dir'][ii])
         worksheet.write_string('B' + str(ii + 2), slide_list_df['file'][ii])
-        worksheet = dataset_utils.format_empty_spaces_as_string(workbook, worksheet, ii)
+        worksheet = dataset_utils.format_empty_spaces_as_string(workbook, worksheet, ii, ['D', 'E', 'F', 'G', 'H'])
         if img != '':
-            worksheet.insert_image('H' + str(ii + 2), img_file, {'x_scale': 0.12, 'y_scale': 0.12})
-            formula_string = '=CONCATENATE(C' + str(ii + 2) + ',"-",D' + str(ii + 2) + ',"/",E' + str(
-                ii + 2) + ',"/",F' + str(ii + 2) + ',"/",G' + str(ii + 2) + ')'
+            worksheet.insert_image('I' + str(ii + 2), img_file, {'x_scale': 0.12, 'y_scale': 0.12})
+            formula_string = '=CONCATENATE(D' + str(ii + 2) + ',"-",E' + str(ii + 2) + ',"/",F' + str(
+                ii + 2) + ',"/",G' + str(ii + 2) + ',"/",H' + str(ii + 2) + ')'
             worksheet.write_formula('I' + str(ii + 2), formula_string)
 
     worksheet.set_zoom(200)
@@ -227,9 +230,9 @@ def get_barcode_list_file(main_data_dir, dataset_name):
     return os.path.join(main_data_dir, 'barcode_list_' + dataset_name + '.xlsx')
 
 
-def get_manual_barcode_file(data_dir, dataset_name):
+def get_manual_barcode_file(data_dir, dataset_name, extension=''):
     img_dir = os.path.join(data_dir, 'unreadable_labels')
-    manual_barcodes_file = os.path.join(img_dir, 'barcode_list_images_' + dataset_name + '.xlsx')
+    manual_barcodes_file = os.path.join(img_dir, 'barcode_list_images_' + dataset_name + extension + '.xlsx')
     return manual_barcodes_file
 
 

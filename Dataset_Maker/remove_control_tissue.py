@@ -4,15 +4,12 @@ import os, sys
 import glob
 
 
-def get_her2_control_dir(dataset):
-    if dataset == 'HER2_1':
-        if sys.platform == 'linux':  # GIPdeep
-            control_dir = r'/mnt/gipmed_new/Data/Breast/Carmel/Her2/Batch_1/thumbs_w_control_marked_in_red'
-        elif sys.platform == 'win32':  # GIPdeep
-            control_dir = r'C:\Users\User\OneDrive - Technion\Her2_batch1_w_control_review\marked'
+def get_her2_control_dir(data_dir):
+    control_dir = os.path.join(data_dir, 'thumbs_w_control_tissue_marked')
+    if os.path.isdir(control_dir):
+        return control_dir
     else:
-        raise ValueError('marked image folder not defined for dataset ' + dataset)
-    return control_dir
+        return ''
 
 
 def remove_slide_artifacts_rows_from_segmentation(img_arr, remove_upper_part_ratio=0.1):
@@ -36,14 +33,15 @@ def remove_control_tissue_rows_according_to_marked_file(img_arr, matching_marked
     return img_arr
 
 
-def remove_control_tissue_rows_from_segmentation(img_array, slide_name, dataset):
-    control_dir = get_her2_control_dir(dataset)
-    matching_marked_image_file = glob.glob(os.path.join(control_dir, '*' + slide_name + '.jpg'))
-    matching_marked_file_found = len(matching_marked_image_file) == 1
-    if matching_marked_file_found:
-        img_array = remove_control_tissue_rows_according_to_marked_file(img_array, matching_marked_image_file)
-    else:
-        print('no matching marked image for slide ' + slide_name)
+def remove_control_tissue_rows_from_segmentation(img_array, slide_name, data_dir):
+    control_dir = get_her2_control_dir(data_dir)
+    if control_dir != '':
+        matching_marked_image_file = glob.glob(os.path.join(control_dir, '*' + slide_name + '.jpg'))
+        matching_marked_file_found = len(matching_marked_image_file) == 1
+        if matching_marked_file_found:
+            img_array = remove_control_tissue_rows_according_to_marked_file(img_array, matching_marked_image_file)
+        else:
+            print('no matching marked image for slide ' + slide_name)
     return img_array
 
 
@@ -60,14 +58,18 @@ def avoid_control_tissue_bottom(thumb, bottom_percent=0.4):
     return thumb
 
 
-def remove_control_tissue_according_to_dataset(img, is_IHC_slide, slide_name, dataset):
+def remove_control_tissue_according_to_dataset(img, is_IHC_slide, slide_name, dataset, data_dir):
     # Avoid control tissue on segmentation
-    if (is_IHC_slide and dataset == 'PORTO_PDL1' and slide_name[-5:] == ' pdl1'):
+    is_porto_pdl1_w_control_tissue = (is_IHC_slide and dataset == 'PORTO_PDL1' and slide_name[-5:] == ' pdl1')
+    is_her2 = dataset[:4].casefold() == 'HER2'.casefold()
+    if is_porto_pdl1_w_control_tissue:
         # PORTO second batch IHC contains control tissue
-        #identified with " pdl1" in the filename
+        # identified with " pdl1" in the filename
         img = avoid_control_tissue_bottom(img)
-    elif dataset[:4].casefold() == 'HER2'.casefold():
-        img = Image.fromarray(remove_control_tissue_rows_from_segmentation(img_array=np.array(img), slide_name=slide_name, dataset=dataset))
+    elif is_her2:
+        img = Image.fromarray(remove_control_tissue_rows_from_segmentation(img_array=np.array(img),
+                                                                           slide_name=slide_name,
+                                                                           data_dir=data_dir))
     return img
 
 

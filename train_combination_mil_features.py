@@ -19,11 +19,6 @@ import copy
 
 
 parser = argparse.ArgumentParser(description='WSI_MIL Training of PathNet Project')
-#parser.add_argument('-tt', '--transform_type', type=str, default='none', help='keyword for transform type')
-#parser.add_argument('-d', dest='dx', action='store_true', help='Use ONLY DX cut slides')
-#parser.add_argument('-diffslides', dest='different_slides', action='store_true', help='Use more than one slide in each bag')
-#parser.add_argument('--mag', type=int, default=10, help='desired magnification of patches')
-#parser.add_argument('--c_param', default=0.1, type=float, help='color jitter parameter')
 parser.add_argument('-ds', '--dataset', type=str, default='CARMEL', help='DataSet to use')
 parser.add_argument('-tar', '--target', type=str, default='ER', help='Target to train for')
 parser.add_argument('-tf', '--test_fold', default=1, type=int, help='fold to be as TEST FOLD')
@@ -37,9 +32,7 @@ parser.add_argument('-tpb', '--tiles_per_bag', type=int, default=100, help='Tile
 parser.add_argument('--lr', default=1e-5, type=float, help='learning rate')
 parser.add_argument('--weight_decay', default=5e-5, type=float, help='L2 penalty')
 parser.add_argument('--model', default='nets_mil.Combined_MIL_Feature_Attention_MultiBag_Class_Relation_FIxation()', type=str, help='net to use')
-#parser.add_argument('--model', default='nets_mil.MIL_Feature_3_Attention_MultiBag()', type=str, help='net to use')
 parser.add_argument('--eval_rate', type=int, default=5, help='Evaluate validation set every # epochs')
-#parser.add_argument('-slide_reps', '--slide_repetitions', type=int, default=1, help='Slide repetitions per epoch')
 parser.add_argument('-im', dest='images', action='store_true', help='save data images?')
 parser.add_argument('-llf', dest='last_layer_freeze', action='store_true', help='get last layer and freeze it ?')
 parser.add_argument('-dl', '--data_limit', type=int, default=None, help='Data Limit to a specified number of feature tiles')
@@ -80,24 +73,11 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
         all_writer.add_text('Experiment No.', str(experiment))
         all_writer.add_text('Train type', 'MIL')
         all_writer.add_text('Model type', str(type(model)))
-        #all_writer.add_text('Data type', dloader_train.dataset.DataSet)
-        #all_writer.add_text('Train Folds', str(dloader_train.dataset.folds).strip('[]'))
-        #all_writer.add_text('Test Folds', str(dloader_test.dataset.folds).strip('[]'))
-        #all_writer.add_text('Transformations', str(dloader_train.dataset.transform))
-        #all_writer.add_text('Receptor Type', str(dloader_train.dataset.target_kind))
 
     print()
     print('Training will be conducted with {} bags and {} tiles per bag in each MiniBatch'.format(args.num_bags, args.tiles_per_bag))
     print('Start Training...')
     previous_epoch_loss = 1e5
-
-    '''    
-    # The following part saves the random slides on file for further debugging
-    if os.path.isfile('random_slides.xlsx'):
-        random_slides = pd.read_excel('random_slides.xlsx')
-    else:
-        random_slides = pd.DataFrame()
-    '''
 
     for e in range(from_epoch, epoch + from_epoch):
         time_epoch_start = time.time()
@@ -141,7 +121,6 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
 
                 exit()
 
-
             if len(weights) == 2 and model.model_name in ['nets_mil.Combined_MIL_Feature_Attention_MultiBag_DEBUG()',
                                                           'nets_mil.Combined_MIL_Feature_Attention_MultiBag_Class_Relation_FIxation()']:
                 weights_1, weights_2 = weights[0].cpu().detach().numpy(), weights[1].cpu().detach().numpy()
@@ -152,15 +131,6 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             else:
                 weights = np.hstack([weights['CAT'].cpu().detach().numpy(), weights['CARMEL'].cpu().detach().numpy()])
                 weights_1, weights_2 = weights['CAT'].cpu().detach().numpy(), weights['CARMEL'].cpu().detach().numpy()
-
-
-
-            #DividedSlides_Flag = True if len(data_CAT.shape) == 3 else False
-
-            #target_diag = torch.diag(target)
-            '''neg_log_likelihood = -1. * (target * torch.log(scores) + (1. - target) * torch.log(1. - scores))  # negative log bernoulli'''
-            '''neg_log_likelihood = -1. * (
-                    torch.log(scores) * target_diag + torch.log(1. - scores) * torch.diag(1. - target))'''
 
             loss = criterion(outputs, target)
             train_loss += loss.item()
@@ -183,28 +153,6 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             correct_pos_train += predicted[target.eq(1)].eq(1).sum().item()
             correct_neg_train += predicted[target.eq(0)].eq(0).sum().item()
 
-            '''
-            targets_train[batch_idx * num_bags : (batch_idx + 1) * this_num_bags] = target.cpu().detach().numpy().reshape(2)
-            total_pos_train += target.eq(1).numpy().sum()
-            total_neg_train += target.eq(0).numpy().sum()
-
-            true_labels = target.eq(label)
-            for label_idx, correctness in enumerate(true_labels):
-                if correctness == True:
-                    if label[label_idx] == 1:
-                        true_pos_train += 1
-                    elif label[label_idx] == 0:
-                        true_neg_train += 1
-
-            scores_train[batch_idx * num_bags : (batch_idx + 1) * num_bags] = prob.cpu().detach().numpy().reshape(2)
-            '''
-            '''
-            prob = torch.clamp(prob, min=1e-5, max=1. - 1e-5)
-            neg_log_likelihood = -1. * (target * torch.log(prob) + (1. - target) * torch.log(1. - prob))  # negative log bernoulli
-            loss = neg_log_likelihood
-            train_loss += loss.item()
-            '''
-
             # Calculate training accuracy
             all_writer.add_scalar('Loss', loss.item(), batch_idx + e * len(dloader_train))
 
@@ -223,11 +171,6 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                     time_writer.add_scalar('Time/Avg to Extract Tile [Sec]', time_list[0], time_stamp)
                     time_writer.add_scalar('Time/Augmentation [Sec]', time_list[1], time_stamp)
                     time_writer.add_scalar('Time/Total To Collect Data [Sec]', time_list[2], time_stamp)
-
-        '''
-        random_slides = random_slides.append(pd.DataFrame(slide_random_list))
-        random_slides.to_excel('random_slides.xlsx')
-        '''
 
         time_epoch = (time.time() - time_epoch_start) / 60
         if print_timing:
@@ -249,15 +192,6 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
         if 'weights_2' in locals():
             all_writer.add_scalar('Train/Weights' + dataset_list[1] + 'mean (per bag)', np.mean(np.sum(weights_2, axis=1)), e)
 
-        '''print('Finished Epoch: {}, Loss: {:.2f}, Loss Delta: {:.3f}, Train Accuracy: {:.2f}% ({} / {}), Time: {:.0f} m'
-              .format(e,
-                      train_loss,
-                      previous_epoch_loss - train_loss,
-                      train_acc,
-                      int(correct_labeling),
-                      len(train_loader.dataset),
-                      time_epoch))'''
-
         print('Finished Epoch: {}, Loss: {:.2f}, Loss Delta: {:.3f}, Train AUC per patch: {:.2f} , Time: {:.0f} m'
               .format(e,
                       train_loss,
@@ -266,14 +200,6 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                       time_epoch))
 
         previous_epoch_loss = train_loss
-
-        '''
-        if train_loss < best_train_loss:
-            best_train_loss = train_loss
-            best_train_acc = train_acc
-            best_epoch = e
-            best_model = model
-        '''
 
         if e % args.eval_rate == 0:
             acc_test, bacc_test = check_accuracy(model, dloader_test, all_writer, DEVICE, e)
@@ -312,22 +238,8 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                         },
                        os.path.join(args.output_dir, 'Model_CheckPoints', 'model_data_Epoch_' + str(e) + '.pt'))
 
-            '''
-            if e % 20 == 0 and args.images:
-                image_writer.add_images('Train Images/Before Transforms', basic_tiles.squeeze().detach().cpu().numpy(),
-                                        global_step=e, dataformats='NCHW')
-                image_writer.add_images('Train Images/After Transforms', data.squeeze().detach().cpu().numpy(),
-                                        global_step=e, dataformats='NCHW')
-                image_writer.add_images('Train Images/After Transforms (De-Normalized)',
-                                        norm_img(data.squeeze().detach().cpu().numpy()), global_step=e,
-                                        dataformats='NCHW')
-            '''
         else:
             acc_test, bacc_test = None, None
-
-        '''if e == 0:
-            pd.DataFrame(data_list).to_excel('validate_data.xlsx')
-            print('Saved validation data')'''
 
     all_writer.close()
     if print_timing:
@@ -386,18 +298,10 @@ def check_accuracy(model: nn.Module, data_loader: DataLoader, writer_all, DEVICE
             writer_all.add_scalar('Test/Balanced Accuracy', balanced_acc, epoch)
             writer_all.add_scalar('Test/Roc-Auc', roc_auc, epoch)
 
-        '''print('Accuracy of {:.2f}% ({} / {}) over Test set'.format(acc, correct_labeling_test, len(data_loader.dataset)))'''
         print('Slide AUC of {:.2f} over Test set'.format(roc_auc))
 
     model.train()
-    '''
-    for module in model.modules():
-        if isinstance(module, nn.BatchNorm2d):
-            module.track_running_stats = False
-    '''
     return acc, balanced_acc
-
-
 
 ##################################################################################################
 
@@ -412,7 +316,6 @@ if __name__ == '__main__':
     # Data type definition:
     DATA_TYPE = 'Features'
 
-
     # These lines are for debugging:
     if sys.platform == 'darwin':
         args.last_layer_freeze = True
@@ -420,98 +323,6 @@ if __name__ == '__main__':
         args.Multi_Resolution = False
         args.Class_Relation = 0.8
 
-
-    '''
-    if sys.platform == 'darwin':
-        if args.dataset == 'TCGA_ABCTB':
-            if args.target == 'ER':
-                if args.test_fold == 1:
-                    Dataset_name = r'FEATURES: Exp_293-ER-TestFold_1'
-                    train_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/Ran_Exp_293-TestFold_1/Train'
-                    test_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/Ran_Exp_293-TestFold_1/Test'
-                    ''
-                elif args.test_fold == 2:
-                    Dataset_name = r'FEATURES: Exp_299-ER-TestFold_2'
-                    train_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/ran_299-Fold_2/Train'
-                    test_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/ran_299-Fold_2/Test'
-
-                basic_model_location = r'/Users/wasserman/Developer/WSI_MIL/Data from gipdeep/runs/Ran_models/ER/ran_293/model_data_Epoch_1000.pt'
-                traind_model = r'/Users/wasserman/Developer/WSI_MIL/Data from gipdeep/runs/features/338 - freezed last layer/model_data_Epoch_500.pt'
-
-            elif args.target == 'PR':
-                if args.test_fold == 1:
-                    Dataset_name = r'FEATURES: Exp_309-PR-TestFold_1'
-                    train_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/PR/Fold_1/Train'
-                    test_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/PR/Fold_1/Test'
-
-            elif args.target == 'Her2':
-                if args.test_fold == 1:
-                    Dataset_name = r'FEATURES: Exp_308-Her2-TestFold_1'
-                    train_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Her2/Fold_1/Train'
-                    test_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Her2/Fold_1/Test'
-
-        elif args.dataset == 'CAT':
-            if args.target == 'ER':
-                if args.test_fold == 1:
-                    Dataset_name = r'FEATURES: Exp_355-ER-TestFold_1'
-                    train_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/Ran_Exp_355-TestFold_1/Train'
-                    test_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/Ran_Exp_355-TestFold_1/Test'
-                    basic_model_location = r'/Users/wasserman/Developer/WSI_MIL/Data from gipdeep/runs/Ran_models/ER/CAT_355_TF_1/model_data_Epoch_1000.pt'
-
-        elif args.dataset == 'CARMEL':
-            if args.target == 'ER':
-                if args.test_fold == 1:
-                    Dataset_name = r'FEATURES: Exp_358-ER-TestFold_1'
-                    train_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/Ran_Exp_358-TestFold_1/Train'
-                    test_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/Ran_Exp_358-TestFold_1/Test'
-                    basic_model_location = r'/Users/wasserman/Developer/WSI_MIL/Data from gipdeep/runs/Ran_models/ER/CARMEL_358-TF_1/model_data_Epoch_1000.pt'
-
-    elif sys.platform == 'linux':
-        if args.dataset == 'TCGA_ABCTB':
-            if args.target == 'ER':
-                if args.test_fold == 1:
-                    Dataset_name = r'FEATURES: Exp_293-ER-TestFold_1'
-                    train_data_dir = r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_293-ER-TestFold_1/Inference/train_inference_w_features'
-                    test_data_dir = r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_293-ER-TestFold_1/Inference/test_inference_w_features'
-                    basic_model_location = r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_293-ER-TestFold_1/Model_CheckPoints/model_data_Epoch_1000.pt'
-
-                elif args.test_fold == 2:
-                    Dataset_name = r'FEATURES: Exp_299-ER-TestFold_2'
-                    train_data_dir = r'/home/womer/project/All Data/Ran_Features/299/Train'
-                    test_data_dir = r'/home/womer/project/All Data/Ran_Features/299/Test'
-                    basic_model_location = r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_299-ER-TestFold_2/Model_CheckPoints/model_data_Epoch_1000.pt'
-
-            elif args.target == 'PR':
-                if args.test_fold == 1:
-                    Dataset_name = r'FEATURES: Exp_309-PR-TestFold_1'
-                    train_data_dir = r'/home/womer/project/All Data/Ran_Features/PR/Fold_1/Train'
-                    test_data_dir = r'/home/womer/project/All Data/Ran_Features/PR/Fold_1/Test'
-                    basic_model_location = r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_309-PR-TestFold_1/Model_CheckPoints/model_data_Epoch_1000.pt'
-
-            elif args.target == 'Her2':
-                if args.test_fold == 1:
-                    Dataset_name = r'FEATURES: Exp_308-Her2-TestFold_1'
-                    train_data_dir = r'/home/womer/project/All Data/Ran_Features/Her2/Fold_1/Train'
-                    test_data_dir = r'/home/womer/project/All Data/Ran_Features/Her2/Fold_1/Test'
-                    basic_model_location = r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_308-Her2-TestFold_1/Model_CheckPoints/model_data_Epoch_1000.pt'
-
-        elif args.dataset == 'CAT':
-            if args.target == 'ER':
-                if args.test_fold == 1:
-                    Dataset_name = r'FEATURES: Exp_355-ER-TestFold_1'
-                    train_data_dir = r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_355-ER-TestFold_1/Inference/train_w_features'
-                    test_data_dir = r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_355-ER-TestFold_1/Inference/test_w_features'
-                    basic_model_location = r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_355-ER-TestFold_1/Model_CheckPoints/model_data_Epoch_1000.pt'
-
-        elif args.dataset == 'CARMEL':
-            if args.target == 'ER':
-                if args.test_fold == 1:
-                    Dataset_name = r'FEATURES: Exp_358-ER-TestFold_1'
-                    train_data_dir = r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_358-ER-TestFold_1/Inference/train_w_features'
-                    test_data_dir = r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_358-ER-TestFold_1/Inference/test_w_features'
-                    basic_model_location = r'/home/rschley/code/WSI_MIL/general_try4/runs/Exp_358-ER-TestFold_1/Model_CheckPoints/model_data_Epoch_1000.pt'
-
-    '''
     # Saving/Loading run meta data to/from file:
     if args.experiment is 0:
         run_data_results = utils.run_data(test_fold=args.test_fold,
@@ -617,10 +428,6 @@ if __name__ == '__main__':
                 for p in model.classifier_Model_2.parameters():  # This part will freeze the classifier part so it won't change during training
                     p.requires_grad = False
 
-
-            #for p in model.classifier[dataset_name].parameters():  # This part will freeze the classifier part so it won't change during training
-            #    p.requires_grad = False
-
     if model.model_name in ['nets_mil.Combined_MIL_Feature_Attention_MultiBag_Class_Relation_FIxation()',
                             'nets_mil.Combined_MIL_Feature_Attention_MultiBag_DEBUG()',
                             'nets_mil.Combined_MIL_Feature_Attention_MultiBag()',
@@ -642,7 +449,6 @@ if __name__ == '__main__':
 
     if args.CAT_only:
         model.Model_1_only = True
-
 
     # Save model data and DataSet size (and some other dataset data) to run_data.xlsx file (Only if this is a new run).
     if args.experiment == 0:

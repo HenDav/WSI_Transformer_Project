@@ -338,8 +338,8 @@ def load_backup_slides_data(in_dir, dataset, extension=''):
     return slides_data_file, slides_data_DF
 
 
-def format_empty_spaces_as_string(workbook, worksheet, ind):
+def format_empty_spaces_as_string(workbook, worksheet, ind, column_list):
     text_format = workbook.add_format({'num_format': '@'})
-    for col in ['C', 'D', 'E', 'F', 'G']:
+    for col in column_list:
         worksheet.write(col + str(ind + 2), '', text_format)
     return worksheet

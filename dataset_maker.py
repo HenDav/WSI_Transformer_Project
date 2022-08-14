@@ -73,7 +73,7 @@ def prepare_dataset_step1(data_dir, Dataset, tile_size, tissue_coverage, mag, is
     if is_w_control_tissue:
         slide_inspector.create_slide_inspection_folder(in_dir=os.path.join(data_dir, Dataset),
                                                        out_dir=os.path.join(data_dir, 'thumbs_w_control_tissue'),
-                                                       mag=mag,
+                                                       desired_mag=mag,
                                                        thumbs_only=True)
 
 

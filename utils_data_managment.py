@@ -891,7 +891,7 @@ def make_segmentations(DataSet: str = 'TCGA', ROOT_DIR: str = 'All Data', rewrit
 
 def _make_segmentation_for_image(file, DataSet, rewrite, out_path_dataset, slides_meta_data_DF, magnification):
     fn, data_format = os.path.splitext(os.path.basename(file))
-
+    data_dir = os.path.dirname(out_path_dataset)
     if not rewrite:
         pic1 = os.path.exists(os.path.join(out_path_dataset, 'SegData', 'Thumbs', fn + '_thumb.jpg'))
         pic2 = os.path.exists(os.path.join(out_path_dataset, 'SegData', 'SegMaps', fn + '_SegMap.png'))
@@ -941,7 +941,7 @@ def _make_segmentation_for_image(file, DataSet, rewrite, out_path_dataset, slide
         else:
             is_IHC_slide = False
 
-        thumb = remove_from_seg.remove_control_tissue_according_to_dataset(thumb, is_IHC_slide, fn, DataSet)
+        thumb = remove_from_seg.remove_control_tissue_according_to_dataset(thumb, is_IHC_slide, fn, DataSet, data_dir)
         thumb = remove_from_seg.remove_slide_artifacts_according_to_dataset(thumb, DataSet)
 
         # if DataSet == 'ABCTB':

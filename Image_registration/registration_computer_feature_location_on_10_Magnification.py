@@ -1,8 +1,7 @@
 import openslide
 import numpy as np
-from scipy.spatial import Delaunay, Voronoi, voronoi_plot_2d
+from scipy.spatial import Delaunay
 import cv2
-from PIL import Image
 
 
 class Tile:
@@ -15,7 +14,6 @@ class Tile:
         self.BottomLeft = (center[0] + int(half_tile / pix_ratio_from_10MAG['HE']['H']), center[1] - int(half_tile / pix_ratio_from_10MAG['HE']['W']))
         self.BottomRight = (center[0] + int(half_tile / pix_ratio_from_10MAG['HE']['H']), center[1] + int(half_tile / pix_ratio_from_10MAG['HE']['W']))
         self.in_simplex = delaunay.find_simplex(self.Center).item()
-
 
     def set_IHC_properties(self, transform):
         tile_corners = np.transpose(np.hstack((np.array((self.TopLeft, self.TopRight, self.BottomLeft, self.BottomRight)),
@@ -48,14 +46,10 @@ def plot_tiles(img_HE, img_IHC, tiles):
                       color=(255, 0, 0),
                       thickness=thickness)
 
-
-
     cv2.imwrite('/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL/Immuno_ER/thumbs/19-5229_2_1_e_Tiles.jpg', img_HE)
-
 
     img_IHC = img_IHC[13000:, :, :]
     cv2.imwrite('/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL/Immuno_ER/thumbs/19-5229_2_1_l_Tiles.jpg', img_IHC)
-
 
 
 def compute_feature_points_new_location(ratio, original_location):
@@ -83,9 +77,6 @@ def compute_transformed_tiles(tiles, transformations):
         tile.set_IHC_properties(transform)
 
 
-
-#######################################################################################################################
-#######################################################################################################################
 #######################################################################################################################
 
 
@@ -157,7 +148,6 @@ if save_small_images:
     real_sized_thumb.save('/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL/Immuno_ER/thumbs/19-5229_2_1_e.jpg')
     real_sized_thumb = IHC_slide.read_region((0, 0), 3, (11185, 25576)).convert('RGB')
     real_sized_thumb.save('/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL/Immuno_ER/thumbs/19-5229_2_1_l.jpg')
-
 
 
 # Centers are ordered by: (row, col)

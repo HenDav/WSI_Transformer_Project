@@ -4,11 +4,11 @@ import sys
 
 inference_files = {}
 
-exp = 876
-fold = '5'
-target = 'onco_score_all'
+exp = 916
+fold = "'test'"
+target = 'onco_score_31'
 dataset = 'SHEBA'
-subdir = ''
+subdir = 'test'
 is_other = False
 csv_epoch = 2000
 

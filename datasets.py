@@ -899,18 +899,10 @@ class Features_MILdataset(Dataset):
 
         data_files = corrected_data_file
 
-        '''if os.path.join(data_location, 'Model_Epoch_1000-Folds_[2, 3, 4, 5]_ER-Tiles_500.data') in data_files:
-            data_files.remove(os.path.join(data_location, 'Model_Epoch_1000-Folds_[2, 3, 4, 5]_ER-Tiles_500.data'))
-        if os.path.join(data_location, 'Model_Epoch_1000-Folds_[1]_ER-Tiles_500.data') in data_files:
-            data_files.remove(os.path.join(data_location, 'Model_Epoch_1000-Folds_[1]_ER-Tiles_500.data'))'''
-
         if sys.platform == 'darwin':
             if dataset == 'TCGA_ABCTB':
                 if target in ['ER', 'ER_Features'] or (
                         target in ['PR', 'PR_Features', 'Her2', 'Her2_Features'] and test_fold == 1):
-                    '''grid_location_dict = {'TCGA': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/TCGA_Grid_data.xlsx',
-                                          'ABCTB': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/ABCTB_Grid_data.xlsx'
-                                          }'''
                     grid_location_dict = {
                         'TCGA': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/TCGA_Grid_data.xlsx',
                         'ABCTB': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/ABCTB_TIF_Grid_data.xlsx'
@@ -940,8 +932,6 @@ class Features_MILdataset(Dataset):
                                       'CARMEL': pd.read_excel(
                                           '/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/slides_data_CARMEL_ALL.xlsx')
                                       }
-                '''slides_data_DF_CARMEL = pd.read_excel('/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/slides_data_CARMEL_ALL.xlsx')
-                slides_data_DF_CARMEL.set_index('file', inplace=True)'''
 
             elif dataset == 'CARMEL':
                 grid_location_dict = {
@@ -949,17 +939,11 @@ class Features_MILdataset(Dataset):
                 slide_data_DF_dict = {'CARMEL': pd.read_excel(
                     '/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/slides_data_CARMEL_ALL.xlsx')}
 
-                '''slides_data_DF_CARMEL = pd.read_excel('/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/slides_data_CARMEL_ALL.xlsx')
-                slides_data_DF_CARMEL.set_index('file', inplace=True)'''
-
             elif dataset == 'CARMEL 9-11':
                 grid_location_dict = {
                     'CARMEL Batch 9-11': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/CARMEL_Grid_data_9_11.xlsx'}
                 slide_data_DF_dict = {'CARMEL Batch 9-11': pd.read_excel(
                     '/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/slides_data_CARMEL_9_11.xlsx')}
-
-                '''slides_data_DF_CARMEL = pd.read_excel('/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/slides_data_CARMEL_9_11.xlsx')
-                slides_data_DF_CARMEL.set_index('file', inplace=True)'''
 
             elif dataset == 'HAEMEK':
                 grid_location_dict = {
@@ -981,9 +965,6 @@ class Features_MILdataset(Dataset):
             if dataset == 'TCGA_ABCTB':
                 if target in ['ER', 'ER_Features'] or (
                         target in ['PR', 'PR_Features', 'Her2', 'Her2_Features'] and test_fold == 1):
-                    '''grid_location_dict = {'TCGA': r'/mnt/gipmed_new/Data/Breast/TCGA/Grids_10/Grid_data.xlsx',
-                                          'ABCTB': r'/mnt/gipmed_new/Data/Breast/ABCTB/ABCTB/Grids_10/Grid_data.xlsx'}'''
-
                     grid_location_dict = {'TCGA': r'/mnt/gipmed_new/Data/Breast/TCGA/Grids_10/Grid_data.xlsx',
                                           'ABCTB': r'/mnt/gipmed_new/Data/ABCTB_TIF/Grids_10/Grid_data.xlsx'
                                           }
@@ -1006,8 +987,6 @@ class Features_MILdataset(Dataset):
                                       'CARMEL': pd.read_excel(
                                           '/home/womer/project/All Data/Ran_Features/Grid_data/slides_data_CARMEL_ALL.xlsx')
                                       }
-                # slides_data_DF_CARMEL = pd.read_excel('/home/womer/project/All Data/Ran_Features/Grid_data/slides_data_CARMEL_ALL.xlsx')
-                # slides_data_DF_CARMEL.set_index('file', inplace=True)
 
             elif dataset == 'HAEMEK':
                 grid_location_dict = {
@@ -1020,8 +999,6 @@ class Features_MILdataset(Dataset):
                     'CARMEL': r'/home/womer/project/All Data/Ran_Features/Grid_data/CARMEL_Grid_data.xlsx'}
                 slide_data_DF_dict = {'CARMEL': pd.read_excel(
                     '/home/womer/project/All Data/Ran_Features/Grid_data/slides_data_CARMEL_ALL.xlsx')}
-                # slides_data_DF_CARMEL = pd.read_excel('/home/womer/project/All Data/Ran_Features/Grid_data/slides_data_CARMEL_ALL.xlsx')
-                # slides_data_DF_CARMEL.set_index('file', inplace=True)
 
             elif dataset == 'CARMEL 9-11':
                 grid_location_dict = {
@@ -1246,8 +1223,6 @@ class Features_MILdataset(Dataset):
                                         'tile_location': []
                                         }
 
-            # self.bad_patient_list_is_Tumor = []
-
             slides_from_same_patient_with_different_target_values_is_Tumor, total_slides_is_Tumor, bad_num_of_good_tiles_is_Tumor = 0, 0, 0
             slides_with_not_enough_tiles_is_Tumor, slides_with_bad_segmentation_is_Tumor = 0, 0
 
@@ -1399,47 +1374,9 @@ class Features_MILdataset(Dataset):
                         self.is_Tumor_slide_data['num_tiles'].append(tiles_in_slide)
                         self.is_Tumor_slide_data['features'].append(
                             features[slide_num, :, :tiles_in_slide, :].squeeze(0).astype(np.float32))
-                        '''if len(patch_scores.shape) == 2:
-                            self.is_Tumor_slide_data['tile_scores'].append(patch_scores[slide_num, :tiles_in_slide])
-                        elif len(patch_scores.shape) == 1:
-                            self.is_Tumor_slide_data['tile_scores'].append(patch_scores[:tiles_in_slide])'''
 
                         self.is_Tumor_slide_data['slide_names'].append(slide_names[slide_num])
-                        '''self.is_Tumor_slide_data['labels'].append(int(labels[slide_num]))
-                        self.is_Tumor_slide_data['targets'].append(int(targets[slide_num]))
-                        self.is_Tumor_slide_data['scores'].append(scores[slide_num])'''
                         self.is_Tumor_slide_data['tile_location'].append(tile_location[slide_num, :tiles_in_slide])
-
-                        '''self.num_tiles.append(tiles_in_slide)
-                        self.features.append(features[slide_num, :, :tiles_in_slide, :].squeeze(0).astype(np.float32))
-                        if len(patch_scores.shape) == 2:
-                            self.tile_scores.append(patch_scores[slide_num, :tiles_in_slide])
-                        elif len(patch_scores.shape) == 1:
-                            self.tile_scores.append(patch_scores[:tiles_in_slide])
-
-                        self.slide_names.append(slide_names[slide_num])
-                        self.labels.append(int(labels[slide_num]))
-                        self.targets.append(int(targets[slide_num]))
-                        self.scores.append(scores[slide_num])
-                        # self.tile_location.append(tile_location[slide_num, :tiles_in_slide, :])
-                        self.tile_location.append(tile_location[slide_num, :tiles_in_slide])'''
-
-                    # For is_tumor there's no targets in the excel file so there's nothing to check...
-                    '''# Checking for consistency between targets loaded from the feature files and slides_data_DF.
-                    # The location of this check should include per patient dataset or per slide dataset
-                    if dataset != 'CARMEL 9-11':
-                        target_for_PD = target.split('+')[0] if '+' in target else target
-                        slide_data_target = slide_data_DF.loc[slide_names[slide_num]][target_for_PD + ' status']
-                        if slide_data_target == 'Positive':
-                            slide_data_target = 1
-                        elif slide_data_target == 'Negative':
-                            slide_data_target = 0
-                        else:
-                            slide_data_target = -1
-
-                        feature_file_target = targets[slide_num]
-                        if slide_data_target != feature_file_target:
-                            raise Exception('Found inconsistency between targets in feature files and slide_data_DF')'''
 
             # Organizing 2 datasets as one:
             if self.is_per_patient:
