@@ -31,6 +31,13 @@ class dataset_group(Enum):
 
 def get_dataset_group(dataset: str):
     dataset_stripped = re.sub(r'[0-9_]+', '', dataset)
+    #support specific datasets with underscore or number
+    if dataset_stripped == 'HER':
+        dataset_stripped = 'HER2'
+    elif dataset_stripped == 'HAEMEKONCO':
+        dataset_stripped = 'HAEMEK_ONCO'
+    elif dataset_stripped == 'TCGALUNG':
+        dataset_stripped = 'TCGA_LUNG'
     return dataset_group[dataset_stripped]
 
 
@@ -343,3 +350,7 @@ def format_empty_spaces_as_string(workbook, worksheet, ind, column_list):
     for col in column_list:
         worksheet.write(col + str(ind + 2), '', text_format)
     return worksheet
+
+
+def is_mrxs(filename):
+    return filename.split('.')[-1] == 'mrxs'

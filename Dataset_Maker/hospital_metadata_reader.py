@@ -7,10 +7,10 @@ from pathlib import Path
 
 
 def add_hospital_labels_to_metadata(in_dir, dataset, hospital_metadata_file):
-    # TODO split to subfunctions
+    print('adding labels to slides_data file, from hospital metadata file')
     labels_data_file = os.path.join(in_dir, hospital_metadata_file)
     label_data_DF = pd.read_excel(labels_data_file)
-    assert ('slide barcode' in label_data_DF.columns), "column 'slide barcode' missing in hospital metadata file"
+
     data_field = label_data_DF.keys().to_list()  # take all fields
 
     dataset_group = dataset_utils.get_dataset_group(dataset)
@@ -20,6 +20,7 @@ def add_hospital_labels_to_metadata(in_dir, dataset, hospital_metadata_file):
         assert ('BlockID' in label_data_DF.columns), "column 'BlockID' missing in hospital metadata file"
     else:
         match_by_tissue_id = False
+        assert ('slide barcode' in label_data_DF.columns), "column 'slide barcode' missing in hospital metadata file"
     assert ('PatientID' in label_data_DF.columns), "column 'PatientID' missing in hospital metadata file"
 
     slides_data_file = dataset_utils.get_slides_data_file(in_dir, dataset)
@@ -82,22 +83,61 @@ def add_hospital_labels_to_metadata(in_dir, dataset, hospital_metadata_file):
         meta_data_DF[field] = meta_data_DF[field].replace(np.nan, 'Missing Data', regex=True)
 
     dataset_utils.save_df_to_excel(meta_data_DF, slides_data_file)
+    print('finished adding labels to slides_data file')
 
 
 def binarize_labels(in_dir, dataset, binary_data_fields):
     # fields which should be translated from 0,1 to Negative, Positive
     # binary_data_fields = ['ER status', 'PR status', 'Her2 status', 'Ki67 status']
+    print('binarizing the labels in slides_data')
     backup_ext = '_before_data_fields_binarization'
 
     slides_data_file, slides_data_DF = dataset_utils.load_backup_slides_data(in_dir, dataset, extension=backup_ext)
 
     # SAVE RAW DATA
-    #binary_data_fields = []
     for field in binary_data_fields:
-        slides_data_DF[field] = slides_data_DF[field].replace(1, 'Positive', regex=True)
-        slides_data_DF[field] = slides_data_DF[field].replace(0, 'Negative', regex=True)
+        try:
+            slides_data_DF[field] = slides_data_DF[field].replace(1, 'Positive', regex=True)
+            slides_data_DF[field] = slides_data_DF[field].replace(0, 'Negative', regex=True)
+        except KeyError:
+            print('Field ', field, ' does not exist in slides_data, skipping')
 
     dataset_utils.save_df_to_excel(slides_data_DF, slides_data_file)
+    print('finished binarizing the labels')
+
+
+def get_hospital_metadata_file(dataset):
+    # Returns the metadata file obtained from the hospital
+    # Note that not all of the files are formatted correctly to work using the "Dataset_maker"
+    # Some editing, especially in the column names, will be required
+    dataset_group = dataset_utils.get_dataset_group(dataset)
+    if dataset_group.name == 'CARMEL' or dataset_group.name == 'Her2':
+        hospital_metadata_file = r'/mnt/gipmed_new/Data/Breast/Carmel/Carmel_annotations_25-10-2021.xlsx'
+    elif dataset_group.name == 'HAEMEK':
+        hospital_metadata_file = r'/mnt/gipmed_new/Data/Breast/Haemek/Afula_annotations_13-01-22.xlsx'
+    elif dataset_group.name == 'BENIGN':
+        hospital_metadata_file = r'/mnt/gipmed_new/Data/Breast/Carmel/Benign/Carmel_annotations_Benign_merged_09-01_22.xlsx'
+    elif dataset_group.name == 'TMA':
+        hospital_metadata_file = r'/mnt/gipmed_new/Data/Breast/TMA/bliss_data/TMA_MetaData_01-10-21.xlsx'
+    elif dataset_group.name == 'ABCTB':
+        hospital_metadata_file = r'/mnt/gipmed_new/Data/Breast/ABCTB_ndpi/Clinical_data/ABCTB_Path_Data.xlsx'
+    elif dataset_group.name == 'TCGA':
+        hospital_metadata_file = -1
+    elif dataset_group.name == 'SHEBA':
+        hospital_metadata_file = r'/mnt/gipmed_new/Data/Breast/Sheba/Sheba_Oncotype_2015-2020_09-05-22.xlsx'
+    elif dataset_group.name == 'IPATIMUP':
+        hospital_metadata_file = r'/mnt/gipmed_new/Data/Breast/Ipatimup/Antonio_metadata.xlsx'
+    elif dataset_group.name == 'COVILHA':
+        hospital_metadata_file = r'/mnt/gipmed_new/Data/Breast/Ipatimup/Antonio_metadata.xlsx'
+    elif dataset_group.name == 'HEROHE':
+        hospital_metadata_file = r'/mnt/gipmed_new/Data/Breast/HEROHE/HEROHE_HER2_STATUS.xlsx'
+    elif dataset_group.name == 'HAEMEK_ONCO':
+        hospital_metadata_file = r'/mnt/gipmed_new/Data/Breast/Haemek/Afula_Oncotype/Metadata_Afula_Oncotype_26-05-22.xlsx'
+    elif dataset_group.name == 'TCGA_LUNG':
+        hospital_metadata_file = r'/mnt/gipmed_new/Data/Lung/TCGA_lung/biospecimen.cart.2019-01-18.json'
+    else:
+        hospital_metadata_file = ''
+    return hospital_metadata_file
 
 
 if __name__ == '__main__':

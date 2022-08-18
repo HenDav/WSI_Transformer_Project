@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 
 def split_dataset_into_folds(data_dir, dataset, fold_params, split_all_dataset_group=False):
+    print('splitting the dataset into folds')
     if split_all_dataset_group:
         split_all_dataset_group_into_folds(fold_params, dataset)
     else:
@@ -18,7 +19,7 @@ def split_dataset_into_folds(data_dir, dataset, fold_params, split_all_dataset_g
         else:
             split_single_dataset_into_folds_inline_w_dataset_group(in_file, fold_params)
 
-    print('dataset split into folds')
+    print('finished splitting the dataset')
 
 
 def split_single_batch_into_folds(in_file, fold_params):

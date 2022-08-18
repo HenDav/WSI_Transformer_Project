@@ -1,6 +1,7 @@
 import os
 from Dataset_Maker import dataset_utils
 from Dataset_Maker import slide_walker
+
 UKNOWN_SLIDE_ID = '-1'
 
 
@@ -49,6 +50,7 @@ def delete_empty_folders(data_dir, Dataset):
             except Exception as E:
                 print('could not erase folder ' + path)
                 print(E)
+    print('finished removing empty folders')
 
 
 def move_thumbs_db_file(data_dir, path):
@@ -64,7 +66,7 @@ def rename_slide_file_and_folder(slide_data, out_dir):
     print('file:', fn)
     if str(slide_data['slide rename']) == '-1':
         return
-    if is_mrxs(fn):
+    if dataset_utils.is_mrxs(fn):
         dn = fn[:-5]
         if os.path.isfile(fn) and os.path.isdir(dn):
             new_dirname = str(slide_data['slide rename'])
@@ -80,10 +82,6 @@ def rename_slide_file_and_folder(slide_data, out_dir):
 
 def rename_file(orig_name, new_name, out_dir):
     os.rename(orig_name, os.path.join(out_dir, new_name))
-
-
-def is_mrxs(filename):
-    return filename.split('.')[-1] == 'mrxs'
 
 
 def define_output_dir(in_dir, Dataset):

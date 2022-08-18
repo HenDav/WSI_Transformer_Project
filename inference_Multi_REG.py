@@ -187,7 +187,7 @@ if args.model_path != '':
     models.append(model)
 
 if args.save_features:
-    logging.info('features will be taken from model ', str(args.from_epoch[feature_epoch_ind]))
+    logging.info('features will be taken from model {}'.format(str(args.from_epoch[feature_epoch_ind])))
 
 slide_num = args.resume
 
@@ -403,7 +403,7 @@ with torch.no_grad():
                                       patch_locs_all[slide_num-NUM_SLIDES_SAVE:slide_num]]
                     with open(feature_file_name, 'wb') as filehandle:
                         pickle.dump(inference_data, filehandle)
-                    logging.info('saved output for ', str(slide_num), ' slides')
+                    logging.info('saved output for {} slides'.format(str(slide_num)))
                     features_all = np.empty((NUM_SLIDES_SAVE, 1, args.num_tiles, 512))
                     features_all[:] = np.nan
 
@@ -424,7 +424,7 @@ if args.save_features and slide_num % NUM_SLIDES_SAVE != 0:
                       patch_locs_all[last_save:slide_num]]
     with open(feature_file_name, 'wb') as filehandle:
         pickle.dump(inference_data, filehandle)
-    logging.info('saved output for ', str(slide_num), ' slides')
+    logging.info('saved output for {} slides'.format(str(slide_num)))
 
 for model_num in range(NUM_MODELS):
     if different_experiments:

@@ -5,7 +5,7 @@ That includes:
 - Image segmentation.
 - Grid production
 """
-import Dataset_Maker.dataset_utils
+from Dataset_Maker import dataset_utils
 import utils
 import pandas as pd
 from tqdm import tqdm
@@ -499,18 +499,16 @@ def _make_grid_for_image(file, meta_data_DF, ROOT_DIR, different_SegData_path_ex
                                   filename + '_thumb.png')  # for old files
 
         grid_image_file = os.path.join(grid_images_dir, filename + '_GridImage.jpg')
-        # do not rewrite
-        if (os.path.isfile(thumb_file_jpg) or os.path.isfile(thumb_file_png)) and not os.path.isfile(grid_image_file):
+
+        if (os.path.isfile(thumb_file_jpg) or os.path.isfile(thumb_file_png)):
             try:
                 thumb = np.array(Image.open(thumb_file_jpg))
             except:
                 thumb = np.array(Image.open(thumb_file_png))
-            #slide = openslide.OpenSlide(os.path.join(ROOT_DIR, database, file))
             slide = openslide.open_slide(os.path.join(ROOT_DIR, database, file))
             thumb_downsample = slide.dimensions[0] / thumb.shape[1]  # shape is transposed
             patch_size_thumb = adjusted_tile_size_at_level_0 / thumb_downsample
 
-            #start = time.time()
             fig, ax = plt.subplots()
             ax.imshow(thumb)
             patch_list = []
@@ -521,8 +519,6 @@ def _make_grid_for_image(file, meta_data_DF, ROOT_DIR, different_SegData_path_ex
                 patch_list.append(rect)
             p = PatchCollection(patch_list, alpha=0.5, facecolors='g')
             ax.add_collection(p)
-            #end = time.time()
-            #print('file ' + file + 'new time:' + str(end-start))
 
             plt.axis('off')
             plt.savefig(grid_image_file,
@@ -603,7 +599,6 @@ def make_slides_xl_file(DataSet: str = 'HEROHE', ROOT_DIR: str = 'All Data', out
     :return:
     """
 
-    SLIDES_DATA_FILE = 'slides_data_' + DataSet + '.xlsx'
     META_DATA_FILE = {}
     META_DATA_FILE['TCGA'] = 'TCGA_BRCA.xlsx'
     META_DATA_FILE['HEROHE'] = 'HEROHE_HER2_STATUS.xlsx'
@@ -612,12 +607,14 @@ def make_slides_xl_file(DataSet: str = 'HEROHE', ROOT_DIR: str = 'All Data', out
     META_DATA_FILE['ABCTB'] = 'ABCTB_Path_Data1.xlsx'
     META_DATA_FILE['SHEBA'] = 'SHEBA ONCOTYPE 30_12_2021_Ran.xlsx'
 
-    data_file = os.path.join(out_path, DataSet, SLIDES_DATA_FILE)
+    data_file = dataset_utils.get_slides_data_file(out_path, DataSet)
     new_file = False if os.path.isfile(data_file) else True
+    if not new_file:
+        dataset_utils.backup_dataset_metadata(data_file, extension='before_rerunning_make_slides_xl_file')
 
-    if DataSet[:6]=='CARMEL':
+    if DataSet[:6] == 'CARMEL':
         DataSet_key = 'CARMEL'
-    elif DataSet[:5]=='SHEBA':
+    elif DataSet[:5] == 'SHEBA':
         DataSet_key = 'SHEBA'
     else:
         DataSet_key = DataSet
@@ -677,16 +674,7 @@ def make_slides_xl_file(DataSet: str = 'HEROHE', ROOT_DIR: str = 'All Data', out
         meta_data_DF['bcr_patient_barcode'] = meta_data_DF['bcr_patient_barcode'].astype(str)
     meta_data_DF.set_index('bcr_patient_barcode', inplace=True)
 
-    if new_file:
-        print('Creating a new data file in \'{}\''.format(data_file))
-    else:
-        print('Adding data to file \'{}\''.format(data_file))
-        slides_data_DF = pd.read_excel(data_file)
-        try:
-            slides_data_DF.drop(labels='Unnamed: 0', axis='columns',  inplace=True)
-        except KeyError:
-            pass
-
+    print('Creating a new data file in \'{}\''.format(data_file))
     id_list = []
 
     slide_files_svs = glob.glob(os.path.join(ROOT_DIR, DataSet, '*.svs'))
@@ -805,12 +793,8 @@ def make_slides_xl_file(DataSet: str = 'HEROHE', ROOT_DIR: str = 'All Data', out
 
         id_list.append(id_dict)
 
-    if new_file:
-        slides_data_DF = pd.DataFrame(id_list)
-        messege_prefix = 'Creating'
-    else:
-        slides_data_DF = slides_data_DF.append(id_list)
-        messege_prefix = 'Updated'
+    slides_data_DF = pd.DataFrame(id_list)
+    messege_prefix = 'Creating'
 
     slides_data_DF.to_excel(data_file)
     print('{} data file \'{}\''.format(messege_prefix, data_file))
@@ -944,7 +928,6 @@ def _make_segmentation_for_image(file, DataSet, rewrite, out_path_dataset, slide
         thumb = remove_from_seg.remove_control_tissue_according_to_dataset(thumb, is_IHC_slide, fn, DataSet, data_dir)
         thumb = remove_from_seg.remove_slide_artifacts_according_to_dataset(thumb, DataSet)
 
-        # if DataSet == 'ABCTB':
         if DataSet == 'PORTO_HE' or DataSet[:4] == 'HER2' or DataSet[:5] == 'SHEBA':
             otsu_method = OTSU_METHOD.OTSU3_FLEXIBLE_THRESH
         else:
@@ -1275,8 +1258,8 @@ def make_background_grid(DataSet: str = 'TCGA',
 
 
 def determine_manipulated_objective_power(DataSet, ROOT_DIR):
-    slides_data_file = Dataset_Maker.dataset_utils.get_slides_data_file(ROOT_DIR, DataSet)
-    slides_data_df = Dataset_Maker.dataset_utils.open_excel_file(slides_data_file)
+    slides_data_file = dataset_utils.get_slides_data_file(ROOT_DIR, DataSet)
+    slides_data_df = dataset_utils.open_excel_file(slides_data_file)
     slides_data_df['Manipulated Objective Power'] = slides_data_df['Objective Power']
     for i_row, _ in slides_data_df.iterrows():
         slide_name = slides_data_df.at[i_row, 'file']
