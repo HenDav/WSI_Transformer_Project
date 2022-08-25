@@ -10,6 +10,7 @@ import glob
 import argparse
 import re, sys
 
+
 def get_slide_name(file):
     start = re.search("Inference_Full_Slide_", file)
     end = re.search("_ScoreHeatMap.xlsx", file)
@@ -32,7 +33,6 @@ if sys.platform == 'win32':
     dn = r'C:\ran_data\TCGA_lung\heatmaps\test'
     file_list = [
         r'C:\ran_data\TCGA_lung\heatmaps\300821\is_cancer_BatchOfSlides_Exp_375_Epoch_400_Inference_Full_Slide_TCGA-05-5420-11A-01-TS1.062c76b9-163d-4a4a-963d-ca2d56bddaa7.svs_ScoreHeatMap.xlsx']
-    #file_list = glob.glob(os.path.join(dn, '*._ScoreHeatMap.xlsx'))
     slides_dir = r'C:\ran_data\TCGA_lung\TCGA_LUNG'
     calib = False
     binary = False
@@ -81,13 +81,12 @@ for file in file_list:
 
     if args.superimpose:
         mag_dict = {'.svs': 'aperio.AppMag', '.ndpi': 'hamamatsu.SourceLens', '.mrxs': 'openslide.objective-power',
-                    'tiff': 'tiff.Software'}  # RanS 25.3.21, dummy for TIFF
+                    'tiff': 'tiff.Software'}  # dummy for TIFF
         _, data_format = os.path.splitext(os.path.basename(slide_file))
         objective_pwr = int(float(slide.properties[mag_dict[data_format]]))
         if slide_name[-5:] == '.mrxs':
-            objective_pwr = 20  # RanS 7.12.21, value in slide is wrong
-        #magnification = 10
-        magnification = 3 #RanS 14.3.22
+            objective_pwr = 20  # value in slide is wrong
+        magnification = 3
         ds = objective_pwr // magnification
         height_ds = int(height / ds)
         width_ds = int(width / ds)
@@ -102,7 +101,6 @@ for file in file_list:
     # take a 10000 pixel high thumb
     mag_thumb = 5
     height_thumb = np.min((int(height / mag_thumb), 10000))
-    #height_thumb = 10000
     width_thumb = int(width / height * height_thumb)
     thumb = slide.get_thumbnail((width_thumb, height_thumb))
     heatmap_thumb = cv2.resize(heatimage, dsize=(width_thumb, height_thumb), interpolation=cv2.INTER_NEAREST)

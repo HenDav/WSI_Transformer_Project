@@ -262,16 +262,13 @@ class PreActResNet_Ron(nn.Module):
             self.in_planes = planes * block.expansion
         return nn.Sequential(*layers)
 
-
     def change_num_classes(self, num_classes):
         self.linear = nn.Linear(self.linear.in_features, num_classes)
-
 
     def forward(self, x):
         if len(x.shape) == 5:
             num_of_bags, tiles_amount, _, tiles_size, _ = x.shape
             x = torch.reshape(x, (num_of_bags * tiles_amount, 3, tiles_size, tiles_size))
-
 
         if self.is_HeatMap:
             if self.training is True:
@@ -380,16 +377,7 @@ class PreActResNet_Ron_DomainAdaptation(nn.Module):
         self.dropout = nn.Dropout(p=0.5)
         self.linear = nn.Linear(128*block.expansion, num_classes)
         self.model_name = ''
-
-
         self.change_num_domains(num_domains=num_domains)
-        '''self.domain_classifier = nn.Sequential(GRL(lam=lam),
-                                               nn.Linear(self.linear.in_features, 1024),
-                                               nn.ReLU(),
-                                               nn.Linear(1024, 1024),
-                                               nn.ReLU(),
-                                               nn.Linear(1024, num_domains)
-                                               )'''
 
     def _make_layer(self, block, planes, num_blocks, stride):
         strides = [stride] + [1]*(num_blocks-1)
@@ -398,7 +386,6 @@ class PreActResNet_Ron_DomainAdaptation(nn.Module):
             layers.append(block(self.in_planes, planes, stride))
             self.in_planes = planes * block.expansion
         return nn.Sequential(*layers)
-
 
     def change_num_classes(self, num_classes):
         self.linear = nn.Linear(self.linear.in_features, num_classes)
@@ -418,7 +405,6 @@ class PreActResNet_Ron_DomainAdaptation(nn.Module):
     def get_lambda(self):
         return self.domain_classifier[0].lam
 
-
     def forward(self, x, is_train):
         if len(x.shape) == 5:
             num_of_bags, tiles_amount, _, tiles_size, _ = x.shape
@@ -435,36 +421,13 @@ class PreActResNet_Ron_DomainAdaptation(nn.Module):
 
         features = out
 
-
         class_features = out[is_train] if self.training else out
-
         domain_scores = self.domain_classifier(out)
         class_scores = self.linear(class_features)
-
-        '''if self.training and torch.any(torch.isnan(class_scores)):
-            import pandas as pd
-            print('Model: Found NaN in Score')
-            scores_dict = {'Scores': list(torch.reshape(class_scores, (18,)).detach().cpu().numpy())}
-            scores_DF = pd.DataFrame(scores_dict).transpose()
-            scores_DF.to_excel('debug_data_scores_from_model.xlsx')
-
-            weights = list(torch.reshape(self.linear.weight, (512,)).detach().cpu().numpy())
-            bias = list(self.linear.bias.detach().cpu().numpy()) + [-1] * 511
-
-            linear_layer_dict = {'Weights': weights,
-                                 'Bias': bias}
-            linear_layer_DF = pd.DataFrame(linear_layer_dict).transpose()
-            linear_layer_DF.to_excel('debug_data_models_linear_layer.xlsx')
-
-            features_DF = pd.DataFrame(features.detach().cpu().numpy())
-            features_DF.to_excel('debug_data_features_from_models.xlsx')
-
-            print('Finished saving 3 debug files from model code')'''
 
         return class_scores, domain_scores, features
 
 
-#def PreActResNet50_Ron():
 def PreActResNet50_Ron(train_classifier_only=False, num_classes=2):
     model = PreActResNet_Ron(PreActBottleneck_Ron, [3, 4, 6, 3], num_classes=num_classes)
     model.model_name = THIS_FILE + 'PreActResNet50_Ron()'
@@ -498,7 +461,6 @@ def PreActResNet50_Ron_DomainAdaptation(train_classifier_only=False,
                                         lam: int = 1):
     model = PreActResNet_Ron_DomainAdaptation(PreActBottleneck_Ron, [3, 4, 6, 3], num_classes=num_classes,
                                               num_domains=num_domains, lam=lam)
-
 
     model.model_name = THIS_FILE + 'PreActResNet50_Ron_DomainAdaptation()'
     print(model.model_name)

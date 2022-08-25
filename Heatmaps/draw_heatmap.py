@@ -1,7 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import openslide
-from PIL import Image
 import numpy as np
 import cv2
 import os
@@ -31,9 +30,6 @@ bin_heatmap[bin_heatmap > 0.8] = 1
 bin_heatmap[bin_heatmap < 0.2] = 0
 bin_heatmap[(bin_heatmap > 0.2) & (bin_heatmap < 0.8)] = np.nan
 
-
-#heatmap_im = Image.fromarray(heatmap.astype(int),'L')
-
 slide = openslide.OpenSlide(slide_file)
 objective_pwr = int(slide.properties['aperio.AppMag'])
 magnification = 5
@@ -49,7 +45,6 @@ heatmap_resized = cv2.resize(heatmap, dsize=(width_thumb, height_thumb), interpo
 fig, (ax1, ax2) = plt.subplots(1, 2, sharex=True, sharey=True)
 ax1.imshow(thumb)
 ax2.imshow(heatmap_resized, cmap='jet')
-#ax2.imshow(heatmap, cmap='jet')
 plt.show()
 
 print()

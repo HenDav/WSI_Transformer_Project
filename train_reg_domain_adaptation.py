@@ -17,7 +17,6 @@ import pandas as pd
 from sklearn.utils import resample
 import psutil
 from Nets import PreActResNets
-#from sphere_res import StereoSphereRes
 from datetime import datetime
 from Survival.Cox_Loss import Cox_loss
 import re
@@ -36,7 +35,6 @@ parser.add_argument('-ds', '--dataset', type=str, default='CAT', help='DataSet t
 parser.add_argument('-ds_test', '--dataset_test', type=str, default='HAEMEK', help='DataSet to use')
 parser.add_argument('-time', dest='time', action='store_true', help='save train timing data ?')
 parser.add_argument('-tar', '--target', default='ER', type=str, help='label: Her2/ER/PR/EGFR/PDL1')
-#parser.add_argument('-tar', '--target', action='append', default='Survival_Time', type=str, help='label: Her2/ER/PR/EGFR/PDL1') #RanS 8.12.21
 parser.add_argument('--n_patches_test', default=1, type=int, help='# of patches at test time')
 parser.add_argument('--n_patches_train', default=10, type=int, help='# of patches at train time')
 parser.add_argument('--lr', default=1e-5, type=float, help='learning rate')
@@ -44,19 +42,18 @@ parser.add_argument('--weight_decay', default=5e-5, type=float, help='L2 penalty
 parser.add_argument('-balsam', '--balanced_sampling', dest='balanced_sampling', action='store_true', help='balanced_sampling')
 parser.add_argument('--transform_type', default='rvf', type=str, help='none / flip / wcfrs (weak color+flip+rotate+scale)')
 parser.add_argument('--batch_size', default=DEFAULT_BATCH_SIZE, type=int, help='size of batch')
-#parser.add_argument('--model', default='PreActResNets.PreActResNet50_Domain_adaptation()', type=str, help='net to use')
 parser.add_argument('--bootstrap', action='store_true', help='use bootstrap to estimate test AUC error')
 parser.add_argument('--eval_rate', type=int, default=5, help='Evaluate validation set every # epochs')
 parser.add_argument('--c_param', default=0.1, type=float, help='color jitter parameter')
 parser.add_argument('-im', dest='images', action='store_true', help='save data images?')
 parser.add_argument('--mag', type=int, default=10, help='desired magnification of patches')
-parser.add_argument('--loan', action='store_true', help='Localized Annotation for strongly supervised training') #RanS 17.6.21
-parser.add_argument('--er_eq_pr', action='store_true', help='while training, take only er=pr examples') #RanS 27.6.21
-parser.add_argument('--focal', action='store_true', help='use focal loss with gamma=2') #RanS 18.7.21
-parser.add_argument('--slide_per_block', action='store_true', help='for carmel, take only one slide per block') #RanS 17.8.21
-parser.add_argument('-baldat', '--balanced_dataset', dest='balanced_dataset', action='store_true', help='take same # of positive and negative patients from each dataset')  # RanS 5.9.21
-parser.add_argument('--RAM_saver', action='store_true', help='use only a quarter of the slides + reshuffle every 100 epochs') #RanS 3.11.21
-parser.add_argument('-tl', '--transfer_learning', default='', type=str, help='use model trained on another experiment') #RanS 17.11.21
+parser.add_argument('--loan', action='store_true', help='Localized Annotation for strongly supervised training')
+parser.add_argument('--er_eq_pr', action='store_true', help='while training, take only er=pr examples')
+parser.add_argument('--focal', action='store_true', help='use focal loss with gamma=2')
+parser.add_argument('--slide_per_block', action='store_true', help='for carmel, take only one slide per block')
+parser.add_argument('-baldat', '--balanced_dataset', dest='balanced_dataset', action='store_true', help='take same # of positive and negative patients from each dataset')
+parser.add_argument('--RAM_saver', action='store_true', help='use only a quarter of the slides + reshuffle every 100 epochs')
+parser.add_argument('-tl', '--transfer_learning', default='', type=str, help='use model trained on another experiment')
 parser.add_argument('-da', '--domain_adaptation', action='store_true', help='Train with domain adaptation ?')
 
 args = parser.parse_args()
@@ -130,16 +127,12 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
         train_domain_loss = 0
 
         slide_names = []
-        #print('Epoch {}:'.format(e))
-        logging.info('Epoch {}:'.format(e)) #RanS 31.1.22
+        logging.info('Epoch {}:'.format(e))
 
-        # RanS 11.7.21
         process = psutil.Process(os.getpid())
-        #print('RAM usage:', np.round(process.memory_info().rss/1e9), 'GB, time: ', datetime.now(), ', exp: ', str(experiment))
         logging.info('RAM usage: {} GB, time: {}, exp: {}'.format(np.round(process.memory_info().rss/1e9),
                                                                   datetime.now(),
                                                                   str(experiment)))
-
         model.train()
         model.to(DEVICE)
 
@@ -148,10 +141,9 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
         else:
             model.set_lambda(2/(1 + np.exp(-e/10)) -1)
 
-        for batch_idx, minibatch in enumerate(tqdm(dloader_train)):  # Omer 7 Nov 2021
+        for batch_idx, minibatch in enumerate(tqdm(dloader_train)):
             data = minibatch['Data']
             is_train = minibatch['is_Train']
-            #target = minibatch['Target']
             target = minibatch['Target'][is_train]
             domain_target = minibatch['Cohort']
             time_list = minibatch['Time List']
@@ -176,7 +168,6 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             train_start = time.time()
             data, target, is_train, domain_target = data.to(DEVICE), target.to(DEVICE).squeeze(1),\
                                                     is_train.to(DEVICE), domain_target.to(DEVICE)
-
             optimizer.zero_grad()
             if print_timing:
                 time_fwd_start = time.time()
@@ -184,10 +175,10 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             outputs, domain_outputs, _ = model(data, is_train)
 
             temp_plot = False
-            if temp_plot:  # RanS 24.1.22
+            if temp_plot:
                 import matplotlib.pyplot as plt
-                plt.imshow(torch.squeeze(data[0, :, :, :].permute(1, 2, 0))) #normalized image looks bad (color truncation at 0)
-                plt.imshow(torch.squeeze(data[0, 1, :, :])) #red color only
+                plt.imshow(torch.squeeze(data[0, :, :, :].permute(1, 2, 0)))  # normalized image looks bad (color truncation at 0)
+                plt.imshow(torch.squeeze(data[0, 1, :, :]))  # red color only
                 plt.colorbar()
 
             if print_timing:
@@ -226,7 +217,6 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                     time_backprop_start = time.time()
 
                 loss.backward()
-                #utils.plot_grad_flow(model.named_parameters()) #temp RanS 24.1.22
                 optimizer.step()
                 train_class_loss += loss_class.item()
                 train_domain_loss += loss_domain.item()
@@ -237,12 +227,8 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             slide_names_batch = [os.path.basename(f_name) for f_name in f_names]
             slide_names.extend(list(np.array(slide_names_batch)[is_train.cpu()]))
 
-
-            #all_writer.add_scalar('Loss', loss.item(), batch_idx + e * len(dloader_train))
-            # RanS 28.1.21
             if DEVICE.type == 'cuda':
                 res = nvidia_smi.nvmlDeviceGetUtilizationRates(handle)
-                #print(f'gpu: {res.gpu}%, gpu-mem: {res.memory}%')
                 all_writer.add_scalar('GPU/gpu', res.gpu, batch_idx + e * len(dloader_train))
                 all_writer.add_scalar('GPU/gpu-mem', res.memory, batch_idx + e * len(dloader_train))
             train_time = time.time() - train_start
@@ -251,7 +237,6 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                 time_writer.add_scalar('Time/Train (iter) [Sec]', train_time, time_stamp)
                 time_writer.add_scalar('Time/Forward Pass [Sec]', time_fwd, time_stamp)
                 time_writer.add_scalar('Time/Back Propagation [Sec]', time_backprop, time_stamp)
-                # print('Elapsed time of one train iteration is {:.2f} s'.format(train_time))
                 time_list = torch.stack(time_list, 1)
                 if len(time_list[0]) == 4:
                     time_writer.add_scalar('Time/Open WSI [Sec]', time_list[:, 0].mean().item(), time_stamp)
@@ -284,13 +269,6 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
 
         all_writer.add_scalar('Train/LAMBDA (Model) Per Epoch', model.module.get_lambda() if isinstance(model, nn.DataParallel) else model.get_lambda(), e)
 
-
-        '''print('Finished Epoch: {}, Loss: {:.2f}, Loss Delta: {:.3f}, Train AUC per patch: {:.2f} , Time: {:.0f} m'
-              .format(e,
-                      train_loss,
-                      previous_epoch_loss - train_loss,
-                      roc_auc_train if roc_auc_train.size == 1 else roc_auc_train[0],
-                      time_epoch))'''
         logging.info('Finished Epoch: {}, Loss: {:.2f}, Loss Delta: {:.3f}, Train AUC per patch: {:.2f} , Time: {:.0f} m {:.0f} s'
                      .format(e,
                              train_class_loss,
@@ -353,7 +331,6 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                         'tile_size': TILE_SIZE,
                         'tiles_per_bag': 1},
                        os.path.join(args.output_dir, 'Model_CheckPoints', 'model_data_Epoch_' + str(e) + '.pt'))
-            #print('saved checkpoint to', args.output_dir) #RanS 23.6.21
             logging.info('saved checkpoint to {}'.format(args.output_dir))
 
     all_writer.close()
@@ -499,6 +476,7 @@ def check_accuracy(model: nn.Module, data_loader: DataLoader, all_writer, DEVICE
 ########################################################################################################
 ########################################################################################################
 
+
 if __name__ == '__main__':
     # Device definition:
 
@@ -506,9 +484,6 @@ if __name__ == '__main__':
 
     # Tile size definition:
     TILE_SIZE = 256
-
-    if sys.platform == 'linux' or sys.platform == 'win32':
-        TILE_SIZE = 256
 
     # Saving/Loading run meta data to/from file:
     if args.experiment == 0:
@@ -554,11 +529,9 @@ if __name__ == '__main__':
     cpu_available = utils.get_cpu()
     num_workers = cpu_available
 
-
     if sys.platform == 'win32':
-        num_workers = 0 #temp RanS 3.5.21
+        num_workers = 0
 
-    #print('num workers = ', num_workers)
     logging.info('num CPUs = {}'.format(cpu_available))
     logging.info('num workers = {}'.format(num_workers))
 
@@ -584,7 +557,7 @@ if __name__ == '__main__':
     test_dset = datasets.WSI_REGdataset(DataSet=args.dataset_test,
                                         tile_size=TILE_SIZE,
                                         target_kind=args.target,
-                                        test_fold='All',  #args.test_fold,
+                                        test_fold='All',
                                         train=False,
                                         print_timing=args.time,
                                         transform_type='none',
@@ -623,15 +596,15 @@ if __name__ == '__main__':
     utils.run_data(experiment=experiment, transformation_string=transformation_string)
 
     # Load model
-    model = PreActResNets.PreActResNet50_Ron_DomainAdaptation()    #model = eval(args.model)
+    model = PreActResNets.PreActResNet50_Ron_DomainAdaptation()
     if args.target == 'Survival_Time':
         model.change_num_classes(num_classes=1)  # This will convert the liner (classifier) layer into the beta layer
         model.model_name += '_Continous_Time'
 
     try:
-        N_classes = model.linear.out_features #for resnets and such
+        N_classes = model.linear.out_features  # for resnets and such
     except:
-        N_classes = model._final_1x1_conv.out_channels #for StereoSphereRes
+        N_classes = model._final_1x1_conv.out_channels  # for StereoSphereRes
 
     # Save model data and data-set size to run_data.xlsx file (Only if this is a new run).
     if args.experiment == 0:
@@ -648,7 +621,7 @@ if __name__ == '__main__':
     # In case we continue from an already trained model, than load the previous model and optimizer data:
     if args.experiment != 0:
         print('Loading pre-saved model...')
-        if from_epoch == 0: #RanS 25.7.21, load last epoch
+        if from_epoch == 0:  # load last epoch
             model_data_loaded = torch.load(os.path.join(args.output_dir,
                                                         'Model_CheckPoints',
                                                         'model_data_Last_Epoch.pt'),
@@ -686,10 +659,9 @@ if __name__ == '__main__':
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
     if DEVICE.type == 'cuda':
-        model = torch.nn.DataParallel(model) #DataParallel, RanS 1.8.21
+        model = torch.nn.DataParallel(model) #DataParallel
         cudnn.benchmark = True
 
-        # RanS 28.1.21
         # https://forums.fast.ai/t/show-gpu-utilization-metrics-inside-training-loop-without-subprocess-call/26594
         if DEVICE.type == 'cuda':
             import nvidia_smi
@@ -705,17 +677,15 @@ if __name__ == '__main__':
                     state[k] = v.to(DEVICE)
 
     if args.focal:
-        criterion = utils.FocalLoss(gamma=2)  # RanS 18.7.21
-        criterion.to(DEVICE) #RanS 20.7.21
+        criterion = utils.FocalLoss(gamma=2)
+        criterion.to(DEVICE)
     elif args.target == 'Survival_Time':
         criterion = Cox_loss
     else:
         criterion = nn.CrossEntropyLoss()
 
-    #RanS 3.11.21
     if args.RAM_saver:
-        shuffle_freq = 100 #reshuffle dataset every 200 epochs
-        #shuffle_freq = 3  # temp
+        shuffle_freq = 100  # reshuffle dataset every 200 epochs
         shuffle_epoch_list = np.arange(np.ceil((from_epoch+EPS) / shuffle_freq) * shuffle_freq, epoch, shuffle_freq).astype(int)
         shuffle_epoch_list = np.append(shuffle_epoch_list, epoch)
 
@@ -724,7 +694,7 @@ if __name__ == '__main__':
 
         for from_epoch, epoch in zip(shuffle_epoch_list[:-1], shuffle_epoch_list[1:]):
             print('Reshuffling dataset:')
-            #shuffle train and test set to get new slides
+            # shuffle train and test set to get new slides
             # Get data:
             train_dset = datasets.WSI_REGdataset(DataSet=args.dataset,
                                                  tile_size=TILE_SIZE,

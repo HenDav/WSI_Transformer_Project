@@ -180,7 +180,6 @@ if target == 'ER':
         test_data_dir = r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/ER/ran_299-Fold_2/Test'
 
 
-
 need_to_find_slides_to_work_on = False
 # Get data:
 if need_to_find_slides_to_work_on:
@@ -190,7 +189,6 @@ if need_to_find_slides_to_work_on:
                                              target=target,
                                              is_train=False,
                                              test_fold=test_fold)
-
 
     test_loader = DataLoader(test_dset, batch_size=100, shuffle=False, num_workers=0, pin_memory=True)
 

@@ -44,21 +44,13 @@ parser.add_argument('-loss_comb', dest='loss_combination', action='store_true', 
 parser.add_argument('-DEBUG_pg', dest='print_gradients', action='store_true', help='')
 args = parser.parse_args()
 
-'''if args.print_gradients:
-    args.loss_combination = True
-    args.test_fold = 1
-    args.epochs = 10
-    args.mini_batch_size = 18
-    args.censored_ratio = 0.5
-    args.loss_weights = [1, 1, 1]'''
-
 # The following modification is needed only to fix the data written in the code files (run parameters)
 args.loss = args.loss if args.target == 'Time' else ''
 
 if args.censored_ratio == 1:
     raise Exception('The value of censored_ratio CANNOT be 1 since all samples will be censored and that is unacceptable')
 elif args.censored_ratio > 1:
-    raise Exception('The value of censored_ratio CANNOT be grater than 1')
+    raise Exception('The value of censored_ratio CANNOT be greater than 1')
 elif args.censored_ratio < 0:
     print('Dataset will be initiated as is (without any manipulations of censored/ not censored number of samples in the minibatch)')
 
@@ -68,7 +60,6 @@ def train(from_epoch: int = 0, epochs: int = 2, data_loader=None):
         times = {}
 
     size_minibatch = len(data_loader)  #len(data_loader['Not Censored']) if type(data_loader['Censored']) == cycle else len(data_loader['Censored'])
-
 
     for e in range(from_epoch, from_epoch + epochs):
         model.train()
@@ -100,12 +91,10 @@ def train(from_epoch: int = 0, epochs: int = 2, data_loader=None):
             if args.time:
                 time_start = time.time()
 
-            #minibatch = utils.concatenate_minibatch(minibatch, is_shuffle=True)
-
             censored = minibatch['Censored']
             samples_per_epoch += len(censored)
             num_not_censored = len(np.where(censored == False)[0])
-            if num_not_censored < 2:  # Skipp this minibatch if there are less than 2 "Not Censored" tiles in the minibatch
+            if num_not_censored < 2:  # Skip this minibatch if there are less than 2 "Not Censored" tiles in the minibatch
                 continue
 
             data = minibatch['Data']
@@ -118,11 +107,6 @@ def train(from_epoch: int = 0, epochs: int = 2, data_loader=None):
             targets_time_xl.extend(target_time.detach().cpu().numpy())
             slides_xl.extend(slide_names)
             censored_xl.extend(censored.detach().cpu().numpy())
-
-            '''#if (args.censored_ratio > 0 and censored_ratio != args.censored_ratio) or len(censored) != args.mini_batch_size:
-            if args.censored_ratio > 0 and (censored_ratio != args.censored_ratio or len(censored) != args.mini_batch_size):
-                print('Censored Ratio is {}, MB Size is {}'.format(censored_ratio, len(censored)))
-                raise Exception('Problem occured in batch size or censored ratio')'''
 
             censored_ratio = len(np.where(censored == True)[0]) / len(censored)
             all_writer.add_scalar('Train/Censored Ratio per Minibatch', censored_ratio, time_stamp)
@@ -376,7 +360,6 @@ def train(from_epoch: int = 0, epochs: int = 2, data_loader=None):
         if args.time:
             all_writer.add_scalar('Time/Performance calc time', time.time() - time_start_performance_calc, e)
 
-
         if e % args.save_every == 0:
             # Run validation:
             test(e, test_loader)
@@ -406,9 +389,6 @@ def test(current_epoch, test_data_loader):
 
     with torch.no_grad():
         for batch_idx, minibatch in enumerate(test_data_loader):
-
-            '''if type(test_data_loader) != torch.utils.data.dataloader.DataLoader:
-                minibatch = utils.concatenate_minibatch(minibatch, is_shuffle=False)'''
 
             data = minibatch['Data']
             target_time = minibatch['Time Target']
@@ -561,6 +541,7 @@ def save_debug_data(outputs, features):
 
 ########################################################################################################################
 ########################################################################################################################
+
 
 if __name__ == '__main__':
 
@@ -737,8 +718,5 @@ if __name__ == '__main__':
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     train(from_epoch=from_epoch, epochs=args.epochs, data_loader=train_loader)
 
-
     all_writer.close()
     print('Training No. {} has concluded successfully after {} Epochs'.format(experiment, args.epochs))
-
-

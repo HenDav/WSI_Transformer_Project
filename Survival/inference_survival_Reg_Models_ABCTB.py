@@ -19,16 +19,15 @@ parser.add_argument('-fe', '--from_epoch', nargs='+', type=int, default=[1000], 
 parser.add_argument('-nt', '--num_tiles', type=int, default=500, help='Number of tiles to use')
 parser.add_argument('-ds', '--dataset', type=str, default='ABCTB', help='DataSet to use')
 parser.add_argument('-f', '--folds', type=int, nargs="+", default=2, help=' folds to infer')
-parser.add_argument('--mag', type=int, default=10, help='desired magnification of patches') #RanS 8.2.21
-parser.add_argument('-mp', '--model_path', type=str, default='', help='fixed path of rons model') #RanS 16.3.21 r'/home/rschley/Pathnet/results/fold_1_ER_large/checkpoint/ckpt_epoch_1467.pth'
-parser.add_argument('-d', dest='dx', action='store_true', help='Use ONLY DX cut slides') #RanS 3.8.21, override run_data
-parser.add_argument('--patch_dir', type=str, default='', help='patch locations directory, for use with predecided patches') #RanS 24.10.21
-parser.add_argument('-sd', '--subdir', type=str, default='', help='output sub-dir') #RanS 6.12.21
+parser.add_argument('--mag', type=int, default=10, help='desired magnification of patches')
+parser.add_argument('-mp', '--model_path', type=str, default='', help='fixed path of rons model')  # r'/home/rschley/Pathnet/results/fold_1_ER_large/checkpoint/ckpt_epoch_1467.pth'
+parser.add_argument('-d', dest='dx', action='store_true', help='Use ONLY DX cut slides')  # overrides run_data
+parser.add_argument('--patch_dir', type=str, default='', help='patch locations directory, for use with predecided patches')
+parser.add_argument('-sd', '--subdir', type=str, default='', help='output sub-dir')
 args = parser.parse_args()
 
 if type(args.folds) != int:
-    args.folds = list(map(int, args.folds[0])) #RanS 14.6.21
-
+    args.folds = list(map(int, args.folds[0]))
 
 # If args.experiment contains 1 number than all epochs are from the same experiments, BUT if it is bigger than 1 than all
 # the length of args.experiment should be equal to args.from_epoch
@@ -122,14 +121,12 @@ for counter in range(len(args.from_epoch)):
     model.eval()
     models.append(model)
 
-#get number of classes based on the first model
+# get number of classes based on the first model
 N_classes = models[0].linear.out_features #for resnets and such
-
 
 # override run_data dx if args.dx is true
 if args.dx:
     dx = args.dx
-
 
 if sys.platform == 'linux':
     TILE_SIZE = 256
@@ -142,7 +139,7 @@ elif sys.platform == 'darwin':
     TILE_SIZE = 128
     tiles_per_iter = 20
 
-#RanS 16.3.21, support ron's model as well
+# support ron's model as well
 if args.model_path != '':
     if os.path.exists(args.model_path):
         args.from_epoch.append('rons_model')
@@ -159,7 +156,7 @@ if args.model_path != '':
                 new_state_dict[name] = v
             model.load_state_dict(new_state_dict)
     else:
-        #RanS 27.10.21, use pretrained model
+        # use pretrained model
         args.from_epoch.append(args.model_path.split('.')[-1])
         model = eval(args.model_path)
         model.fc = torch.nn.Identity()
@@ -185,8 +182,7 @@ inf_loader = DataLoader(inf_dset, batch_size=1, shuffle=False, num_workers=0, pi
 new_slide = True
 
 NUM_MODELS = len(models)
-#NUM_SLIDES = len(inf_dset.valid_slide_indices)
-NUM_SLIDES = len(inf_dset.image_file_names) #RanS 24.5.21, valid_slide_indices always counts non-dx slides
+NUM_SLIDES = len(inf_dset.image_file_names)  # valid_slide_indices always counts non-dx slides
 NUM_SLIDES_SAVE = 50
 print('NUM_SLIDES: ', str(NUM_SLIDES))
 
@@ -204,7 +200,6 @@ if survival_kind == 'Survival_Combined_Loss':
 
     all_scores = np.zeros((NUM_SLIDES, NUM_MODELS, N_classes))
     all_scores_before_softmax = np.zeros((NUM_SLIDES, NUM_MODELS, N_classes))
-
 
 else:
     all_scores = np.zeros((NUM_SLIDES, NUM_MODELS))  # fixme: this might be changed for combined loss
@@ -309,7 +304,7 @@ for model_num in range(NUM_MODELS):
         output_dir = Output_Dirs[model_num]
 
     # Computing AUC:
-    #RanS 20.12.21, remove targets = -1 from auc calculation
+    # remove targets = -1 from auc calculation
     try:
         binary_targets_arr = np.array(all_binary_targets)
         time_targets_arr = np.array(all_time_targets)
@@ -320,12 +315,10 @@ for model_num in range(NUM_MODELS):
             fpr, tpr = 0, 0
         else:
             scores_arr = all_scores[:, model_num]
-            #scores_arr = scores_arr[binary_targets_arr >= 0]
-            #targets_arr = binary_targets_arr[binary_targets_arr >= 0]
             fpr, tpr, _ = roc_curve(binary_targets_arr[binary_targets_arr >= 0], scores_arr[binary_targets_arr >= 0])
 
     except ValueError:
-        fpr, tpr = 0, 0 #if all labels are unknown
+        fpr, tpr = 0, 0  # if all labels are unknown
 
     # Save inference data to file:
     file_name = os.path.join(data_path, output_dir, 'Inference', args.subdir, 'Model_Epoch_' + str(args.from_epoch[model_num])

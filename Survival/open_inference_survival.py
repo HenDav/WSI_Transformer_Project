@@ -1,4 +1,4 @@
-from sklearn.metrics import auc, roc_curve, roc_auc_score
+from sklearn.metrics import auc, roc_curve
 from matplotlib import pyplot as plt
 import pickle
 from cycler import cycler
@@ -8,8 +8,6 @@ import os
 from sksurv.metrics import concordance_index_censored
 from glob import glob
 import itertools
-
-#from inference_loader_input import inference_files, inference_dir, save_csv, patient_level, inference_name, dataset, target
 
 custom_cycler = (cycler(color=['#377eb8', '#ff7f00', '#4daf4a',
                                     '#f781bf', '#a65628', '#984ea3',

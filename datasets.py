@@ -2357,7 +2357,6 @@ class WSI_Master_Dataset_Survival_CR(Dataset):
                  color_param: float = 0.1,
                  n_tiles: int = 10,
                  desired_slide_magnification: int = 10,
-                 slide_repetitions: int = 1,
                  Censored_ratio: float = 0.5,
                  legit_slide_list: list = []):
 
@@ -2414,9 +2413,6 @@ class WSI_Master_Dataset_Survival_CR(Dataset):
             # for lung, take only origin: lung
             self.meta_data_DF = self.meta_data_DF[self.meta_data_DF['Origin'] == 'lung']
             self.meta_data_DF.reset_index(inplace=True)
-
-        '''if self.censored_ratio >= 0 and train:  # We're balancing only the train set
-            self.meta_data_DF = balance_dataset(self.meta_data_DF, censor_balance=True, test_fold=self.test_fold )'''
 
         if self.target_kind == 'OR':
             PR_targets = list(self.meta_data_DF['PR status'])
@@ -2769,7 +2765,6 @@ class WSI_REGdataset_Survival_CR(WSI_Master_Dataset_Survival_CR):
                 'Censored': data_dict['Censored'],
                 'Binary Target': data_dict['Binary Target'],
                 'Time Target': data_dict['Time Target'],
-                # 'Time List': data_dict['Time List'],
                 'Time dict': data_dict['Time dict'],
                 'File Names': data_dict['File Names'],
                 'Images': data_dict['Images'],
