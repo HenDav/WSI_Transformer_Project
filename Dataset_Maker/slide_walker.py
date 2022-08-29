@@ -257,7 +257,11 @@ def adjust_barcode_using_convention(barcode, barcode_convention):
     if len(barcode) < 10 or len(barcode) > 16:
         return []
     if barcode_convention == BARCODE_CONVENTION_CARMEL:
-        barcode = str(int(barcode[0:4]) - 9788) + '-' + barcode[4:]
+        if int(barcode[:2]) > 90:  # old format, adjustment required
+            year = int(barcode[0:4]) - 9788
+            if year > 200:  # year 21 shows as 201, and so on
+                year -= 180
+            barcode = str(year) + '-' + barcode[4:]
     elif barcode_convention == BARCODE_CONVENTION_HAEMEK:
         year = int(barcode[4]) + 14
         barcode = str(year) + '-' + barcode[5:]

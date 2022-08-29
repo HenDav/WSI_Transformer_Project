@@ -12,7 +12,7 @@ import re
 import argparse
 
 parser = argparse.ArgumentParser(description='Barcode_detection')
-parser.add_argument('-ds', '--img_dir', type=str, default=r'C:\ran_data\RAMBAM\temp', help='input directory')
+parser.add_argument('-ds', '--img_dir', type=str, default=r'C:\ran_data\BOX_IMAGES\CO1-2_taken\temp', help='input directory')
 parser.add_argument('--is_haemek', action='store_true', help='data is not from Carmel')
 args = parser.parse_args()
 
@@ -81,7 +81,13 @@ if __name__ == '__main__':
                 else:
                     unique_barcodes.append(barcode)
                 if is_carmel:
-                    barcode_adjust = str(int(barcode[0:4])-9788) + '-' + barcode[4:]
+                    if int(barcode[:2]) < 90:  # new format, no change required
+                        barcode_adjust = barcode
+                    else:
+                        year = int(barcode[0:4]) - 9788
+                        if year > 200:  # year 21 shows as 201, and so on
+                            year -= 180
+                        barcode_adjust = str(year) + '-' + barcode[4:]
                 else:  # haemek
                     year = int(barcode[4])+14
                     barcode_adjust = str(year) + '-' + barcode[5:]
