@@ -1,0 +1,92 @@
+<mxfile host="65bd71144e">
+    <diagram id="BCfa7U_w1VaFWNrDIx8l" name="Page-1">
+        <mxGraphModel dx="798" dy="566" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3000" pageHeight="1100" background="none" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="8" value="" style="edgeStyle=none;html=1;startArrow=none;" parent="1" source="9" target="7" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="34" value="step 0&amp;nbsp;" style="edgeStyle=none;html=1;horizontal=1;fontSize=20;" parent="1" source="5" target="33" edge="1">
+                    <mxGeometry x="0.0069" relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="560" y="260"/>
+                        </Array>
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="44" value="delivery" style="edgeStyle=none;html=1;endArrow=classic;endFill=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontSize=20;" parent="1" source="43" target="5" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="280" y="260" as="sourcePoint"/>
+                        <mxPoint x="280" y="210" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="5" value="gipmed_new&amp;nbsp;&lt;br&gt;(raw_mrxs_data)" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="285" y="230" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="7" value="gipdeep10" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="285" y="40" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="9" value="sync daily at midnight" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+                    <mxGeometry x="280" y="150" width="130" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="11" value="" style="edgeStyle=none;html=1;endArrow=none;" parent="1" source="5" target="9" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="405" y="260" as="sourcePoint"/>
+                        <mxPoint x="485" y="260" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="24" value="" style="edgeStyle=none;html=1;" parent="1" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="160" y="560" as="sourcePoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="25" value="required actions on the raw data " style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;" parent="1" vertex="1">
+                    <mxGeometry x="85" y="580" width="1230" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="27" value="create an info table of the slides (original name given by the scanner, path to dir, slide id, slide rename , is readable). only some slides contains bacrode. bracode related fixes in need for manual operation.     " style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;" parent="25" vertex="1">
+                    <mxGeometry y="30" width="1230" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="28" value="handling unneeded copies, slide renaming, changing the dirs (mooving the slides to one folder and deleting the original empty folders), making slides data (?!). se" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;" parent="25" vertex="1">
+                    <mxGeometry y="60" width="1230" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="26" value="segmantation and creating a grid (if there is a control tissue (needed manual operation)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;" parent="25" vertex="1">
+                    <mxGeometry y="90" width="1230" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="31" value="" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" parent="1" vertex="1">
+                    <mxGeometry x="192.5" y="160" width="30" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="46" value="step 1" style="edgeStyle=none;html=1;fontSize=20;" edge="1" parent="1" source="33" target="45">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="33" value="raw data and dir +&amp;nbsp;&lt;span style=&quot;font-size: 11px&quot;&gt;&quot;barcode_list_datasetneme.xlsx&quot;&amp;nbsp;&lt;br&gt;+ &quot;barcode_list_images.xlsx&quot;&lt;br&gt;&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="693" y="230" width="207" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="35" value="if extract barcodes - scan the barcode and add it to the above table, and create another table with the images of the&amp;nbsp; falled scaneed barcodes&amp;nbsp;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+                    <mxGeometry x="450" y="430" width="210" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="37" value="&lt;span style=&quot;font-size: 11px&quot;&gt;create &quot;barcode_list_datasetneme.xlsx&quot;&lt;/span&gt;&lt;br&gt;the above table contains:&lt;br&gt;1. dir&lt;br&gt;2. file_name (junk)&lt;br&gt;3.slideID (extracted from the barcode / label)&lt;br&gt;&amp;nbsp;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+                    <mxGeometry x="455" y="350" width="200" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="38" value="using the code in dataset maker.py and the utils in&amp;nbsp; dataset maker folder" style="text;html=1;strokeColor=#006EAF;fillColor=#1ba1e2;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#ffffff;" parent="1" vertex="1">
+                    <mxGeometry x="5" y="10" width="250" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="42" value="&#10;&#10;&lt;span style=&quot;color: rgb(240, 240, 240); font-family: helvetica; font-size: 12px; font-style: normal; font-weight: 400; letter-spacing: normal; text-align: center; text-indent: 0px; text-transform: none; word-spacing: 0px; background-color: rgb(42, 42, 42); display: inline; float: none;&quot;&gt;using hard drives&lt;/span&gt;&#10;&#10;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+                    <mxGeometry x="160" y="285" width="95" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="43" value="BCF" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry y="230" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="45" value="one folder with reamed original slides, new folder for thumb images&amp;nbsp;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="1240" y="170" width="270" height="180" as="geometry"/>
+                </mxCell>
+                <mxCell id="54" value="1. fill missing slide id in bacode list&lt;br style=&quot;font-size: 13px&quot;&gt;2. change names if needed in order to have unique name for each slide and make new folder with renamed files&lt;br&gt;3. create &quot;slides data&quot; xlsx file&amp;nbsp;&lt;br&gt;4. modify magnification&lt;br&gt;5. segmentation and grid&lt;br&gt;6. if exists control tissue - extract thumnnail and mark the control tissue in red&lt;br&gt;&amp;nbsp;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=13;" vertex="1" parent="1">
+                    <mxGeometry x="890" y="315" width="340" height="150" as="geometry"/>
+                </mxCell>
+                <mxCell id="55" value="wire tranfer, need to update log files&amp;nbsp;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=13;" vertex="1" parent="1">
+                    <mxGeometry x="142.5" y="320" width="130" height="30" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
