@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import torch
 import torch.optim as optim
-import utils_MIL
+
 from Nets.PreActResNets import PreActResNet50_Ron
 from tqdm import tqdm
 import time
@@ -16,6 +16,9 @@ from sklearn.metrics import roc_curve, auc
 import numpy as np
 import sys
 import copy
+
+import utils_MIL
+import nets_mil
 
 utils.send_run_data_via_mail()
 
@@ -47,7 +50,6 @@ if not (isinstance(args.is_tumor_mode, int) and args.is_tumor_mode in [0, 1, 2])
     raise Exception('args.is_tumor_mode must be one of 0/1/2')
 
 EPS = 1e-7
-
 
 def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader, DEVICE, optimizer, print_timing: bool=False):
     """
@@ -262,7 +264,7 @@ if __name__ == '__main__':
         data_location[1]['TrainSet Location'] = data_location[1]['TestSet Location']
 
     # Saving/Loading run meta data to/from file:
-    if args.experiment is 0:
+    if args.experiment == 0:
         run_data_results = utils.run_data(test_fold=args.test_fold,
                                           transform_type=None,
                                           tile_size=0,
@@ -293,6 +295,7 @@ if __name__ == '__main__':
             run_data_output['Receptor'], run_data_output['MultiSlide'], run_data_output['Model Name'], run_data_output['Desired Slide Magnification']
 
         experiment = args.experiment
+
 
     # Fix target:
     if args.target == 'ER_for_is_Tumor':
@@ -365,8 +368,7 @@ if __name__ == '__main__':
 
     # Save model data and DataSet size (and some other dataset data) to run_data.xlsx file (Only if this is a new run).
     if args.experiment == 0:
-        utils.run_data(experiment=experiment, model=model.model_name)
-        utils.run_data(experiment=experiment, DataSet_size=(len(train_dset), len(test_dset)))
+        utils.run_data(experiment=experiment, model=model.model_name, DataSet_size=(len(train_dset), len(test_dset)))
 
         # Saving code files, args and main file name (this file) to Code directory within the run files.
         utils.save_code_files(args, train_dset)

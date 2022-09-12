@@ -964,35 +964,35 @@ class Features_MILdataset(Dataset):
         elif sys.platform == 'linux':
             if dataset == 'TCGA_ABCTB':
                 if target in ['ER', 'ER_Features'] or (
-                        target in ['PR', 'PR_Features', 'Her2', 'Her2_Features'] and test_fold == 1):
+                        target in ['PR', 'PR_Features', 'Her2', 'Her2_Features']): # target in ['PR', 'PR_Features', 'Her2', 'Her2_Features'] and test_fold == 1):
                     grid_location_dict = {'TCGA': r'/mnt/gipmed_new/Data/Breast/TCGA/Grids_10/Grid_data.xlsx',
-                                          'ABCTB': r'/mnt/gipmed_new/Data/ABCTB_TIF/Grids_10/Grid_data.xlsx'
+                                          'ABCTB': r'/mnt/gipmed_new/Data/Breast/ABCTB_TIF/Grids_10/Grid_data.xlsx'
                                           }
                     slide_data_DF_dict = {
                         'TCGA': pd.read_excel(r'/mnt/gipmed_new/Data/Breast/TCGA/slides_data_TCGA.xlsx'),
-                        'ABCTB': pd.read_excel(r'/mnt/gipmed_new/Data/ABCTB_TIF/slides_data_ABCTB.xlsx')
+                        'ABCTB': pd.read_excel(r'/mnt/gipmed_new/Data/Breast/ABCTB_TIF/slides_data_ABCTB.xlsx')
                         }
 
             elif dataset == 'ABCTB' and target in ['survival', 'survival_Features']:
-                grid_location_dict = {'ABCTB': r'/mnt/gipmed_new/Data/ABCTB_TIF/Grids_10/Grid_data.xlsx'}
-                slide_data_DF_dict = {'ABCTB': pd.read_excel(r'/mnt/gipmed_new/Data/ABCTB_TIF/slides_data_ABCTB.xlsx')}
+                grid_location_dict = {'ABCTB': r'/mnt/gipmed_new/Data/Breast/ABCTB_TIF/Grids_10/Grid_data.xlsx'}
+                slide_data_DF_dict = {'ABCTB': pd.read_excel(r'/mnt/gipmed_new/Data/Breast/ABCTB_TIF/slides_data_ABCTB.xlsx')}
 
             elif dataset in ['CAT', 'CAT with Location']:
                 grid_location_dict = {'TCGA': r'/mnt/gipmed_new/Data/Breast/TCGA/Grids_10/Grid_data.xlsx',
-                                      'ABCTB': r'/mnt/gipmed_new/Data/ABCTB_TIF/Grids_10/Grid_data.xlsx',
+                                      'ABCTB': r'/mnt/gipmed_new/Data/Breast/ABCTB_TIF/Grids_10/Grid_data.xlsx',
                                       'CARMEL': r'/home/womer/project/All Data/Ran_Features/Grid_data/CARMEL_Grid_data.xlsx'}
 
                 slide_data_DF_dict = {'TCGA': pd.read_excel(r'/mnt/gipmed_new/Data/Breast/TCGA/slides_data_TCGA.xlsx'),
-                                      'ABCTB': pd.read_excel(r'/mnt/gipmed_new/Data/ABCTB_TIF/slides_data_ABCTB.xlsx'),
+                                      'ABCTB': pd.read_excel(r'/mnt/gipmed_new/Data/Breast/ABCTB_TIF/slides_data_ABCTB.xlsx'),
                                       'CARMEL': pd.read_excel(
                                           '/home/womer/project/All Data/Ran_Features/Grid_data/slides_data_CARMEL_ALL.xlsx')
                                       }
 
             elif dataset == 'HAEMEK':
                 grid_location_dict = {
-                    'HAEMEK': r'/home/womer/project/All Data/Ran_Features/Grid_data/HAEMEK_Grid_data.xlsx'}
+                    'HAEMEK': r'/mnt/gipmed_new/Data/Breast/Haemek/Batch_1/HAEMEK1/Grids_10/Grid_data.xlsx'}
                 slide_data_DF_dict = {'HAEMEK': pd.read_excel(
-                    '/home/womer/project/All Data/Ran_Features/Grid_data/slides_data_HAEMEK.xlsx')}
+                    '/mnt/gipmed_new/Data/Breast/Haemek/Batch_1/HAEMEK1/slides_data_HAEMEK1.xlsx')}
 
             elif dataset == 'CARMEL':
                 grid_location_dict = {
@@ -1060,15 +1060,15 @@ class Features_MILdataset(Dataset):
                 # ABCTB slides WHOSE EXTENTION IS .NDPI SHOULD BE CHANGED TO .TIF:
                 if slide_names[slide_num].split('.')[-1] == 'ndpi':
                     slide_names[slide_num] = '.'.join(slide_names[slide_num].split('.')[:-1] + ['tif'])
-                try:
-                    # Skip slides that have a "bad segmentation" marker in GridData.xlsx file
-                    if grid_DF.loc[slide_names[slide_num], 'bad segmentation'] == 1:
-                        slides_with_bad_segmentation += 1
-                        continue
-                except ValueError:
-                    raise Exception('Debug')
-                except KeyError:
-                    raise Exception('Debug')
+                # try:
+                    # # Skip slides that have a "bad segmentation" marker in GridData.xlsx file
+                    # if grid_DF.loc[slide_names[slide_num], 'bad segmentation'] == 1:
+                    #     slides_with_bad_segmentation += 1
+                    #     continue
+                # except ValueError:
+                #     raise Exception('Debug')
+                # except KeyError:
+                #     raise Exception('Debug')
 
                 # skip slides that don't belong to CARMEL dataset in case carmel_only flag is TRUE:
                 if slide_names[slide_num].split('.')[

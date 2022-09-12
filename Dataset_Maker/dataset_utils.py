@@ -158,7 +158,7 @@ def get_datasets_dir_dict(Dataset: str):
     elif Dataset == 'CARMEL':
         if sys.platform == 'linux':  # GIPdeep
             for ii in np.arange(1, 9):
-                dir_dict['CARMEL' + str(ii)] = os.path.join(CARMEL_gipdeep_path, 'Batch_' + str(ii), 'CARMEL' + str(ii))
+                dir_dict['CARMEL' + str(ii)] = os.path.join(CARMEL_gipdeep_path, '1-8', 'Batch_' + str(ii), 'CARMEL' + str(ii))
         elif sys.platform == 'darwin':  # Omer
             dir_dict['CARMEL'] = CARMEL_omer_path
 
@@ -173,14 +173,14 @@ def get_datasets_dir_dict(Dataset: str):
     elif Dataset == 'Carmel 9-11':
         if sys.platform == 'linux':  # GIPdeep
             for ii in np.arange(9, 12):
-                dir_dict['CARMEL' + str(ii)] = os.path.join(CARMEL_gipdeep_path, 'Batch_' + str(ii), 'CARMEL' + str(ii))
+                dir_dict['CARMEL' + str(ii)] = os.path.join(CARMEL_gipdeep_path, '9-11', 'Batch_' + str(ii), 'CARMEL' + str(ii))
         elif sys.platform == 'darwin':  # Omer
             raise Exception('Need to implement')
 
     elif (Dataset[:6] == 'CARMEL') and (len(Dataset) > 6):
         batch_num = Dataset[6:]
         if sys.platform == 'linux':  # GIPdeep
-            dir_dict[Dataset] = os.path.join(CARMEL_gipdeep_path, 'Batch_' + batch_num, 'CARMEL' + batch_num)
+            dir_dict[Dataset] = os.path.join(CARMEL_gipdeep_path, '1-8' if int(batch_num) < 9 else '9-11', 'Batch_' + batch_num, 'CARMEL' + batch_num)
         elif sys.platform == 'win32':  # Ran local
             dir_dict[Dataset] = TCGA_ran_path #temp for debug only
 

@@ -292,6 +292,11 @@ def run_data(experiment: str = None,
                 user_name = 'Gil'
                 run_file_name = r'/mnt/gipnetapp_public/sgils/ran/runs/run_data.xlsx'
                 location_prefix = '/mnt/gipnetapp_public/sgils/ran/'
+            elif 30000 < int(experiment) < 40000:
+                # One of Tal's experiments
+                user_name = 'Tal'
+                run_file_name = r'/home/talneoran/workspace/wsi/runs/run_data.xlsx'
+                location_prefix = '/home/talneoran/workspace/wsi'
         else:
             user_name = None
             run_file_name = 'runs/run_data.xlsx'
@@ -829,6 +834,10 @@ def send_run_data_via_mail():
     elif 'sgils' in path_parts:
         filename = '/mnt/gipnetapp_public/sgils/ran/runs/run_data.xlsx'
         user = 'sgils'
+
+    elif 'talneoran' in path_parts:
+        filename = '/home/talneoran/workspace/wsi/runs/run_data.xlsx'
+        user = 'talneoran'
 
     else:
         logging.info('This user parameters are not defined. Email will not be sent')
