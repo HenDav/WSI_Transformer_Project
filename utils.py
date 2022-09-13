@@ -297,6 +297,11 @@ def run_data(experiment: str = None,
                 user_name = 'Tal'
                 run_file_name = r'/home/talneoran/workspace/wsi/runs/run_data.xlsx'
                 location_prefix = '/home/talneoran/workspace/wsi'
+            elif 40000 < int(experiment) < 50000:
+                # One of Hen's experiments
+                user_name = 'dahen'
+                run_file_name = r'/home/dahen/WSI_ran_legacy/WSI/runs/run_data.xlsx'
+                location_prefix = '/home/dahen/WSI_ran_legacy/WSI'
         else:
             user_name = None
             run_file_name = 'runs/run_data.xlsx'
@@ -838,6 +843,10 @@ def send_run_data_via_mail():
     elif 'talneoran' in path_parts:
         filename = '/home/talneoran/workspace/wsi/runs/run_data.xlsx'
         user = 'talneoran'
+
+    elif 'dahen' in path_parts:
+        filename = '/home/dahen/WSI_ran_legacy/WSI/runs/run_data.xlsx'
+        user = 'dahen'
 
     else:
         logging.info('This user parameters are not defined. Email will not be sent')

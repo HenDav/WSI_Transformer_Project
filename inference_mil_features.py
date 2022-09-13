@@ -3,7 +3,7 @@ import os
 import sys
 
 import matplotlib.pyplot as plt
-import nets_mil
+from Nets import nets_mil
 import numpy as np
 import torch
 import torch.nn as nn
@@ -163,7 +163,10 @@ if args.carmel_test_set:
         dset = 'CARMEL 9-11'
 
 if args.haemek_test_set:
-    dset = 'HAEMEK'
+    if args.experiment in [30086, 30087, 30089] + list(range(30093, 30105)):
+        dset = 'TCGA_ABCTB->HAEMEK'
+    else:
+        dset = 'HAEMEK'
 
 if dset == None:
     raise Exception('Dataset must be chosen')
@@ -185,6 +188,8 @@ is_per_patient = False
 #is_per_patient = False if args.save_tile_scores else True
 carmel_only = False
 '''
+if args.haemek_test_set:
+    dset = 'HAEMEK'
 if args.carmel_test_set:
     if dset == 'CARMEL 9-11':
         if args.batch not in [9, 10, 11]:

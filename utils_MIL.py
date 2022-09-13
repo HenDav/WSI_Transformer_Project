@@ -788,6 +788,123 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str,
                     }
                 },
             },
+            'TCGA_ABCTB->HAEMEK': {
+                'Fold 1': {
+                    'ER': {
+                        'DataSet Name': r'FEATURES: Exp_40005-ER-TestFold_1',
+                        'TestSet Location': {
+                            'HAEMEK':
+                                r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40005-ER-TestFold_1/Inference/HAEMEK'
+                        }
+                    },
+                    'Her2': {
+                        'DataSet Name': r'FEATURES: Exp_308-Her2-TestFold_1',
+                        'TestSet Location': {
+                            'HAEMEK':
+                                r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_308-Her2-TestFold_1/Inference/HAEMEK'
+                        }
+                    },
+                    'PR': {
+                        'DataSet Name': r'FEATURES: Exp_309-PR-TestFold_1',
+                        'TestSet Location': {
+                            'HAEMEK':
+                                r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_309-PR-TestFold_1/Inference/HAEMEK'
+                        }
+                    }
+                },
+                'Fold 2': {
+                    'ER': {
+                        'DataSet Name': r'FEATURES: Exp_40006-ER-TestFold_2',
+                        'TestSet Location': {
+                            'HAEMEK':
+                                r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40006-ER-TestFold_2/Inference/HAEMEK'
+                        }
+                    },
+                    'Her2': {
+                        'DataSet Name': r'FEATURES: Exp_310-Her2-TestFold_2',
+                        'TestSet Location': {
+                            'HAEMEK':
+                                r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_310-Her2-TestFold_2/Inference/HAEMEK'
+                        }
+                    },
+                    'PR': {
+                        'DataSet Name': r'FEATURES: Exp_320-PR-TestFold_2',
+                        'TestSet Location': {
+                            'HAEMEK':
+                                r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_320-PR-TestFold_2/Inference/HAEMEK'
+                        }
+                    }
+                },
+                'Fold 3': {
+                    'ER': {
+                        'DataSet Name': r'FEATURES: Exp_40007-ER-TestFold_3',
+                        'TestSet Location': {
+                            'HAEMEK':
+                                r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40007-ER-TestFold_3/Inference/HAEMEK'
+                        }
+                    },
+                    'Her2': {
+                        'DataSet Name': r'FEATURES: Exp_311-Her2-TestFold_3',
+                        'TestSet Location': {
+                            'HAEMEK':
+                                r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_311-Her2-TestFold_3/Inference/HAEMEK'
+                        }
+                    },
+                    'PR': {
+                        'DataSet Name': r'FEATURES: Exp_312-PR-TestFold_3',
+                        'TestSet Location': {
+                            'HAEMEK':
+                                r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_312-PR-TestFold_3/Inference/HAEMEK'
+                        }
+                    }
+                },
+                'Fold 4': {
+                    'ER': {
+                        'DataSet Name': r'FEATURES: Exp_40008-ER-TestFold_4',
+                        'TestSet Location': {
+                            'HAEMEK':
+                                r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40008-ER-TestFold_4/Inference/HAEMEK'
+                        }
+                    },
+                    'Her2': {
+                        'DataSet Name': r'FEATURES: Exp_334-Her2-TestFold_4',
+                        'TestSet Location': {
+                            'HAEMEK':
+                                r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_334-Her2-TestFold_4/Inference/HAEMEK'
+                        }
+                    },
+                    'PR': {
+                        'DataSet Name': r'FEATURES: Exp_313-PR-TestFold_4',
+                        'TestSet Location': {
+                            'CARMEL':
+                                r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_313-PR-TestFold_4/Inference/HAEMEK'
+                        }
+                    }
+                },
+                'Fold 5': {
+                    'ER': {
+                        'DataSet Name': r'FEATURES: Exp_40009-ER-TestFold_5',
+                        'TestSet Location': {
+                            'HAEMEK':
+                                r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40009-ER-TestFold_5/Inference/HAEMEK'
+                        }
+                    },
+                    'Her2': {
+                        'DataSet Name': r'FEATURES: Exp_348-Her2-TestFold_5',
+                        'TestSet Location': {
+                            'HAEMEK':
+                                r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_348-Her2-TestFold_5/Inference/HAEMEK'
+                        }
+                    },
+                    'PR': {
+                        'DataSet Name': r'FEATURES: Exp_321-PR-TestFold_5',
+                        'TestSet Location': {
+                            'HAEMEK':
+                                r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_321-PR-TestFold_5/Inference/HAEMEK'
+                        }
+                    }
+                },
+            },
             'TCGA_ABCTB': {
                 'Fold 1': {
                     'ER': {

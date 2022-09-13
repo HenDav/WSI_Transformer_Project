@@ -18,7 +18,7 @@ import sys
 import copy
 
 import utils_MIL
-import nets_mil
+from Nets import nets_mil
 
 utils.send_run_data_via_mail()
 
