@@ -243,6 +243,8 @@ def get_barcode_convention(data_dir):
         barcode_convention = BARCODE_CONVENTION_HAEMEK
     else:
         barcode_convention = BARCODE_CONVENTION_NONE
+
+    print(barcode_convention)
     return barcode_convention
 
 
