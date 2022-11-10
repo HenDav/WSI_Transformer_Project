@@ -9,9 +9,39 @@ import pandas as pd
 
 def get_RegModel_Features_location_dict(train_DataSet: str, target: str,
                                         test_fold: int):
+    test_fold = test_fold if test_fold>0 else None
     All_Data_Dict = {
         'linux': {
             'CAT': {
+                'Fold None' : { # TODO: wrangle this nightmare format.
+                    'ER': {
+                        'DataSet Name':
+                        r'FEATURES: Exp_40015-ER-TestFold_-1',
+                        'TrainSet Location':
+                        r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40015-ER-TestFold_-1/Inference/train_w_features',
+                        'TestSet Location': None,
+                        'REG Model Location':
+                        r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40015-ER-TestFold_-1/Model_CheckPoints/model_data_Last_Epoch.pt'
+                    },
+                    'Her2': {
+                        'DataSet Name':
+                        r'FEATURES: Exp_40019-Her2-TestFold_-1',
+                        'TrainSet Location':
+                        r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40019-Her2-TestFold_-1/Inference/train_w_features',
+                        'TestSet Location': None,
+                        'REG Model Location':
+                        r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40019-Her2-TestFold_-1/Model_CheckPoints/model_data_Last_Epoch.pt'
+                    },
+                    'PR': {
+                        'DataSet Name':
+                        r'FEATURES: Exp_40046-PR-TestFold_-1', 
+                        'TrainSet Location':
+                        r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40046-PR-TestFold_-1/Inference/train_w_features',
+                        'TestSet Location': None,
+                        'REG Model Location':
+                        r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40046-PR-TestFold_-1/Model_CheckPoints/model_data_Last_Epoch.pt'
+                    }
+                }, 
                 'Fold 1': {
                     'ER': {
                         'DataSet Name':
@@ -174,6 +204,38 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str,
                 }
             },
             'CARMEL': {
+                'Fold None' : {
+                    'ER': {
+                        'DataSet Name':
+                        r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TrainSet Location':
+                        r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40022-ER-TestFold_-1/Inference/train_w_features',
+                        'TestSet Location': None,
+                        'REG Model Location':
+                        r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40022-ER-TestFold_-1/Model_CheckPoints/model_data_Last_Epoch.pt'
+                    },
+                    'Ki67': {
+                        'DataSet Name':
+                        r'FEATURES: Exp_40023-Ki67-TestFold_-1',
+                        'TrainSet Location':
+                        r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40023-Ki67-TestFold_-1/Inference/train_w_features',
+                        'TestSet Location': None,
+                        'REG Model Location':
+                        r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40023-Ki67-TestFold_-1/Model_CheckPoints/model_data_Last_Epoch.pt'
+                    },
+                    'Her2': {
+                        'DataSet Name': None,
+                        'TrainSet Location': None,
+                        'TestSet Location': None,
+                        'REG Model Location': None
+                    },
+                    'PR': {
+                        'DataSet Name': None,
+                        'TrainSet Location': None,
+                        'TestSet Location': None,
+                        'REG Model Location': None
+                    }
+                }, 
                 'Fold 1': {
                     'ER': {
                         'DataSet Name':
@@ -258,6 +320,44 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str,
                 }
             },
             'CARMEL 9-11': {
+                'Fold None' : {
+                    'ER': {
+                        'DataSet Name':
+                        r'FEATURES: Model From Exp_40015-ER-TestFold_-1, CARMEL ONLY Slides Batch 9-11',
+                        'TestSet Location': {
+                            'Carmel 9':
+                            '/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40015-ER-TestFold_-1/Inference/CARMEL9',
+                            'Carmel 10':
+                            '/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40015-ER-TestFold_-1/Inference/CARMEL10',
+                            'Carmel 11':
+                            '/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40015-ER-TestFold_-1/Inference/CARMEL11'
+                        }
+                    },
+                    'PR': {
+                        'DataSet Name':
+                        r'FEATURES: Model From Exp_40046-PR-TestFold_-1, CARMEL ONLY Slides Batch 9-11',
+                        'TestSet Location': {
+                            'Carmel 9':
+                            '/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40046-PR-TestFold_-1/Inference/CARMEL9',
+                            'Carmel 10':
+                            '/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40046-PR-TestFold_-1/Inference/CARMEL10',
+                            'Carmel 11':
+                            '/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40046-PR-TestFold_-1/Inference/CARMEL11'
+                        }
+                    },
+                    'Her2': {
+                        'DataSet Name':
+                        r'FEATURES: Model From Exp_40019-Her2-TestFold_-1, CARMEL ONLY Slides Batch 9-11',
+                        'TestSet Location': {
+                            'Carmel 9':
+                            '/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40019-Her2-TestFold_-1/Inference/CARMEL9',
+                            'Carmel 10':
+                            '/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40019-Her2-TestFold_-1/Inference/CARMEL10',
+                            'Carmel 11':
+                            '/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40019-Her2-TestFold_-1/Inference/CARMEL11'
+                        }
+                    }
+                }, 
                 'Fold 1': {
                     'ER': {
                         'DataSet Name':
@@ -510,6 +610,26 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str,
                 },
             },
             'HAEMEK': {
+                'Fold None': {
+                    'ER': {
+                        'DataSet Name':
+                        r'FEATURES: Exp_40015-ER-TestFold_-1, HAEMEK ONLY Slides',
+                        'TestSet Location':
+                        r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40015-ER-TestFold_-1/Inference/HAEMEK'
+                    },
+                    'PR': {
+                        'DataSet Name':
+                        r'FEATURES: Exp_40046-PR-TestFold_-1, HAEMEK ONLY Slides',
+                        'TestSet Location':
+                        r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40046-PR-TestFold_-1/Inference/HAEMEK'
+                    },
+                    'Her2': {
+                        'DataSet Name':
+                        r'FEATURES: Exp_40019-Her2-TestFold_-1, HAEMEK ONLY Slides',
+                        'TestSet Location':
+                        r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40019-Her2-TestFold_-1/Inference/HAEMEK'
+                    },
+                },
                 'Fold 1': {
                     'ER': {
                         'DataSet Name':
@@ -642,6 +762,21 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str,
                 },
             },
             'TCGA_ABCTB->CARMEL': {
+                'Fold None': {
+                    'ER': {
+                        'DataSet Name': r'FEATURES: Exp_40021-ER-TestFold_-1',
+                        'TestSet Location': {
+                            'CARMEL':
+                            r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40021-ER-TestFold_-1/Inference/CARMEL1-8',
+                            'CARMEL9':
+                            r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40021-ER-TestFold_-1/Inference/CARMEL9',
+                            'CARMEL10':
+                            r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40021-ER-TestFold_-1/Inference/CARMEL10',
+                            'CARMEL11':
+                            r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40021-ER-TestFold_-1/Inference/CARMEL11',
+                        }
+                    }
+                },
                 'Fold 1': {
                     'ER': {
                         'DataSet Name': r'FEATURES: Exp_293-ER-TestFold_1',
@@ -788,7 +923,64 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str,
                     }
                 },
             },
+            'CARMEL->CARMEL 9-11': {
+                'Fold None': {
+                    'ER': {
+                        'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TestSet Location': {
+                            'CARMEL':
+                            r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40022-ER-TestFold_-1/Inference/CARMEL1-8',
+                            'CARMEL9':
+                            r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40022-ER-TestFold_-1/Inference/CARMEL9',
+                            'CARMEL10':
+                            r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40022-ER-TestFold_-1/Inference/CARMEL10',
+                            'CARMEL11':
+                            r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40022-ER-TestFold_-1/Inference/CARMEL11',
+                        }
+                    },
+                    'Ki67': {
+                        'DataSet Name': r'FEATURES: Exp_40023-Ki67-TestFold_-1',
+                        'TestSet Location': {
+                            'CARMEL':
+                            r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40023-Ki67-TestFold_-1/Inference/CARMEL1-8',
+                            'CARMEL9':
+                            r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40023-Ki67-TestFold_-1/Inference/CARMEL9',
+                            'CARMEL10':
+                            r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40023-Ki67-TestFold_-1/Inference/CARMEL10',
+                            'CARMEL11':
+                            r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40023-Ki67-TestFold_-1/Inference/CARMEL11',
+                        }
+                    }
+                }
+            },
+            'CARMEL->HAEMEK': {
+                'Fold None': {
+                    'ER': {
+                        'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TestSet Location': {
+                            'HAEMEK':
+                                r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40022-ER-TestFold_-1/Inference/HAEMEK'
+                        }
+                    },
+                    'Ki67': {
+                        'DataSet Name': r'FEATURES: Exp_40023-Ki67-TestFold_-1',
+                        'TestSet Location': {
+                            'HAEMEK':
+                                r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40023-Ki67-TestFold_-1/Inference/HAEMEK'
+                        }
+                    }
+                }
+            },
             'TCGA_ABCTB->HAEMEK': {
+                'Fold None': {
+                    'ER': {
+                        'DataSet Name': r'FEATURES: Exp_40021-ER-TestFold_-1',
+                        'TestSet Location': {
+                            'HAEMEK':
+                                r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40021-ER-TestFold_-1/Inference/HAEMEK'
+                        }
+                    }
+                },
                 'Fold 1': {
                     'ER': {
                         'DataSet Name': r'FEATURES: Exp_40005-ER-TestFold_1',
@@ -906,6 +1098,17 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str,
                 },
             },
             'TCGA_ABCTB': {
+                'Fold None': {
+                    'ER': {
+                        'DataSet Name':
+                        r'FEATURES: Exp_40021-ER-TestFold_-1',
+                        'TrainSet Location':
+                        r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40021-ER-TestFold_-1/Inference/train_w_features',
+                        'TestSet Location': None,
+                        'REG Model Location':
+                        r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40021-ER-TestFold_-1/Model_CheckPoints/model_data_Last_Epoch.pt'
+                    }
+                },
                 'Fold 1': {
                     'ER': {
                         'DataSet Name':

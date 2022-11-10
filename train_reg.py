@@ -22,6 +22,7 @@ from Survival.Cox_Loss import Cox_loss
 import re
 import logging
 import send_gmail
+import wandb
 
 try:
     utils.send_run_data_via_mail()
@@ -30,7 +31,7 @@ except:
 
 DEFAULT_BATCH_SIZE = 18
 parser = argparse.ArgumentParser(description='WSI_REG Training of PathNet Project')
-parser.add_argument('-tf', '--test_fold', default=1, type=int, help='fold to be as TEST FOLD')
+parser.add_argument('-tf', '--test_fold', default=1, type=int, help='fold to be as VALIDATION FOLD, if -1 there is no validation. refered to as TEST FOLD in folder hiererchy and code. very confusing, I agree.')
 parser.add_argument('-e', '--epochs', default=1001, type=int, help='Epochs to run')
 parser.add_argument('-ex', '--experiment', type=int, default=0, help='Continue train of this experiment')
 parser.add_argument('-fe', '--from_epoch', type=int, default=0, help='Continue train from epoch')
@@ -58,17 +59,21 @@ parser.add_argument('--slide_per_block', action='store_true', help='for carmel, 
 parser.add_argument('-baldat', '--balanced_dataset', dest='balanced_dataset', action='store_true', help='take same # of positive and negative patients from each dataset')
 parser.add_argument('--RAM_saver', action='store_true', help='use only a quarter of the slides + reshuffle every 100 epochs')
 parser.add_argument('-tl', '--transfer_learning', default='', type=str, help='use model trained on another experiment')
+parser.add_argument('--wnb', type=str, default='', help='wandb project name for model diagnosis. disabled if empty string')
 
 args = parser.parse_args()
-
+config = vars(args)
 EPS = 1e-7
 
 
-def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader, DEVICE, optimizer, print_timing: bool=False):
+def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader, DEVICE, optimizer, criterion, print_timing: bool=False, wnb: bool=False):
     """
     This function trains the model
     :return:
     """
+    
+    wandb.watch(model, criterion, log="all", log_freq=10)
+    
     if not os.path.isdir(os.path.join(args.output_dir, 'Model_CheckPoints')):
         os.mkdir(os.path.join(args.output_dir, 'Model_CheckPoints'))
     writer_folder = os.path.join(args.output_dir, 'writer')
@@ -90,7 +95,7 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
 
     print('Start Training...')
     previous_epoch_loss = 1e5
-
+    
     for e in range(from_epoch, epoch):
         time_epoch_start = time.time()
         if args.target == 'Survival_Time':
@@ -311,23 +316,26 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
         if e % args.eval_rate == 0:
             # Update 'Last Epoch' at run_data.xlsx file:
             utils.run_data(experiment=experiment, epoch=e)
-
-            acc_test, bacc_test, roc_auc_test = check_accuracy(model, dloader_test, all_writer, DEVICE, e)
+            
+            if len(dloader_test) != 0:
+                acc_test, bacc_test, roc_auc_test = check_accuracy(model, dloader_test, all_writer, DEVICE, e)
 
             # perform slide inference
-            if (not multi_target) and (N_classes == 2):
-                patch_df = pd.DataFrame({'slide': slide_names, 'scores': scores_train, 'labels': true_targets_train})
-                slide_mean_score_df = patch_df.groupby('slide').mean()
-                roc_auc_slide = np.nan
-                if not all(slide_mean_score_df['labels'] == slide_mean_score_df['labels'][0]):  #more than one label
-                    roc_auc_slide = roc_auc_score(slide_mean_score_df['labels'], slide_mean_score_df['scores'])
-                all_writer.add_scalar('Train/slide AUC', roc_auc_slide, e)
+                if (not multi_target) and (N_classes == 2):
+                    patch_df = pd.DataFrame({'slide': slide_names, 'scores': scores_train, 'labels': true_targets_train})
+                    slide_mean_score_df = patch_df.groupby('slide').mean()
+                    roc_auc_slide = np.nan
+                    if not all(slide_mean_score_df['labels'] == slide_mean_score_df['labels'][0]):  #more than one label
+                        roc_auc_slide = roc_auc_score(slide_mean_score_df['labels'], slide_mean_score_df['scores'])
+                    all_writer.add_scalar('Train/slide AUC', roc_auc_slide, e)
 
-                test_auc_list.append(roc_auc_test)
-                if len(test_auc_list) == 5:
-                    test_auc_mean = np.mean(test_auc_list)
-                    test_auc_list.pop(0)
-                    utils.run_data(experiment=experiment, test_mean_auc=test_auc_mean)
+                    test_auc_list.append(roc_auc_test)
+                    if len(test_auc_list) == 5:
+                        test_auc_mean = np.mean(test_auc_list)
+                        test_auc_list.pop(0)
+                        utils.run_data(experiment=experiment, test_mean_auc=test_auc_mean)
+            else:
+                acc_test, bacc_test = None, None
 
             # Save model to file:
             try:
@@ -344,7 +352,6 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                         'tiles_per_bag': 1},
                        os.path.join(args.output_dir, 'Model_CheckPoints', 'model_data_Epoch_' + str(e) + '.pt'))
             logging.info('saved checkpoint to {}'.format(args.output_dir))
-
     all_writer.close()
     if print_timing:
         time_writer.close()
@@ -560,7 +567,7 @@ if __name__ == '__main__':
 
     if (args.dataset[:3] == 'TMA') and (args.mag == 7):
         TILE_SIZE = 512
-
+        
     # Saving/Loading run meta data to/from file:
     if args.experiment == 0:
         run_data_results = utils.run_data(test_fold=args.test_fold,
@@ -608,227 +615,233 @@ if __name__ == '__main__':
 
     logging.info('num CPUs = {}'.format(cpu_available))
     logging.info('num workers = {}'.format(num_workers))
+    
+    if args.wnb:
+        print("profiling training with wnb")
+    
+    wnb_mode = "online" if args.wnb else "disabled"
+    
+    with wandb.init(project=args.wnb, config=config, mode=wnb_mode, entity="gipmed"):
+        # Get data:
+        train_dset = datasets.WSI_REGdataset(DataSet=args.dataset,
+                                             tile_size=TILE_SIZE,
+                                             target_kind=args.target,
+                                             test_fold=args.test_fold,
+                                             train=True,
+                                             print_timing=args.time,
+                                             transform_type=args.transform_type,
+                                             n_tiles=args.n_patches_train,
+                                             color_param=args.c_param,
+                                             get_images=args.images,
+                                             desired_slide_magnification=args.mag,
+                                             DX=args.dx,
+                                             loan=args.loan,
+                                             er_eq_pr=args.er_eq_pr,
+                                             slide_per_block=args.slide_per_block,
+                                             balanced_dataset=args.balanced_dataset,
+                                             RAM_saver=args.RAM_saver
+                                             )
+        test_dset = datasets.WSI_REGdataset(DataSet=args.dataset,
+                                            tile_size=TILE_SIZE,
+                                            target_kind=args.target,
+                                            test_fold=args.test_fold,
+                                            train=False,
+                                            print_timing=False,
+                                            transform_type='none',
+                                            n_tiles=args.n_patches_test,
+                                            get_images=args.images,
+                                            desired_slide_magnification=args.mag,
+                                            DX=args.dx,
+                                            loan=args.loan,
+                                            er_eq_pr=args.er_eq_pr,
+                                            RAM_saver=args.RAM_saver
+                                            )
+        sampler = None
+        do_shuffle = True
+        if args.balanced_sampling:
+            labels = pd.DataFrame(train_dset.target * train_dset.factor)
+            n_pos = np.sum(labels == 'Positive').item()
+            n_neg = np.sum(labels == 'Negative').item()
+            weights = pd.DataFrame(np.zeros(len(train_dset)))
+            weights[np.array(labels == 'Positive')] = 1 / n_pos
+            weights[np.array(labels == 'Negative')] = 1 / n_neg
+            do_shuffle = False  # the sampler shuffles
+            sampler = torch.utils.data.sampler.WeightedRandomSampler(weights=weights.squeeze(), num_samples=len(train_dset))
 
-    # Get data:
-    train_dset = datasets.WSI_REGdataset(DataSet=args.dataset,
-                                         tile_size=TILE_SIZE,
-                                         target_kind=args.target,
-                                         test_fold=args.test_fold,
-                                         train=True,
-                                         print_timing=args.time,
-                                         transform_type=args.transform_type,
-                                         n_tiles=args.n_patches_train,
-                                         color_param=args.c_param,
-                                         get_images=args.images,
-                                         desired_slide_magnification=args.mag,
-                                         DX=args.dx,
-                                         loan=args.loan,
-                                         er_eq_pr=args.er_eq_pr,
-                                         slide_per_block=args.slide_per_block,
-                                         balanced_dataset=args.balanced_dataset,
-                                         RAM_saver=args.RAM_saver
-                                         )
-    test_dset = datasets.WSI_REGdataset(DataSet=args.dataset,
-                                        tile_size=TILE_SIZE,
-                                        target_kind=args.target,
-                                        test_fold=args.test_fold,
-                                        train=False,
-                                        print_timing=False,
-                                        transform_type='none',
-                                        n_tiles=args.n_patches_test,
-                                        get_images=args.images,
-                                        desired_slide_magnification=args.mag,
-                                        DX=args.dx,
-                                        loan=args.loan,
-                                        er_eq_pr=args.er_eq_pr,
-                                        RAM_saver=args.RAM_saver
-                                        )
-    sampler = None
-    do_shuffle = True
-    if args.balanced_sampling:
-        labels = pd.DataFrame(train_dset.target * train_dset.factor)
-        n_pos = np.sum(labels == 'Positive').item()
-        n_neg = np.sum(labels == 'Negative').item()
-        weights = pd.DataFrame(np.zeros(len(train_dset)))
-        weights[np.array(labels == 'Positive')] = 1 / n_pos
-        weights[np.array(labels == 'Negative')] = 1 / n_neg
-        do_shuffle = False  # the sampler shuffles
-        sampler = torch.utils.data.sampler.WeightedRandomSampler(weights=weights.squeeze(), num_samples=len(train_dset))
+        train_loader = DataLoader(train_dset, batch_size=args.batch_size, shuffle=do_shuffle,
+                                  num_workers=num_workers, pin_memory=True, sampler=sampler)
+        test_loader  = DataLoader(test_dset, batch_size=args.batch_size*2, shuffle=False,
+                                  num_workers=num_workers, pin_memory=True)
 
-    train_loader = DataLoader(train_dset, batch_size=args.batch_size, shuffle=do_shuffle,
-                              num_workers=num_workers, pin_memory=True, sampler=sampler)
-    test_loader  = DataLoader(test_dset, batch_size=args.batch_size*2, shuffle=False,
-                              num_workers=num_workers, pin_memory=True)
+        # Save transformation data to 'run_data.xlsx'
+        transformation_string = ', '.join([str(train_dset.transform.transforms[i]) for i in range(len(train_dset.transform.transforms))])
+        utils.run_data(experiment=experiment, transformation_string=transformation_string)
 
-    # Save transformation data to 'run_data.xlsx'
-    transformation_string = ', '.join([str(train_dset.transform.transforms[i]) for i in range(len(train_dset.transform.transforms))])
-    utils.run_data(experiment=experiment, transformation_string=transformation_string)
+        # Load model
+        model = eval(args.model)
+        if args.target == 'Survival_Time':
+            model.change_num_classes(num_classes=1)  # This will convert the liner (classifier) layer into the beta layer
+            model.model_name += '_Continous_Time'
 
-    # Load model
-    model = eval(args.model)
-    if args.target == 'Survival_Time':
-        model.change_num_classes(num_classes=1)  # This will convert the liner (classifier) layer into the beta layer
-        model.model_name += '_Continous_Time'
-
-    try:
-        N_classes = model.linear.out_features  # for resnets and such
-    except:
-        N_classes = model._final_1x1_conv.out_channels  # for StereoSphereRes
-
-    # Save model data and data-set size to run_data.xlsx file (Only if this is a new run).
-    if args.experiment == 0:
-        utils.run_data(experiment=experiment, model=model.model_name)
-        utils.run_data(experiment=experiment, DataSet_size=(train_dset.real_length, test_dset.real_length))
-        utils.run_data(experiment=experiment, DataSet_Slide_magnification=train_dset.desired_magnification)
-
-        # Saving code files, args and main file name (this file) to Code directory within the run files.
-        utils.save_code_files(args, train_dset)
-
-    epoch = args.epochs
-    from_epoch = args.from_epoch
-
-    # In case we continue from an already trained model, than load the previous model and optimizer data:
-    if args.experiment != 0:
-        print('Loading pre-saved model...')
-        if from_epoch == 0:  # load last epoch
-            model_data_loaded = torch.load(os.path.join(args.output_dir,
-                                                        'Model_CheckPoints',
-                                                        'model_data_Last_Epoch.pt'),
-                                           map_location='cpu')
-            from_epoch = model_data_loaded['epoch'] + 1
-        else:
-            model_data_loaded = torch.load(os.path.join(args.output_dir,
-                                                        'Model_CheckPoints',
-                                                        'model_data_Epoch_' + str(args.from_epoch) + '.pt'), map_location='cpu')
-            from_epoch = args.from_epoch + 1
-        model.load_state_dict(model_data_loaded['model_state_dict'])
-
-        print()
-        print('Resuming training of Experiment {} from Epoch {}'.format(args.experiment, from_epoch))
-
-    elif args.transfer_learning != '':
-        # use model trained on another experiment
-        # transfer_learning should be of the form 'ex=390,epoch=1000'
-        ex_str, epoch_str = args.transfer_learning.split(',')
-        ex_model = int(re.sub("[^0-9]", "", ex_str))
-        epoch_model = int(re.sub("[^0-9]", "", epoch_str))
-
-        run_data_model = utils.run_data(experiment=ex_model)
-        model_dir = run_data_model['Location']
-        model_data_loaded = torch.load(os.path.join(model_dir,
-                                                    'Model_CheckPoints',
-                                                    'model_data_Epoch_' + str(epoch_model) + '.pt'),
-                                       map_location='cpu')
         try:
-            model.load_state_dict(model_data_loaded['model_state_dict'])
+            N_classes = model.linear.out_features  # for resnets and such
         except:
-            raise IOError('Cannot load the saved transfer_learning model, check if it fits the current model')
+            N_classes = model._final_1x1_conv.out_channels  # for StereoSphereRes
 
-    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+        # Save model data and data-set size to run_data.xlsx file (Only if this is a new run).
+        if args.experiment == 0:
+            utils.run_data(experiment=experiment, model=model.model_name)
+            utils.run_data(experiment=experiment, DataSet_size=(train_dset.real_length, test_dset.real_length))
+            utils.run_data(experiment=experiment, DataSet_Slide_magnification=train_dset.desired_magnification)
 
-    if isinstance(train_dset.target_kind, list):
-        multi_target = True
-        target_list = train_dset.target_kind
-        N_targets = len(target_list)
-        if model.linear.out_features != 2*len(target_list):
-            raise IOError('Model defined does not match number of targets, select model with ' + str(2*len(target_list)) + ' output channels')
-    else:
-        multi_target = False
+            # Saving code files, args and main file name (this file) to Code directory within the run files.
+            utils.save_code_files(args, train_dset)
 
-    if DEVICE.type == 'cuda':
-        model = torch.nn.DataParallel(model)
-        cudnn.benchmark = True
+        epoch = args.epochs
+        from_epoch = args.from_epoch
 
-        if args.time:
-            import nvidia_smi
-            nvidia_smi.nvmlInit()
-            handle = nvidia_smi.nvmlDeviceGetHandleByIndex(0)
-            # card id 0 hardcoded here, there is also a call to get all available card ids, so we could iterate
+        # In case we continue from an already trained model, than load the previous model and optimizer data:
+        if args.experiment != 0:
+            print('Loading pre-saved model...')
+            if from_epoch == 0:  # load last epoch
+                model_data_loaded = torch.load(os.path.join(args.output_dir,
+                                                            'Model_CheckPoints',
+                                                            'model_data_Last_Epoch.pt'),
+                                               map_location='cpu')
+                from_epoch = model_data_loaded['epoch'] + 1
+            else:
+                model_data_loaded = torch.load(os.path.join(args.output_dir,
+                                                            'Model_CheckPoints',
+                                                            'model_data_Epoch_' + str(args.from_epoch) + '.pt'), map_location='cpu')
+                from_epoch = args.from_epoch + 1
+            model.load_state_dict(model_data_loaded['model_state_dict'])
 
-    if args.experiment != 0:
-        optimizer.load_state_dict(model_data_loaded['optimizer_state_dict'])
-        for state in optimizer.state.values():
-            for k, v in state.items():
-                if torch.is_tensor(v):
-                    state[k] = v.to(DEVICE)
+            print()
+            print('Resuming training of Experiment {} from Epoch {}'.format(args.experiment, from_epoch))
 
-    if args.focal:
-        criterion = utils.FocalLoss(gamma=2)
-        criterion.to(DEVICE)
-    elif args.target == 'Survival_Time':
-        criterion = Cox_loss
-    else:
-        if multi_target:
-            criterion = nn.CrossEntropyLoss(ignore_index=-1, reduction='none')
+        elif args.transfer_learning != '':
+            # use model trained on another experiment
+            # transfer_learning should be of the form 'ex=390,epoch=1000'
+            ex_str, epoch_str = args.transfer_learning.split(',')
+            ex_model = int(re.sub("[^0-9]", "", ex_str))
+            epoch_model = int(re.sub("[^0-9]", "", epoch_str))
+
+            run_data_model = utils.run_data(experiment=ex_model)
+            model_dir = run_data_model['Location']
+            model_data_loaded = torch.load(os.path.join(model_dir,
+                                                        'Model_CheckPoints',
+                                                        'model_data_Epoch_' + str(epoch_model) + '.pt'),
+                                           map_location='cpu')
+            try:
+                model.load_state_dict(model_data_loaded['model_state_dict'])
+            except:
+                raise IOError('Cannot load the saved transfer_learning model, check if it fits the current model')
+
+        optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+
+        if isinstance(train_dset.target_kind, list):
+            multi_target = True
+            target_list = train_dset.target_kind
+            N_targets = len(target_list)
+            if model.linear.out_features != 2*len(target_list):
+                raise IOError('Model defined does not match number of targets, select model with ' + str(2*len(target_list)) + ' output channels')
         else:
-            criterion = nn.CrossEntropyLoss()
+            multi_target = False
 
-    if args.RAM_saver:
-        shuffle_freq = 100  # reshuffle dataset every 200 epochs
-        shuffle_epoch_list = np.arange(np.ceil((from_epoch+EPS) / shuffle_freq) * shuffle_freq, epoch, shuffle_freq).astype(int)
-        shuffle_epoch_list = np.append(shuffle_epoch_list, epoch)
+        if DEVICE.type == 'cuda':
+            model = torch.nn.DataParallel(model)
+            cudnn.benchmark = True
 
-        epoch = shuffle_epoch_list[0]
-        train(model, train_loader, test_loader, DEVICE=DEVICE, optimizer=optimizer, print_timing=args.time)
+            if args.time:
+                import nvidia_smi
+                nvidia_smi.nvmlInit()
+                handle = nvidia_smi.nvmlDeviceGetHandleByIndex(0)
+                # card id 0 hardcoded here, there is also a call to get all available card ids, so we could iterate
 
-        for from_epoch, epoch in zip(shuffle_epoch_list[:-1], shuffle_epoch_list[1:]):
-            print('Reshuffling dataset:')
-            # shuffle train and test set to get new slides
-            # Get data:
-            train_dset = datasets.WSI_REGdataset(DataSet=args.dataset,
-                                                 tile_size=TILE_SIZE,
-                                                 target_kind=args.target,
-                                                 test_fold=args.test_fold,
-                                                 train=True,
-                                                 print_timing=args.time,
-                                                 transform_type=args.transform_type,
-                                                 n_tiles=args.n_patches_train,
-                                                 color_param=args.c_param,
-                                                 get_images=args.images,
-                                                 desired_slide_magnification=args.mag,
-                                                 DX=args.dx,
-                                                 loan=args.loan,
-                                                 er_eq_pr=args.er_eq_pr,
-                                                 slide_per_block=args.slide_per_block,
-                                                 balanced_dataset=args.balanced_dataset,
-                                                 RAM_saver=args.RAM_saver
-                                                 )
-            test_dset = datasets.WSI_REGdataset(DataSet=args.dataset,
-                                                tile_size=TILE_SIZE,
-                                                target_kind=args.target,
-                                                test_fold=args.test_fold,
-                                                train=False,
-                                                print_timing=False,
-                                                transform_type='none',
-                                                n_tiles=args.n_patches_test,
-                                                get_images=args.images,
-                                                desired_slide_magnification=args.mag,
-                                                DX=args.dx,
-                                                loan=args.loan,
-                                                er_eq_pr=args.er_eq_pr,
-                                                RAM_saver=args.RAM_saver
-                                                )
-            sampler = None
-            do_shuffle = True
-            if args.balanced_sampling:
-                labels = pd.DataFrame(train_dset.target * train_dset.factor)
-                n_pos = np.sum(labels == 'Positive').item()
-                n_neg = np.sum(labels == 'Negative').item()
-                weights = pd.DataFrame(np.zeros(len(train_dset)))
-                weights[np.array(labels == 'Positive')] = 1 / n_pos
-                weights[np.array(labels == 'Negative')] = 1 / n_neg
-                do_shuffle = False  # the sampler shuffles
-                sampler = torch.utils.data.sampler.WeightedRandomSampler(weights=weights.squeeze(),
-                                                                         num_samples=len(train_dset))
+        if args.experiment != 0:
+            optimizer.load_state_dict(model_data_loaded['optimizer_state_dict'])
+            for state in optimizer.state.values():
+                for k, v in state.items():
+                    if torch.is_tensor(v):
+                        state[k] = v.to(DEVICE)
 
-            train_loader = DataLoader(train_dset, batch_size=args.batch_size, shuffle=do_shuffle,
-                                      num_workers=num_workers, pin_memory=True, sampler=sampler)
-            test_loader = DataLoader(test_dset, batch_size=args.batch_size * 2, shuffle=False,
-                                     num_workers=num_workers, pin_memory=True)
+        if args.focal:
+            criterion = utils.FocalLoss(gamma=2)
+            criterion.to(DEVICE)
+        elif args.target == 'Survival_Time':
+            criterion = Cox_loss
+        else:
+            if multi_target:
+                criterion = nn.CrossEntropyLoss(ignore_index=-1, reduction='none')
+            else:
+                criterion = nn.CrossEntropyLoss()
 
-            print('resuming training with new dataset')
-            train(model, train_loader, test_loader, DEVICE=DEVICE, optimizer=optimizer, print_timing=args.time)
-    else:
-        train(model, train_loader, test_loader, DEVICE=DEVICE, optimizer=optimizer, print_timing=args.time)
+        if args.RAM_saver:
+            shuffle_freq = 100  # reshuffle dataset every 200 epochs
+            shuffle_epoch_list = np.arange(np.ceil((from_epoch+EPS) / shuffle_freq) * shuffle_freq, epoch, shuffle_freq).astype(int)
+            shuffle_epoch_list = np.append(shuffle_epoch_list, epoch)
 
-    send_gmail.send_gmail(experiment, send_gmail.Mode.TRAIN)
+            epoch = shuffle_epoch_list[0]
+            train(model, train_loader, test_loader, DEVICE=DEVICE, optimizer=optimizer, criterion=criterion, print_timing=args.time, wnb=args.wnb)
+
+            for from_epoch, epoch in zip(shuffle_epoch_list[:-1], shuffle_epoch_list[1:]):
+                print('Reshuffling dataset:')
+                # shuffle train and test set to get new slides
+                # Get data:
+                train_dset = datasets.WSI_REGdataset(DataSet=args.dataset,
+                                                     tile_size=TILE_SIZE,
+                                                     target_kind=args.target,
+                                                     test_fold=args.test_fold,
+                                                     train=True,
+                                                     print_timing=args.time,
+                                                     transform_type=args.transform_type,
+                                                     n_tiles=args.n_patches_train,
+                                                     color_param=args.c_param,
+                                                     get_images=args.images,
+                                                     desired_slide_magnification=args.mag,
+                                                     DX=args.dx,
+                                                     loan=args.loan,
+                                                     er_eq_pr=args.er_eq_pr,
+                                                     slide_per_block=args.slide_per_block,
+                                                     balanced_dataset=args.balanced_dataset,
+                                                     RAM_saver=args.RAM_saver
+                                                     )
+                test_dset = datasets.WSI_REGdataset(DataSet=args.dataset,
+                                                    tile_size=TILE_SIZE,
+                                                    target_kind=args.target,
+                                                    test_fold=args.test_fold,
+                                                    train=False,
+                                                    print_timing=False,
+                                                    transform_type='none',
+                                                    n_tiles=args.n_patches_test,
+                                                    get_images=args.images,
+                                                    desired_slide_magnification=args.mag,
+                                                    DX=args.dx,
+                                                    loan=args.loan,
+                                                    er_eq_pr=args.er_eq_pr,
+                                                    RAM_saver=args.RAM_saver
+                                                    )
+                sampler = None
+                do_shuffle = True
+                if args.balanced_sampling:
+                    labels = pd.DataFrame(train_dset.target * train_dset.factor)
+                    n_pos = np.sum(labels == 'Positive').item()
+                    n_neg = np.sum(labels == 'Negative').item()
+                    weights = pd.DataFrame(np.zeros(len(train_dset)))
+                    weights[np.array(labels == 'Positive')] = 1 / n_pos
+                    weights[np.array(labels == 'Negative')] = 1 / n_neg
+                    do_shuffle = False  # the sampler shuffles
+                    sampler = torch.utils.data.sampler.WeightedRandomSampler(weights=weights.squeeze(),
+                                                                             num_samples=len(train_dset))
+
+                train_loader = DataLoader(train_dset, batch_size=args.batch_size, shuffle=do_shuffle,
+                                          num_workers=num_workers, pin_memory=True, sampler=sampler)
+                test_loader = DataLoader(test_dset, batch_size=args.batch_size * 2, shuffle=False,
+                                         num_workers=num_workers, pin_memory=True)
+
+                print('resuming training with new dataset')
+                train(model, train_loader, test_loader, DEVICE=DEVICE, optimizer=optimizer, criterion=criterion, print_timing=args.time, wnb=args.wnb)
+        else:
+            train(model, train_loader, test_loader, DEVICE=DEVICE, optimizer=optimizer, criterion=criterion, print_timing=args.time, wnb=args.wnb)
+
+        send_gmail.send_gmail(experiment, send_gmail.Mode.TRAIN)

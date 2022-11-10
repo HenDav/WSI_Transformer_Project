@@ -20,12 +20,12 @@ import copy
 import utils_MIL
 from Nets import nets_mil
 
-utils.send_run_data_via_mail()
+# utils.send_run_data_via_mail()
 
 parser = argparse.ArgumentParser(description='WSI_MIL Training of PathNet Project')
 parser.add_argument('-ds', '--dataset', type=str, default='TCGA_ABCTB', help='DataSet to use')
 parser.add_argument('-tar', '--target', type=str, default='ER', help='Target to train for') #FIXME: to Her2+is_Tumor
-parser.add_argument('-tf', '--test_fold', default=2, type=int, help='fold to be as TEST FOLD')
+parser.add_argument('-tf', '--test_fold', default=2, type=int, help='fold to be as VALIDATION FOLD, if -1 there is no validation. refered to as TEST FOLD in folder hiererchy and code. very confusing, I agree.')
 parser.add_argument('-e', '--epochs', default=2, type=int, help='Epochs to run')
 parser.add_argument('-ex', '--experiment', type=int, default=0, help='Continue train of this experiment')
 parser.add_argument('-fe', '--from_epoch', type=int, default=0, help='Continue train from epoch')
@@ -167,7 +167,11 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
         previous_epoch_loss = train_loss
 
         if e % args.eval_rate == 0:
-            acc_test, bacc_test = check_accuracy(model, dloader_test, all_writer, DEVICE, e)
+            if len(dloader_test) != 0:
+                acc_test, bacc_test = check_accuracy(model, dloader_test, all_writer, DEVICE, e)
+            else:
+                acc_test, bacc_test = None, None
+                
             # Update 'Last Epoch' at run_data.xlsx file:
             utils.run_data(experiment=experiment, epoch=e)
 
@@ -312,7 +316,6 @@ if __name__ == '__main__':
                                               data_limit=args.data_limit,
                                               test_fold=args.test_fold,
                                               carmel_only=args.carmel_only)
-
     test_dset = datasets.Features_MILdataset(dataset=args.dataset,
                                              data_location=(data_location[0]['TestSet Location'], data_location[1]['TestSet Location']) if type(data_location) == tuple else data_location['TestSet Location'],
                                              is_per_patient=args.per_patient_training,

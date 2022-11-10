@@ -165,7 +165,7 @@ def get_datasets_dir_dict(Dataset: str):
     elif Dataset == 'CARMEL+BENIGN':
         if sys.platform == 'linux':  # GIPdeep
             for ii in np.arange(1, 9):
-                dir_dict['CARMEL' + str(ii)] = os.path.join(CARMEL_gipdeep_path, 'Batch_' + str(ii), 'CARMEL' + str(ii))
+                dir_dict['CARMEL' + str(ii)] = os.path.join(CARMEL_gipdeep_path, '1-8', 'Batch_' + str(ii), 'CARMEL' + str(ii))
 
             for ii in np.arange(1, 4):
                 dir_dict['BENIGN' + str(ii)] = os.path.join(CARMEL_BENIGN_gipdeep_path, 'Batch_' + str(ii), 'BENIGN' + str(ii))
@@ -192,7 +192,7 @@ def get_datasets_dir_dict(Dataset: str):
     elif Dataset == 'CAT':
         if sys.platform == 'linux':  # GIPdeep
             for ii in np.arange(1, 9):
-                dir_dict['CARMEL' + str(ii)] = os.path.join(CARMEL_gipdeep_path, 'Batch_' + str(ii), 'CARMEL' + str(ii))
+                dir_dict['CARMEL' + str(ii)] = os.path.join(CARMEL_gipdeep_path, '1-8', 'Batch_' + str(ii), 'CARMEL' + str(ii))
             dir_dict['TCGA'] = TCGA_gipdeep_path
             dir_dict['ABCTB'] = ABCTB_TIF_gipdeep_path
 

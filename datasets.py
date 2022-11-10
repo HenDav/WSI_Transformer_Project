@@ -274,16 +274,17 @@ class WSI_Master_Dataset(Dataset):
         if self.train_type in ['REG', 'MIL']:
             if self.train:
                 folds = list(self.meta_data_DF[fold_column_name].unique())
-                folds.remove(self.test_fold)
+                if test_fold != -1:
+                    folds.remove(self.test_fold)
                 if 'test' in folds:
                     folds.remove('test')
                 if 'val' in folds:
                     folds.remove('val')
             else:
-                if self.test_fold == 'All':
-                    folds = list(self.meta_data_DF[fold_column_name].unique())
-                else:
+                if self.test_fold == -1:
                     folds = [self.test_fold, 'val']
+                else:
+                    folds = []
 
         elif self.train_type == 'Infer':
             if 0 in infer_folds:
@@ -876,6 +877,9 @@ class Features_MILdataset(Dataset):
                           }
             data_files['Receptor'].extend(glob(os.path.join(data_location[0], '*.data')))
             data_files['is_Tumor'].extend(glob(os.path.join(data_location[1], '*.data')))
+        
+        else:
+            data_files = []
 
         print('Loading data from files in location: {}'.format(data_location))
 

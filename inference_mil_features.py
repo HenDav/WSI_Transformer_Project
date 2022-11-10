@@ -155,18 +155,24 @@ elif run_data_output['Dataset Name'] in TCGA_ABCTB_dsets:
 else:
     dset = None
 
+    # Default is using features extracted with CAT trained extractor. Any other extractor used warrents the dset name
+    # extractor_dataset->test_dataset
+    
 if args.carmel_test_set:
-    if args.experiment in [30086, 30087, 30089] + list(range(30093, 30105)):  # [10586, 10587, 10590]:
+    if args.experiment in [30086, 30087, 30089] + list(range(30093, 30105)) + [40072]:  # [10586, 10587, 10590]:
         dset = 'TCGA_ABCTB->CARMEL'
-
+    elif args.experiment in [40068,40067]:
+        dset = 'CARMEL->CARMEL 9-11'
     else:
-        dset = 'CARMEL 9-11'
+        dset = 'CARMEL 9-11' # Implicitly CAT->CARMEL 9-11
 
 if args.haemek_test_set:
-    if args.experiment in [30086, 30087, 30089] + list(range(30093, 30105)):
+    if args.experiment in [30086, 30087, 30089] + list(range(30093, 30105)) + [40072]:
         dset = 'TCGA_ABCTB->HAEMEK'
+    elif args.experiment in [40068,40067]:
+        dset = 'CARMEL->HAEMEK'
     else:
-        dset = 'HAEMEK'
+        dset = 'HAEMEK' # Implicitly CAT->HAEMEK
 
 if dset == None:
     raise Exception('Dataset must be chosen')
@@ -198,14 +204,16 @@ if args.carmel_test_set:
         key = 'Carmel ' + str(args.batch)  # TODO: Modify this
         test_data_dir = test_data_dir[key]
 
-    elif dset == 'TCGA_ABCTB->CARMEL':
+    elif dset == 'TCGA_ABCTB->CARMEL' or dset == 'CARMEL->CARMEL 9-11':
         key = 'CARMEL' if args.batch == 1 else 'CARMEL 9-11'
-
+        
         if key == 'CARMEL':
             file_name_extension = '_Carmel1-8'
-
-        test_data_dir = test_data_dir[key]
         dset = key
+            
+        key = key if key in test_data_dir.keys() else 'CARMEL' + str(args.batch)
+
+        test_data_dir = test_data_dir[key] # For specific TCGA_ABCTB->CARMEL fold None case
 
 elif args.haemek_test_set:
     key = 'HAEMEK'
@@ -237,6 +245,7 @@ elif dataset == 'Combined Features - Multi Resolution':
         is_per_patient=args.is_per_patient)
 
 else:
+    print(f"test_data_dir is {test_data_dir}")
     inf_dset = datasets.Features_MILdataset(dataset=dset,
                                             data_location=test_data_dir,
                                             target=target,

@@ -16,7 +16,7 @@ import logging
 
 parser = argparse.ArgumentParser(description='WSI_REG Slide inference')
 parser.add_argument('-ex', '--experiment', nargs='+', type=int, default=[10607], help='Use models from this experiment')
-parser.add_argument('-fe', '--from_epoch', nargs='+', type=int, default=[960], help='Use this epoch models for inference')
+parser.add_argument('-fe', '--from_epoch', nargs='+', type=int, default=[960], help='Use this epoch models for inference') # use -1 for final epoch
 parser.add_argument('-nt', '--num_tiles', type=int, default=10, help='Number of tiles to use')
 parser.add_argument('-ds', '--dataset', type=str, default='ABCTB', help='DataSet to use')
 parser.add_argument('-f', '--folds', type=list, nargs="+", default=1, help='folds to infer')
@@ -126,8 +126,13 @@ for counter in range(len(args.from_epoch)):
     # loading basic model type
     model = eval(model_name)
     # loading model parameters from the specific epoch
-    model_data_loaded = torch.load(os.path.join(data_path, output_dir, 'Model_CheckPoints',
-                                                'model_data_Epoch_' + str(epoch) + '.pt'), map_location='cpu')
+    if epoch==-1:
+        model_to_load = os.path.join(data_path, output_dir, 'Model_CheckPoints',
+                                                'model_data_Last_Epoch.pt')
+    else:
+        model_to_load = os.path.join(data_path, output_dir, 'Model_CheckPoints',
+                                                'model_data_Epoch_' + str(epoch) + '.pt')
+    model_data_loaded = torch.load(model_to_load, map_location='cpu')
     # Making sure that the size of the linear layer of the loaded model, fits the basic model.
     model.linear = torch.nn.Linear(in_features=model_data_loaded['model_state_dict']['linear.weight'].size(1),
                                    out_features=model_data_loaded['model_state_dict']['linear.weight'].size(0))
