@@ -27,6 +27,8 @@ parser.add_argument('-d', dest='dx', action='store_true', help='Use ONLY DX cut 
 parser.add_argument('--resume', type=int, default=0, help='resume a failed feature extraction')
 parser.add_argument('--patch_dir', type=str, default='', help='patch locations directory, for use with predecided patches')
 parser.add_argument('-sd', '--subdir', type=str, default='', help='output sub-dir')
+parser.add_argument('-se', '--seed', type=int, help='use for deterministic patch sampling')
+parser.add_argument('-tar', '--target', type=str, help='label: Her2/ER/PR/EGFR/PDL1')
 args = parser.parse_args()
 
 args.folds = list(map(int, args.folds[0]))
@@ -70,14 +72,16 @@ if args.save_features:
 for counter in range(len(args.from_epoch)):
     epoch = args.from_epoch[counter]
     experiment = args.experiment[counter] if different_experiments else args.experiment[0]
-
+    print(experiment)
     logging.info('  Exp. {} and Epoch {}'.format(experiment, epoch))
     # Basic meta data will be taken from the first model (ONLY if all inferences are done from the same experiment)
     if counter == 0:
         run_data_output = utils.run_data(experiment=experiment)
-        output_dir, TILE_SIZE, dx, args.target, model_name, args.mag =\
-            run_data_output['Location'], run_data_output['Tile Size'], run_data_output['DX'], run_data_output['Receptor'],\
+        output_dir, TILE_SIZE, dx, model_name, args.mag =\
+            run_data_output['Location'], run_data_output['Tile Size'], run_data_output['DX'],\
             run_data_output['Model Name'], run_data_output['Desired Slide Magnification']
+        if args.target is None:
+             args.target = run_data_output['Receptor']
         if different_experiments:
             Output_Dirs.append(output_dir)
         fix_data_path = True
@@ -195,7 +199,8 @@ if args.save_features:
     logging.info('features will be taken from model {}'.format(str(args.from_epoch[feature_epoch_ind])))
 
 slide_num = args.resume
-
+print(args.target)
+x=dsakfd
 inf_dset = datasets.Infer_Dataset(DataSet=args.dataset,
                                   tile_size=TILE_SIZE,
                                   tiles_per_iter=tiles_per_iter,
@@ -205,7 +210,8 @@ inf_dset = datasets.Infer_Dataset(DataSet=args.dataset,
                                   desired_slide_magnification=args.mag,
                                   dx=dx,
                                   resume_slide=slide_num,
-                                  patch_dir=args.patch_dir)
+                                  patch_dir=args.patch_dir,
+                                  chosen_seed=args.seed)
 
 inf_loader = DataLoader(inf_dset, batch_size=1, shuffle=False, num_workers=0, pin_memory=True)
 
