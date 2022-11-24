@@ -2,7 +2,7 @@ import numpy as np
 import os
 import pandas as pd
 import pickle
-from random import sample, choices, seed
+from random import sample, choices
 import torch
 from torchvision import transforms
 import time
@@ -142,8 +142,8 @@ class WSI_Master_Dataset(Dataset):
                     all_targets[ii] = 'Positive'
                 elif (PR_target == 'Negative' or ER_target == 'Negative'):  # avoid 'Missing Data'
                     all_targets[ii] = 'Negative'
-        
-        elif self.target_kind in ['Survival_Time',
+
+        if self.target_kind in ['Survival_Time',
                                 'Survival_Binary']:  # TODO: Check if this part can be removed - it might be useless
             all_censored = list(self.meta_data_DF['Censored'])
             all_targets_cont = list(self.meta_data_DF['Time (months)'])
@@ -642,8 +642,7 @@ class Infer_Dataset(WSI_Master_Dataset):
                  dx: bool = False,
                  desired_slide_magnification: int = 10,
                  resume_slide: int = 0,
-                 patch_dir: str = '',
-                 chosen_seed: int = None
+                 patch_dir: str = ''
                  ):
         super(Infer_Dataset, self).__init__(DataSet=DataSet,
                                             tile_size=tile_size,
@@ -679,9 +678,7 @@ class Infer_Dataset(WSI_Master_Dataset):
         self.slides = self.slides[resume_slide:]
         self.presaved_tiles = self.presaved_tiles[resume_slide:]
         self.target = self.target[resume_slide:]
-        
-        if chosen_seed is not None:
-            seed(chosen_seed)
+
         for _, slide_num in enumerate(self.valid_slide_indices):
             if (self.DX and self.all_is_DX_cut[slide_num]) or not self.DX:
                 if num_tiles <= self.all_tissue_tiles[slide_num] and self.all_tissue_tiles[slide_num] > 0:
@@ -697,6 +694,7 @@ class Infer_Dataset(WSI_Master_Dataset):
                     which_patches = sample(range(int(self.tissue_tiles[ind])), self.num_tiles[-1])
                 else:
                     which_patches = [ii for ii in range(self.num_tiles[-1])]
+
                 patch_ind_chunks = chunks(which_patches, self.tiles_per_iter)
                 self.slide_grids.extend(patch_ind_chunks)
 
