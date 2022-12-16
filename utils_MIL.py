@@ -40,6 +40,16 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str,
                         'TestSet Location': None,
                         'REG Model Location':
                         r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40046-PR-TestFold_-1/Model_CheckPoints/model_data_Last_Epoch.pt'
+                    },
+                    'ER_OR_PR': {
+                        'DataSet Name':
+                        r'FEATURES: Exp_40046-PR-TestFold_-1+Exp_40015-ER-TestFold_-1', 
+                        'TrainSet Location':
+                        ['/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40015-ER-TestFold_-1/Inference/CAT_ER_features_for_OR/',
+                        '/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40046-PR-TestFold_-1/Inference/CAT_PR_features_for_OR/'],
+                        'TestSet Location': [None, None],
+                        'REG Model Location':
+                        r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40046-PR-TestFold_-1/Model_CheckPoints/model_data_Last_Epoch.pt'
                     }
                 }, 
                 'Fold 1': {
@@ -1333,6 +1343,34 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str,
                         r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20063-PR-TestFold_2/Inference/test_w_features',
                         'REG Model Location':
                         r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20063-PR-TestFold_2/Model_CheckPoints/model_data_Epoch_1000.pt'
+                    }
+                }
+            },
+            'HAEMEK_finetuned': {
+                'Fold 1': {
+                    'ER': {
+                        'DataSet Name':
+                        r'FEATURES: Exp_50015-ER-TestFold_1 finetuned from CAT',
+                        'TrainSet Location':
+                        r'/home/shacharcohen/workspace/WSI/runs/Exp_50015-ER-TestFold_1/Inference/features_fold2345',
+                        'TestSet Location':
+                        r'/home/shacharcohen/workspace/WSI/runs/Exp_50015-ER-TestFold_1/Inference/features_fold1',
+                        'REG Model Location':
+                        r'/home/shacharcohen/workspace/WSI/runs/Exp_50015-ER-TestFold_1/Model_CheckPoints/model_data_Epoch_1000.pt'
+                    }
+                }
+            },
+            'HAEMEK_transfer': {
+                'Fold 1': {
+                    'ER': {
+                        'DataSet Name':
+                        r'FEATURES: Exp_50013-ER-TestFold_1 transfered from CAT',
+                        'TrainSet Location':
+                        r'/home/shacharcohen/workspace/WSI/runs/Exp_50013-ER-TestFold_1/Inference/features_fold2345',
+                        'TestSet Location':
+                        r'/home/shacharcohen/workspace/WSI/runs/Exp_50013-ER-TestFold_1/Inference/features_fold1',
+                        'REG Model Location':
+                        r'/home/shacharcohen/workspace/WSI/runs/Exp_50013-ER-TestFold_1/Model_CheckPoints/model_data_Epoch_1000.pt'
                     }
                 }
             }

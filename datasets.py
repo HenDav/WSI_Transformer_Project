@@ -682,6 +682,8 @@ class Infer_Dataset(WSI_Master_Dataset):
         
         if chosen_seed is not None:
             seed(chosen_seed)
+            np.random.seed(chosen_seed)
+            torch.manual_seed(chosen_seed)
         for _, slide_num in enumerate(self.valid_slide_indices):
             if (self.DX and self.all_is_DX_cut[slide_num]) or not self.DX:
                 if num_tiles <= self.all_tissue_tiles[slide_num] and self.all_tissue_tiles[slide_num] > 0:
@@ -816,6 +818,59 @@ class Infer_Dataset(WSI_Master_Dataset):
                 }
 
 
+class Features_MILdataset_combined(Dataset):
+    def __init__(self,
+                 dataset: str = r'TCGA_ABCTB',
+                 #assuming a list of 2 locations (is that a valid assumption?)
+                 data_location: list = [r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/'],
+                 bag_size: int = 100,
+                 minimum_tiles_in_slide: int = 50,
+                 is_per_patient: bool = False,
+                 # if True than data will be gathered and returned per patient (else per slide)
+                 is_all_tiles: bool = False,
+                 # if True than all slide tiles will be used (else only bag_tiles number of tiles)
+                 fixed_tile_num: int = None,
+                 is_repeating_tiles: bool = True,
+                 # if True than the tile pick from each slide/patient is with repeating elements
+                 target: str = 'OR',
+                 is_train: bool = False,
+                 data_limit: int = None,
+                 # if 'None' than there will be no data limit. If a number is specified than it'll be the data limit
+                 test_fold: int = None,
+                 carmel_only: bool = False,
+                 # if true than only feature slides from CARMEL dataset will be taken from all the features given the files
+                 print_timing: bool = False
+                 # slide_repetitions: int = 1
+                 ):
+        #currently only support combining ER and PR features
+        targets = target.split('_')
+        self.ER_dataset = Features_MILdataset(dataset, data_location[0], bag_size, minimum_tiles_in_slide, is_per_patient, is_all_tiles,
+                                              fixed_tile_num, is_repeating_tiles, targets[0], is_train, data_limit, test_fold, carmel_only, print_timing)
+        self.PR_dataset = Features_MILdataset(dataset, data_location[1], bag_size, minimum_tiles_in_slide, is_per_patient, is_all_tiles,
+                                              fixed_tile_num, is_repeating_tiles, targets[2], is_train, data_limit, test_fold, carmel_only, print_timing, False)
+        self.receptor_plus_is_tumor_dset = self.ER_dataset.receptor_plus_is_tumor_dset
+        self.train_type = self.ER_dataset.train_type
+    def __len__(self):
+        return self.ER_dataset.__len__()
+    def __getitem__(self, item):
+        ER_data = self.ER_dataset.__getitem__(item)
+        #for some reason the datasets hold the same slides but in different orders even though they hold the same tiles for every slide in the correct order
+        #so this ensures that we use the same slide for both ER and PR
+        name = self.ER_dataset.slide_names[item]
+        item = self.PR_dataset.slide_names.index(name)
+        self.PR_dataset.tile_idx = self.ER_dataset.tile_idx
+        PR_data = self.PR_dataset.__getitem__(item)
+        if np.any(ER_data['tile locations']-PR_data['tile locations']):
+            raise Exception("trying to concatenate features from different tiles")
+        ER_features = np.asarray(ER_data['features'])
+        PR_features = np.asarray(PR_data['features'])
+        new_features = np.concatenate((ER_features,PR_features), axis=-1)
+        ER_data['features'] = new_features
+        self.PR_dataset.tile_idx = None
+        self.ER_dataset.tile_idx = None
+        return ER_data
+            
+
 class Features_MILdataset(Dataset):
     def __init__(self,
                  dataset: str = r'TCGA_ABCTB',
@@ -836,14 +891,17 @@ class Features_MILdataset(Dataset):
                  test_fold: int = None,
                  carmel_only: bool = False,
                  # if true than only feature slides from CARMEL dataset will be taken from all the features given the files
-                 print_timing: bool = False
+                 print_timing: bool = False,
+                 sample_tiles: bool = True
                  # slide_repetitions: int = 1
                  ):
-
+        #to support consistent sampling between 2 dataset classes in the get_item function, assumes this is shared between classes with the same parameters
+        #so dimensions should be the same
+        self.tile_idx = None
+        self.sample_tiles = sample_tiles
         self.is_per_patient, self.is_all_tiles, self.is_repeating_tiles = is_per_patient, is_all_tiles, is_repeating_tiles
         self.bag_size = bag_size
         self.train_type = 'Features'
-
         target = target.replace('_Features', '', 1) if len(target.split('_')) in [2, 3] and target.split('_')[
             -1] == 'Features' else target  # target.split('_')[0] if len(target.split('_')) == 2 and target.split('_')[1] == 'Features' else target
 
@@ -951,7 +1009,7 @@ class Features_MILdataset(Dataset):
                 slide_data_DF_dict = {'CARMEL Batch 9-11': pd.read_excel(
                     '/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/slides_data_CARMEL_9_11.xlsx')}
 
-            elif dataset == 'HAEMEK':
+            elif dataset in ['HAEMEK', 'HAEMEK_finetuned', 'HAEMEK_transfer']:
                 grid_location_dict = {
                     'HAEMEK': r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/Grids_data/HAEMEK_Grid_data.xlsx'}
                 slide_data_DF_dict = {'HAEMEK': pd.read_excel(
@@ -994,7 +1052,7 @@ class Features_MILdataset(Dataset):
                                           '/home/womer/project/All Data/Ran_Features/Grid_data/slides_data_CARMEL_ALL.xlsx')
                                       }
 
-            elif dataset == 'HAEMEK':
+            elif dataset in ['HAEMEK', 'HAEMEK_finetuned', 'HAEMEK_transfer']:
                 grid_location_dict = {
                     'HAEMEK': r'/mnt/gipmed_new/Data/Breast/Haemek/Batch_1/HAEMEK1/Grids_10/Grid_data.xlsx'}
                 slide_data_DF_dict = {'HAEMEK': pd.read_excel(
@@ -1196,19 +1254,22 @@ class Features_MILdataset(Dataset):
 
                 # Checking for consistency between targets loaded from the feature files and slides_data_DF.
                 # The location of this check should include per patient dataset or per slide dataset
-                if dataset != 'CARMEL 9-11':
-                    target_for_PD = target.split('+')[0] if '+' in target else target
-                    slide_data_target = slide_data_DF.loc[slide_names[slide_num]][target_for_PD + ' status']
-                    if slide_data_target == 'Positive':
-                        slide_data_target = 1
-                    elif slide_data_target == 'Negative':
-                        slide_data_target = 0
-                    else:
-                        slide_data_target = -1
+                #FIXME: is this necessary when not doing per_patient? doesn't look like it and it causes an error when doing extraction for OR
+                if is_per_patient:  
+                    if dataset != 'CARMEL 9-11':
+                        target_for_PD = target.split('+')[0] if '+' in target else target
+                        slide_data_target = slide_data_DF.loc[slide_names[slide_num]][target_for_PD + ' status']
+                        if slide_data_target == 'Positive':
+                            slide_data_target = 1
+                        elif slide_data_target == 'Negative':
+                            slide_data_target = 0
+                        else:
+                            slide_data_target = -1
 
-                    feature_file_target = targets[slide_num]
-                    if slide_data_target != feature_file_target:
-                        raise Exception('Found inconsistency between targets in feature files and slide_data_DF')
+                        feature_file_target = targets[slide_num]
+                        if slide_data_target != feature_file_target:
+                            raise Exception('Found inconsistency between targets in feature files and slide_data_DF')
+                
 
         # Organizing the receptor slide data in a dict for the case where we want datasets that contain Receptor + is_Tumor features:
         if self.receptor_plus_is_tumor_dset and not self.is_per_patient:  # We need to arrange only the data per slide (the PER PATIENT data is already ordered in a dict)
@@ -1477,8 +1538,20 @@ class Features_MILdataset(Dataset):
             return slide_data
 
     def __getitem__(self, item):
+        if self.sample_tiles: #else we assume tile_idx is given from outside
+            if self.is_per_patient:
+                patient_data = self.patient_data[self.patient_keys[item]]
+                num_tiles = int(np.array(patient_data['num tiles']).sum())
+            elif self.receptor_plus_is_tumor_dset:
+                num_tiles = self.dSet['num_tiles'][item]
+            else:
+                num_tiles = self.num_tiles[item]
+            self.tile_idx = list(range(num_tiles)) if self.is_all_tiles else choices(range(num_tiles),
+                                                                                        k=self.bag_size)
+        tile_idx = self.tile_idx
         if self.receptor_plus_is_tumor_dset:
             if self.is_per_patient:
+                '''
                 patient_data = self.dSet[self.patient_keys[item]]
                 num_tiles = int(np.array(patient_data['num_tiles']).sum())
 
@@ -1488,7 +1561,7 @@ class Features_MILdataset(Dataset):
                 else:
                     tile_idx = list(range(num_tiles)) if self.is_all_tiles else sample(range(num_tiles),
                                                                                        k=self.bag_size)
-
+                '''
                 return {'labels': np.array(patient_data['labels']).mean(),
                         'targets': patient_data['targets'],
                         'scores': np.array(patient_data['scores']).mean(),
@@ -1500,9 +1573,10 @@ class Features_MILdataset(Dataset):
                         }
 
             else:
+                '''
                 tile_idx = list(range(self.dSet['num_tiles'][item])) if self.is_all_tiles else choices(
                     range(self.dSet['num_tiles'][item]), k=self.bag_size)
-
+                '''
                 return {'labels': self.dSet['labels'][item],
                         'targets': self.dSet['targets'][item],
                         'scores': self.dSet['scores'][item],
@@ -1516,6 +1590,7 @@ class Features_MILdataset(Dataset):
 
         else:
             if self.is_per_patient:
+                '''
                 patient_data = self.patient_data[self.patient_keys[item]]
                 num_tiles = int(np.array(patient_data['num tiles']).sum())
 
@@ -1525,7 +1600,7 @@ class Features_MILdataset(Dataset):
                 else:
                     tile_idx = list(range(num_tiles)) if self.is_all_tiles else sample(range(num_tiles),
                                                                                        k=self.bag_size)
-
+                '''
                 return {'labels': np.array(patient_data['labels']).mean(),
                         'targets': patient_data['target'],
                         'scores': np.array(patient_data['scores']).mean(),
@@ -1535,9 +1610,10 @@ class Features_MILdataset(Dataset):
                         }
 
             else:
+                '''
                 tile_idx = list(range(self.num_tiles[item])) if self.is_all_tiles else choices(
                     range(self.num_tiles[item]), k=self.bag_size)
-
+                '''
                 return {'labels': self.labels[item],
                         'targets': self.targets[item],
                         'scores': self.scores[item],

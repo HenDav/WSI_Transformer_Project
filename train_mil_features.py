@@ -259,8 +259,8 @@ if __name__ == '__main__':
 
     # Data type definition:
     DATA_TYPE = 'Features'
-
     data_location = utils_MIL.get_RegModel_Features_location_dict(train_DataSet=args.dataset, target=args.target, test_fold=args.test_fold)
+    
 
     # TODO: WHAT DOES THIS DO ?
     if sys.platform == 'darwin' and type(data_location) == tuple and (data_location[0]['TrainSet Location'] == None and data_location[1]['TrainSet Location'] == None):
@@ -306,7 +306,27 @@ if __name__ == '__main__':
         args.target = 'ER'
 
     # Get data:
-    train_dset = datasets.Features_MILdataset(dataset=args.dataset,
+    if 'OR' in args.target:
+        train_dset = datasets.Features_MILdataset_combined(dataset=args.dataset,
+                                              data_location=data_location['TrainSet Location'],
+                                              is_per_patient=args.per_patient_training,
+                                              is_repeating_tiles=args.repeating_data,
+                                              bag_size=args.tiles_per_bag,
+                                              target=args.target,
+                                              is_train=True,
+                                              data_limit=args.data_limit,
+                                              test_fold=args.test_fold,
+                                              carmel_only=args.carmel_only)
+        test_dset = datasets.Features_MILdataset_combined(dataset=args.dataset,
+                                             data_location=data_location['TestSet Location'],
+                                             is_per_patient=args.per_patient_training,
+                                             bag_size=args.tiles_per_bag,
+                                             target=args.target,
+                                             is_train=False,
+                                             test_fold=args.test_fold,
+                                             carmel_only=args.carmel_only)
+    else:
+        train_dset = datasets.Features_MILdataset(dataset=args.dataset,
                                               data_location=(data_location[0]['TrainSet Location'], data_location[1]['TrainSet Location']) if type(data_location) == tuple else data_location['TrainSet Location'],
                                               is_per_patient=args.per_patient_training,
                                               is_repeating_tiles=args.repeating_data,
@@ -316,7 +336,8 @@ if __name__ == '__main__':
                                               data_limit=args.data_limit,
                                               test_fold=args.test_fold,
                                               carmel_only=args.carmel_only)
-    test_dset = datasets.Features_MILdataset(dataset=args.dataset,
+    
+        test_dset = datasets.Features_MILdataset(dataset=args.dataset,
                                              data_location=(data_location[0]['TestSet Location'], data_location[1]['TestSet Location']) if type(data_location) == tuple else data_location['TestSet Location'],
                                              is_per_patient=args.per_patient_training,
                                              bag_size=args.tiles_per_bag,

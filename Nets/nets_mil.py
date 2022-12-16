@@ -694,7 +694,9 @@ class MIL_PreActResNet50_Ron_MultiBag(nn.Module):
 class MIL_Feature_Attention_MultiBag(nn.Module):
     def __init__(self,
                  tiles_per_bag: int = 500,
-                 is_tumor_train_mode: int = -1):
+                 is_tumor_train_mode: int = -1,
+                 M = 512,
+                 L = 128):
 
         """
         is_tumor_train_mode options:
@@ -713,9 +715,9 @@ class MIL_Feature_Attention_MultiBag(nn.Module):
         self.features_part = False
 
         self.tiles_per_bag = tiles_per_bag
-        self.M = 512
+        self.M = M
         self.M_classifier = self.M
-        self.L = 128
+        self.L = L
         self.K = 1  # in the paper referred a 1.
 
         self.is_tumor_train_mode = is_tumor_train_mode
