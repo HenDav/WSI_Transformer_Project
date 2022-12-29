@@ -142,7 +142,7 @@ class WSI_Master_Dataset(Dataset):
                     all_targets[ii] = 'Positive'
                 elif (PR_target == 'Negative' or ER_target == 'Negative'):  # avoid 'Missing Data'
                     all_targets[ii] = 'Negative'
-        
+
         elif self.target_kind in ['Survival_Time',
                                 'Survival_Binary']:  # TODO: Check if this part can be removed - it might be useless
             all_censored = list(self.meta_data_DF['Censored'])
@@ -679,7 +679,7 @@ class Infer_Dataset(WSI_Master_Dataset):
         self.slides = self.slides[resume_slide:]
         self.presaved_tiles = self.presaved_tiles[resume_slide:]
         self.target = self.target[resume_slide:]
-        
+
         if chosen_seed is not None:
             seed(chosen_seed)
             np.random.seed(chosen_seed)
@@ -869,7 +869,51 @@ class Features_MILdataset_combined(Dataset):
         self.PR_dataset.tile_idx = None
         self.ER_dataset.tile_idx = None
         return ER_data
-            
+
+
+class WSI_MILdataset(WSI_Master_Dataset):
+    def __init__(self,
+                 DataSet: str = 'TCGA',
+                 tile_size: int = 256,
+                 bag_size: int = 100,
+                 target_kind: str = 'ER',
+                 test_fold: int = 1,
+                 train: bool = True,
+                 print_timing: bool = False,
+                 transform_type: str = 'flip',
+                 DX: bool = False,
+                 get_images: bool = False,
+                 color_param: float = 0.1,
+                 desired_slide_magnification: int = 10
+                 ):
+        super(WSI_MILdataset, self).__init__(DataSet=DataSet,
+                                             tile_size=tile_size,
+                                             bag_size=bag_size,
+                                             target_kind=target_kind,
+                                             test_fold=test_fold,
+                                             train=train,
+                                             print_timing=print_timing,
+                                             transform_type=transform_type,
+                                             DX=DX,
+                                             get_images=get_images,
+                                             train_type='MIL',
+                                             color_param=color_param,
+                                             desired_slide_magnification=desired_slide_magnification)
+
+        logging.info(
+            'Initiation of WSI({}) {} {} DataSet for {} is Complete. Magnification is X{}, {} Slides, Tiles of size {}^2. {} tiles in a bag, {} Transform. TestSet is fold #{}. DX is {}'
+                .format(self.train_type,
+                        'Train' if self.train else 'Test',
+                        self.DataSet,
+                        self.target_kind,
+                        self.desired_magnification,
+                        self.real_length,
+                        self.tile_size,
+                        self.bag_size,
+                        'Without' if transform_type == 'none' else 'With',
+                        self.test_fold,
+                        'ON' if self.DX else 'OFF'))
+
 
 class Features_MILdataset(Dataset):
     def __init__(self,
@@ -937,7 +981,7 @@ class Features_MILdataset(Dataset):
                           }
             data_files['Receptor'].extend(glob(os.path.join(data_location[0], '*.data')))
             data_files['is_Tumor'].extend(glob(os.path.join(data_location[1], '*.data')))
-        
+
         else:
             data_files = []
 
@@ -1255,7 +1299,7 @@ class Features_MILdataset(Dataset):
                 # Checking for consistency between targets loaded from the feature files and slides_data_DF.
                 # The location of this check should include per patient dataset or per slide dataset
                 #FIXME: is this necessary when not doing per_patient? doesn't look like it and it causes an error when doing extraction for OR
-                if is_per_patient:  
+                if is_per_patient:
                     if dataset != 'CARMEL 9-11':
                         target_for_PD = target.split('+')[0] if '+' in target else target
                         slide_data_target = slide_data_DF.loc[slide_names[slide_num]][target_for_PD + ' status']
@@ -1269,7 +1313,7 @@ class Features_MILdataset(Dataset):
                         feature_file_target = targets[slide_num]
                         if slide_data_target != feature_file_target:
                             raise Exception('Found inconsistency between targets in feature files and slide_data_DF')
-                
+
 
         # Organizing the receptor slide data in a dict for the case where we want datasets that contain Receptor + is_Tumor features:
         if self.receptor_plus_is_tumor_dset and not self.is_per_patient:  # We need to arrange only the data per slide (the PER PATIENT data is already ordered in a dict)
@@ -1383,7 +1427,7 @@ class Features_MILdataset(Dataset):
 
                         ### This check is not relevant for is_Tumor !
                         '''# Check if the patient has already been observed to be with multiple targets.
-                        # if so count the slide as bad slide and move on to the next slide                        
+                        # if so count the slide as bad slide and move on to the next slide
                         if patient in self.bad_patient_list_is_Tumor:
                             slides_from_same_patient_with_different_target_values_is_Tumor += 1
                             continue'''
