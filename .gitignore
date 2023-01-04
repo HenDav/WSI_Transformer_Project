@@ -3,6 +3,8 @@ checkpoints/
 lightning_logs/
 wandb/
 results/
+scripts/
+tmp/
 slurm*
 
 # Byte-compiled / optimized / DLL files
