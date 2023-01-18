@@ -8,14 +8,14 @@ from torchvision import transforms
 import time
 from torch.utils.data import Dataset
 from typing import List
-from utils import _get_tiles, _choose_data, chunks, map_original_grid_list_to_equiv_grid_list
-from transformations import define_transformations
-from utils import assert_dataset_target
-from utils import get_label
-from utils_MIL import dataset_properties_to_location
-from utils import balance_dataset
-from Dataset_Maker.dataset_utils import get_datasets_dir_dict
-from utils import get_optimal_slide_level, cohort_to_int
+from .utils import _get_tiles, _choose_data, chunks, map_original_grid_list_to_equiv_grid_list
+from .transformations import define_transformations
+from .utils import assert_dataset_target
+from .utils import get_label
+from .utils_MIL import dataset_properties_to_location
+from .utils import balance_dataset
+from .Dataset_Maker.dataset_utils import get_datasets_dir_dict
+from .utils import get_optimal_slide_level, cohort_to_int
 import openslide
 from tqdm import tqdm
 import sys
@@ -281,7 +281,7 @@ class WSI_Master_Dataset(Dataset):
                 if 'val' in folds:
                     folds.remove('val')
             else:
-                if self.test_fold == -1:
+                if test_fold != -1:
                     folds = [self.test_fold, 'val']
                 else:
                     folds = []

@@ -1,4 +1,4 @@
-import utils
+import legacy.utils as utils
 from torch.utils.data import DataLoader
 import torch
 import datasets
