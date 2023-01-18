@@ -5,7 +5,6 @@ import numpy as np
 
 # gipmed
 # from nn.experiments import Experiment, ExperimentArgumentsParser
-from wsi_core.metadata import SlidesManager
 from wsi_core import constants
 from datasets.datasets import WSIDatasetTrain
 from models import preact_resnet
