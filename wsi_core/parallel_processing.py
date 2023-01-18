@@ -15,7 +15,7 @@ from enum import Enum, auto
 import numpy
 
 # gipmed
-from core.base import OutputObject
+from wsi_core.base import OutputObject
 
 
 # =================================================

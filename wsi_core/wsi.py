@@ -39,9 +39,9 @@ from matplotlib import pyplot as plt
 import torch
 
 # wsi
-from core.parallel_processing import TaskParallelProcessor, ParallelProcessorTask
-from core import constants, utils
-from core.base import SeedableObject
+from wsi_core.parallel_processing import TaskParallelProcessor, ParallelProcessorTask
+from wsi_core import constants, utils
+from wsi_core.base import SeedableObject
 
 
 # =================================================
@@ -57,26 +57,27 @@ class BioMarker(Enum):
 # SlideContext Class
 # =================================================
 class SlideContext:
-    def __init__(self, row_index: int, metadata: pandas.DataFrame, dataset_paths: Dict[str, Path], desired_magnification: int, tile_size: int):
+    def __init__(self, row_index: int, metadata: pandas.DataFrame, dataset_paths: Dict[str, Path], desired_mpp: int, tile_size: int):
         self._row_index = row_index
         self._row = metadata.iloc[[row_index]]
         self._dataset_path = dataset_paths[self._row[constants.dataset_id_column_name].item()]
-        self._desired_magnification = desired_magnification
+        self._desired_mpp = desired_mpp
         self._tile_size = tile_size
         self._image_file_name = self._row[constants.file_column_name].item()
         self._image_file_path = self._dataset_path / self._image_file_name
         self._dataset_id = self._row[constants.dataset_id_column_name].item()
         self._image_file_name_stem = self._image_file_path.stem
         self._image_file_name_suffix = self._image_file_path.suffix
-        self._magnification = self._row[constants.magnification_column_name].item()
-        self._mpp = utils.magnification_to_mpp(magnification=self._magnification)
+        self._orig_mpp = self._row[constants.mpp_column_name].item()
+        self._curr_mpp = self._row[constants.mpp_column_name].item()
         self._legitimate_tiles_count = self._row[constants.legitimate_tiles_column_name].item()
         self._fold = self._row[constants.fold_column_name].item()
-        self._desired_downsample = self._magnification / self._desired_magnification
+        self._downsample_from_curr = self._desired_mpp / self._curr_mpp
+        self._downsample_from_orig = utils.round_to_nearest_power_of_two(self._desired_mpp / self._orig_mpp)
         # self._slide = openslide.open_slide(self._image_file_path)
         # self._level, self._level_downsample = self._get_best_level_for_downsample()
         # self._selected_level_tile_size = self._tile_size * self._level_downsample
-        self._zero_level_tile_size = self._tile_size * self._desired_downsample
+        self._zero_level_tile_size = self._tile_size * self._downsample_from_orig
         self._er = self._row[constants.er_status_column_name].item()
         self._pr = self._row[constants.pr_status_column_name].item()
         self._her2 = self._row[constants.her2_status_column_name].item()
@@ -139,8 +140,12 @@ class SlideContext:
         return self._zero_level_tile_size // 2
 
     @property
-    def mpp(self) -> float:
-        return self._mpp
+    def orig_mpp(self) -> float:
+        return self._orig_mpp
+    
+    @property
+    def curr_mpp(self) -> float:
+        return self._curr_mpp
 
     @property
     def er(self) -> bool:
@@ -155,7 +160,7 @@ class SlideContext:
         return self._her2
 
     def mm_to_pixels(self, mm: float) -> int:
-        pixels = int(mm / (self._mpp / 1000))
+        pixels = int(mm / (self._curr_mpp / 1000))
         return pixels
 
     def pixels_to_locations(self, pixels: numpy.ndarray) -> numpy.ndarray:
@@ -183,10 +188,11 @@ class SlideContext:
         key = str((coords[0], coords[1]))
         return key
 
+    # TODO enable larger sample & sample at other mpp.
     def _read_region_around_pixel_h5(self, pixel: numpy.ndarray) -> Image:
-        pixel = pixel // self._desired_downsample
+        pixel = pixel // self._downsample_from_orig
         pixel = pixel.flatten()
-        pixel = numpy.array([pixel[1], pixel[0]])
+        pixel = numpy.array([pixel[0], pixel[1]])
         with h5py.File(f'{self._image_file_path}.h5', "r") as file:
             tile_size = self._tile_size
             x_offset = numpy.array([tile_size, 0])

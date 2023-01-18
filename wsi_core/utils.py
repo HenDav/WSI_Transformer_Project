@@ -4,6 +4,7 @@ from typing import List, TypeVar, Generic, cast, Type
 import os
 import multiprocessing
 from pathlib import Path
+import math
 
 # torch
 import torch
@@ -167,3 +168,7 @@ def argument_parser_type_cast(instance_type: Type[T], arguments_parser_name: str
     argument_parser_class = globals()[arguments_parser_name]
     argument_parser = cast(Tap, argument_parser_class())
     return cast(instance_type, argument_parser.parse_args())
+
+def round_to_nearest_power_of_two(mpp: float) -> float:
+    log_mpp = math.log(mpp, 2.0)
+    return 2.0 ** round(log_mpp)

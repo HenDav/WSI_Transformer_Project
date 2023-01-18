@@ -8,6 +8,7 @@ test_fold_id = 'test'
 max_attempts = 10
 white_ratio_threshold = 0.5
 white_intensity_threshold = 170
+current_mpp = 1.0 # TODO: maybe infer it directly from the folder?
 
 # Invalid values
 invalid_values = ['Missing Data', 'Not performed', '[Not Evaluated]', '[Not Available]']
@@ -50,7 +51,7 @@ tumor_type_column_name_sheba = 'Histology'
 # Shared
 file_column_name_shared = 'file'
 patient_barcode_column_name_shared = 'patient barcode'
-dataset_id_column_name_shared = 'id'
+dataset_id_column_name_shared = 'dataset name'
 mpp_column_name_shared = 'MPP'
 scan_date_column_name_shared = 'Scan Date'
 width_column_name_shared = 'Width'

@@ -17,10 +17,11 @@ import torch
 from torch.utils.data import Dataset
 
 # gipmed
-from core.metadata import SlidesManager
-from core.base import SeedableObject
-from core.wsi import SlideContext, Tile, Slide, Patch, PatchExtractor, RandomPatchExtractor, ProximatePatchExtractor, BioMarker
-from core.parallel_processing import TaskParallelProcessor, OnlineParallelProcessor, InfiniteOnlineParallelProcessor, FiniteOnlineParallelProcessor, GetItemPolicy
+from wsi_core.metadata import SlidesManager
+from wsi_core import constants
+from wsi_core.base import SeedableObject
+from wsi_core.wsi import SlideContext, Tile, Slide, Patch, PatchExtractor, RandomPatchExtractor, ProximatePatchExtractor, BioMarker
+from wsi_core.parallel_processing import TaskParallelProcessor, OnlineParallelProcessor, InfiniteOnlineParallelProcessor, FiniteOnlineParallelProcessor, GetItemPolicy
 
 
 # =================================================
@@ -43,16 +44,37 @@ class WSIDataset(ABC, Dataset, SeedableObject):
         self._slides_manager.filter_folds(folds=folds)
 
 
-class WSIDatasetTest(WSIDataset):
-    image = None
-
-    def __init__(self, slides_manager: SlidesManager, dataset_size: int, **kw: object):
-        super().__init__(slides_manager=slides_manager, dataset_size=dataset_size, **kw)
+class WSIDatasetTrain(WSIDataset):
+    
+    def __init__(self, 
+                 patches_per_slide: int, 
+                 target: BioMarker, 
+                 tile_size: int, #TODO: make this useful through patch extraction
+                 desired_mpp: float = 1.0, #TODO: make this useful through patch extraction
+                 metadata_at_magnification: int = 10,
+                 min_tiles: int = 100,
+                 metadata_file_path: Path = None,
+                 datasets_base_dir_path: Path = None,
+                 slides_manager: SlidesManager = None, 
+                 **kw: object):
+        if not slides_manager:
+            slides_manager = SlidesManager(
+                datasets_base_dir_path=datasets_base_dir_path,
+                desired_mpp=desired_mpp,
+                tile_size=tile_size,
+                metadata_at_magnification=metadata_at_magnification,
+                metadata_file_path=metadata_file_path,
+                row_predicate=self.default_predicate,
+                min_tiles=min_tiles
+            )
+        self.num_slides = len(slides_manager)
+        self._target = target
+        super().__init__(slides_manager=slides_manager, dataset_size=self.num_slides*patches_per_slide, **kw)
 
     def __getitem__(self, item: int):
 
         # start_time = time.time_ns()
-        slide = self._slides_manager.get_random_slide()
+        slide = self._slides_manager.get_slide(item % self.num_slides)
         # end_time = time.time_ns()
         # delta = (start_time - end_time) / (10 ** 9)
         # print(f'Line 1: {delta}')
@@ -66,19 +88,24 @@ class WSIDatasetTest(WSIDataset):
 
         # start_time = time.time_ns()
         patch = patch_extractor.extract_patch(patch_validators=[])
+        label = slide.slide_context.get_biomarker_value(bio_marker=self._target)
 
         # end_time = time.time_ns()
         # delta = (start_time - end_time) / (10 ** 9)
         # print(f'Line 3: {delta}')
 
         # return torch.Tensor()
-        return patch.image
+        return patch.image, label
 
         # if WSIDatasetTest.image is None:
         # WSIDatasetTest.image = patch.image
         #
         # return WSIDatasetTest.image
         # return patch.image
+    
+    @staticmethod
+    def default_predicate(df: pandas.DataFrame = None, min_tiles: int = 100) -> pandas.Index:
+        return df.index[df[constants.legitimate_tiles_column_name] > min_tiles]
 
 
 

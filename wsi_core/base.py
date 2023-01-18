@@ -12,7 +12,7 @@ from abc import ABC, abstractmethod
 import numpy
 
 # gipmed
-from core import utils
+from wsi_core import utils
 
 
 class SeedableObject:
@@ -20,7 +20,6 @@ class SeedableObject:
 
     def __init__(self, **kw: object):
         self._rng = numpy.random.default_rng(seed=SeedableObject.seed)
-        super(SeedableObject, self).__init__(**kw)
 
     @property
     def rng(self) -> numpy.random.Generator:

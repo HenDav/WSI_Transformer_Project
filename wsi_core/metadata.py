@@ -28,16 +28,16 @@ import numpy
 #     pass
 
 # wsi
-from core import constants
-from core import utils
-from core.base import SeedableObject, OutputObject
-from core.wsi import SlideContext, Slide, Tile
+from wsi_core import constants
+from wsi_core import utils
+from wsi_core.base import SeedableObject, OutputObject
+from wsi_core.wsi import SlideContext, Slide, Tile
 
 # tap
 from tap import Tap
 
 # gipmed
-from core.parallel_processing import TaskParallelProcessor, ParallelProcessorTask
+from wsi_core.parallel_processing import TaskParallelProcessor, ParallelProcessorTask
 
 
 # =================================================
@@ -48,12 +48,12 @@ class MetadataBase(ABC):
             self,
             datasets_base_dir_path: Path,
             tile_size: int,
-            desired_magnification: int,
+            metadata_at_magnification: int,
             **kw: object):
-        super(MetadataBase, self).__init__(**kw)
+        super().__init__()
         self._datasets_base_dir_path = datasets_base_dir_path
         self._tile_size = tile_size
-        self._desired_magnification = desired_magnification
+        self._metadata_at_magnification = metadata_at_magnification
         self._dataset_paths = constants.get_dataset_paths(datasets_base_dir_path=datasets_base_dir_path)
         self._df = self._load_metadata()
 
@@ -93,11 +93,9 @@ class MetadataGenerator(OutputObject, MetadataBase):
             tile_size: int,
             desired_magnification: int,
             metadata_enhancement_dir_path: Path,
-            dataset_ids: List[str],
-            minimal_tiles_count: int):
+            dataset_ids: List[str]):
         self._metadata_enhancement_dir_path = metadata_enhancement_dir_path
         self._dataset_ids = dataset_ids
-        self._minimal_tiles_count = minimal_tiles_count
         super().__init__(name=name, output_dir_path=output_dir_path, datasets_base_dir_path=datasets_base_dir_path, tile_size=tile_size, desired_magnification=desired_magnification)
 
     @property
@@ -138,16 +136,16 @@ class MetadataGenerator(OutputObject, MetadataBase):
         return column_names
 
     def _get_total_tiles_column_name(self):
-        return f'Total tiles - {self._tile_size} compatible @ X{self._desired_magnification}'
+        return f'Total tiles - {self._tile_size} compatible @ X{self._metadata_at_magnification}'
 
     def _get_legitimate_tiles_column_name(self):
-        return f'Legitimate tiles - {self._tile_size} compatible @ X{self._desired_magnification}'
+        return f'Legitimate tiles - {self._tile_size} compatible @ X{self._metadata_at_magnification}'
 
     def _get_slide_tile_usage_column_name(self, dataset_id_prefix):
         if dataset_id_prefix == 'ABCTB':
             return f'Slide tile usage [%] (for {self._tile_size}^2 Pix/Tile)'
         else:
-            return f'Slide tile usage [%] (for {self._tile_size}^2 Pix/Tile) @ X{self._desired_magnification}'
+            return f'Slide tile usage [%] (for {self._tile_size}^2 Pix/Tile) @ X{self._metadata_at_magnification}'
 
     def _load_metadata(self):
         padding = 40
@@ -156,14 +154,13 @@ class MetadataGenerator(OutputObject, MetadataBase):
         self._logger.info(msg=utils.generate_captioned_bullet_text(text='metadata_enhancement_dir_path', value=self._metadata_enhancement_dir_path, indentation=1, padding=padding))
         self._logger.info(msg=utils.generate_captioned_bullet_text(text='log_file_path', value=self._log_file_path, indentation=1, padding=padding))
         self._logger.info(msg=utils.generate_captioned_bullet_text(text='tile_size', value=self._tile_size, indentation=1, padding=padding))
-        self._logger.info(msg=utils.generate_captioned_bullet_text(text='desired_magnification', value=self._desired_magnification, indentation=1, padding=padding))
+        self._logger.info(msg=utils.generate_captioned_bullet_text(text='desired_magnification', value=self._metadata_at_magnification, indentation=1, padding=padding))
         self._logger.info(msg=utils.generate_captioned_bullet_text(text='dataset_ids', value=self._dataset_ids, indentation=1, padding=padding))
 
         dataset_paths_str = (f := lambda d: {k: f(v) for k, v in d.items()} if type(d) == dict else str(d))(self._dataset_paths)
         dataset_paths_str_dump = json.dumps(dataset_paths_str, indent=8)
         self._logger.info(msg=utils.generate_captioned_bullet_text(text='dataset_paths', value=dataset_paths_str_dump, indentation=1, padding=padding, newline=True))
 
-        self._logger.info(msg=utils.generate_captioned_bullet_text(text='minimal_tiles_count', value=self._minimal_tiles_count, indentation=1, padding=padding))
 
         self._logger.info(msg='')
         self._logger.info(msg=utils.generate_title_text(text=f'Metadata Processing'))
@@ -171,7 +168,7 @@ class MetadataGenerator(OutputObject, MetadataBase):
         for _, dataset_id in enumerate(self._dataset_ids):
             self._logger.info(msg=utils.generate_captioned_bullet_text(text='Processing Metadata For', value=dataset_id, indentation=1, padding=padding))
             slide_metadata_file = os.path.join(self._dataset_paths[dataset_id], MetadataGenerator._get_slides_data_file_name(dataset_id=dataset_id))
-            grid_metadata_file = os.path.join(self._dataset_paths[dataset_id], MetadataGenerator._get_grids_folder_name(desired_magnification=self._desired_magnification), constants.grid_data_file_name)
+            grid_metadata_file = os.path.join(self._dataset_paths[dataset_id], MetadataGenerator._get_grids_folder_name(desired_magnification=self._metadata_at_magnification), constants.grid_data_file_name)
             slide_df = pandas.read_excel(io=slide_metadata_file)
             grid_df = pandas.read_excel(io=grid_metadata_file)
             current_df = pandas.DataFrame({**slide_df.set_index(keys=constants.file_column_name).to_dict(), **grid_df.set_index(keys=constants.file_column_name).to_dict()})
@@ -315,10 +312,9 @@ class MetadataGenerator(OutputObject, MetadataBase):
 
     def _postvalidate_metadata(self, df):
         indices_of_slides_without_grid = set(df.index[df[constants.total_tiles_column_name] == -1])
-        indices_of_slides_with_few_tiles = set(df.index[df[constants.legitimate_tiles_column_name] < self._minimal_tiles_count])
 
         all_indices = set(numpy.array(range(df.shape[0])))
-        valid_slide_indices = numpy.array(list(all_indices - indices_of_slides_without_grid - indices_of_slides_with_few_tiles))
+        valid_slide_indices = numpy.array(list(all_indices - indices_of_slides_without_grid))
         return df.iloc[valid_slide_indices]
 
     @staticmethod
@@ -591,11 +587,11 @@ class MetadataGenerator(OutputObject, MetadataBase):
 # SlidesManagerTask Class
 # =================================================
 class SlidesManagerTask(ParallelProcessorTask):
-    def __init__(self, row_index: int, dataset_paths: Dict[str, Path], desired_magnification: int, tile_size: int):
+    def __init__(self, row_index: int, dataset_paths: Dict[str, Path], desired_mpp: int, tile_size: int):
         super().__init__()
         self._row_index = row_index
         self._dataset_paths = dataset_paths
-        self._desired_magnification = desired_magnification
+        self._desired_mpp = desired_mpp
         self._tile_size = tile_size
         self._slide = None
 
@@ -607,7 +603,7 @@ class SlidesManagerTask(ParallelProcessorTask):
         pass
 
     def process(self, namespace: multiprocessing.managers.Namespace):
-        slide_context = SlideContext(row_index=self._row_index, metadata=namespace.metadata, dataset_paths=self._dataset_paths, desired_magnification=self._desired_magnification, tile_size=self._tile_size)
+        slide_context = SlideContext(row_index=self._row_index, metadata=namespace.metadata, dataset_paths=self._dataset_paths, desired_mpp=self._desired_mpp, tile_size=self._tile_size)
         self._slide = Slide(slide_context=slide_context)
 
     def post_process(self):
@@ -622,23 +618,31 @@ class SlidesManager(SeedableObject, MetadataBase):
             self,
             datasets_base_dir_path: Path,
             tile_size: int,
-            desired_magnification: int,
-            metadata_file_path: Path):
+            desired_mpp: float,
+            metadata_at_magnification: int,
+            metadata_file_path: Path,
+            row_predicate: Callable[[pandas.DataFrame, ...], pandas.Index],
+            **predicate_args):
+        self._desired_mpp = desired_mpp
         self._metadata_file_path = metadata_file_path
         self._slides = []
         self._current_slides = []
         self._slides_with_interior = []
         # self._tile_to_slide_dict = self._create_tile_to_slide_dict()
-        super().__init__(datasets_base_dir_path=datasets_base_dir_path, tile_size=tile_size, desired_magnification=desired_magnification)
-        self._current_df = self._df
+        MetadataBase.__init__(self, datasets_base_dir_path=datasets_base_dir_path, tile_size=tile_size, metadata_at_magnification=metadata_at_magnification, desired_mpp=desired_mpp)
+        SeedableObject.__init__(self)
         self._current_slides = self._create_slides()
+        self._current_df = self._df.iloc[row_predicate(self._df, **predicate_args)]
         # self.start()
         # self.join()
 
+    def __len__(self) -> int:
+        return len(self._current_df)
+    
     def _create_slides(self) -> List[Slide]:
         slides = []
         for row_index in range(self._df.shape[0]):
-            slide_context = SlideContext(row_index=row_index, metadata=self._df, dataset_paths=self._dataset_paths, desired_magnification=self._desired_magnification, tile_size=self._tile_size)
+            slide_context = SlideContext(row_index=row_index, metadata=self._df, dataset_paths=self._dataset_paths, desired_mpp=self._desired_mpp, tile_size=self._tile_size)
             slide = Slide(slide_context=slide_context)
             slides.append(slide)
 
@@ -737,7 +741,7 @@ class SlidesManager(SeedableObject, MetadataBase):
     #     combinations = list(itertools.product(*[
     #         [*range(self._df.shape[0])],
     #         [self._dataset_paths],
-    #         [self._desired_magnification],
+    #         [self._metadata_at_magnification],
     #         [self._tile_size]]))
     #
     #     for combination in combinations:
@@ -790,4 +794,3 @@ class MetadataGeneratorArgumentsParser(Tap):
     metadata_enhancement_dir_path: Path
     output_dir_path: Path
     dataset_ids: List[str]
-    minimal_tiles_count: int
