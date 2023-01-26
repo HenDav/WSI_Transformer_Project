@@ -96,7 +96,7 @@ class MetadataGenerator(OutputObject, MetadataBase):
             dataset_ids: List[str]):
         self._metadata_enhancement_dir_path = metadata_enhancement_dir_path
         self._dataset_ids = dataset_ids
-        super().__init__(name=name, output_dir_path=output_dir_path, datasets_base_dir_path=datasets_base_dir_path, tile_size=tile_size, desired_magnification=desired_magnification)
+        super().__init__(name=name, output_dir_path=output_dir_path, datasets_base_dir_path=datasets_base_dir_path, tile_size=tile_size, metadata_at_magnification=desired_magnification)
 
     @property
     def metadata(self) -> pandas.DataFrame:
@@ -108,7 +108,7 @@ class MetadataGenerator(OutputObject, MetadataBase):
 
     def _build_column_names(self):
         column_names = {}
-        for dataset_id_prefix in constants.dataset_ids:
+        for dataset_id_prefix in constants.metadata_base_dataset_ids:
             column_names[dataset_id_prefix] = {}
             column_names[dataset_id_prefix][constants.file_column_name_shared] = constants.file_column_name
             column_names[dataset_id_prefix][constants.patient_barcode_column_name_shared] = constants.patient_barcode_column_name
@@ -263,6 +263,8 @@ class MetadataGenerator(OutputObject, MetadataBase):
 
         enhanced_metadata = pandas.concat([annotations1_carmel, annotations2_carmel])
         # try:
+        print(df.patient_barcode)
+        print(enhanced_metadata.patient_barcode)
         df = pandas.merge(left=df, right=enhanced_metadata, on=[constants.patient_barcode_column_name, constants.slide_barcode_prefix_column_name])
         # except Exception:
         #     h = 5

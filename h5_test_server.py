@@ -6,7 +6,7 @@ import numpy as np
 # gipmed
 # from nn.experiments import Experiment, ExperimentArgumentsParser
 from wsi_core import constants
-from datasets.datasets import WSIDatasetTrain
+from datasets.datasets import PatchSupervisedDataset
 from models import preact_resnet
 from wsi_core.wsi import BioMarker
 
@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler, SequentialSampler
 from torchvision import transforms
 from torch.utils.data import Dataset
-# import torchvision.transforms.functional as F
+import torchvision.transforms.functional as F
 
 # matplotlib
 import matplotlib.pyplot as plt
@@ -30,19 +30,12 @@ import pandas
 if __name__ == '__main__':
 
     def my_collate(batch):
-        patches = [np.squeeze(item[0].astype('float32')).transpose([2, 0, 1]) for item in batch]
+        patches = [item[0] for item in batch]
         patches = torch.from_numpy(np.stack(patches))
-        labels = torch.as_tensor([1 if item[1]=='Positive' else 0 for item in batch])
+        labels = torch.as_tensor([item[1] for item in batch])
         return patches, labels
 
-    wsi_dataset = WSIDatasetTrain(
-        datasets_base_dir_path=Path('/data/unsynced_data/h5'),
-        tile_size=256,
-        metadata_file_path=Path('/home/royve/metadata/metadata.csv'),
-        min_patches=100,
-        patches_per_slide=10,
-        target=BioMarker.ER,
-        )
+    wsi_dataset = PatchSupervisedDataset()
 
     wsi_dataset_size = len(wsi_dataset)
     wsi_dataset_size_indices = list(range(wsi_dataset_size))
@@ -70,34 +63,29 @@ if __name__ == '__main__':
     
     start_time = time.time_ns()
     for batch_ndx, batch_data in enumerate(data_loader, 0):
-        # Every data instance is an input + label pair
         patches, labels = batch_data
         patches = patches.to(device)
         labels = labels.to(device)
 
-        # Zero your gradients for every batch!
         optimizer.zero_grad()
 
-        # Make predictions for this batch
         outputs = model(patches)[0][:, 0:(batch_size+1)]
 
-        # Compute the loss and its gradients
         loss = loss_fn(outputs, labels)
         loss.backward()
 
-        # Adjust learning weights
         optimizer.step()
         
         print(f"batch {batch_ndx} time is {(time.time_ns() - start_time) / (10 ** 9)}")
         start_time = time.time_ns()
-        # if batch_ndx == 0:
-        #     patches = patches.detach()[:5]
-        #     fig, axs = plt.subplots(ncols=len(patches), squeeze=False)
-        #     for i, img in enumerate(patches):
-        #         img = img.detach()
-        #         img = F.to_pil_image(img)
-        #         axs[0, i].imshow(np.asarray(img))
-        #         axs[0, i].set(xticklabels=[], yticklabels=[], xticks=[], yticks=[])
-        #     plt.savefig('batch.png')
+        if batch_ndx == 0:
+            patches = patches.detach()[:5]
+            fig, axs = plt.subplots(ncols=len(patches), squeeze=False)
+            for i, img in enumerate(patches):
+                img = img.detach()
+                img = F.to_pil_image(img)
+                axs[0, i].imshow(np.asarray(img))
+                axs[0, i].set(xticklabels=[], yticklabels=[], xticks=[], yticks=[])
+            plt.savefig('batch.png')
             
 

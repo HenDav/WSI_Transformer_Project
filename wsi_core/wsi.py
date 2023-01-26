@@ -69,7 +69,7 @@ class SlideContext:
         self._image_file_name_stem = self._image_file_path.stem
         self._image_file_name_suffix = self._image_file_path.suffix
         self._orig_mpp = self._row[constants.mpp_column_name].item()
-        self._curr_mpp = self._row[constants.mpp_column_name].item()
+        self._curr_mpp = constants.current_mpp
         self._legitimate_tiles_count = self._row[constants.legitimate_tiles_column_name].item()
         self._fold = self._row[constants.fold_column_name].item()
         self._downsample_from_curr = self._desired_mpp / self._curr_mpp
@@ -201,50 +201,30 @@ class SlideContext:
             local_coords = (top_left_pixel % tile_size)
             top_left_coords = top_left_pixel - local_coords
 
-            ### empty tiles for failsafe in case we fall out of slide bounds
-            # top_left_tile_image = numpy.zeros((self._tile_size, self._tile_size, self._color_channels))
-            # bottom_left_tile_image = numpy.zeros((self._tile_size, self._tile_size, self._color_channels))
-            # bottom_right_tile_image = numpy.zeros((self._tile_size, self._tile_size, self._color_channels))
-            # top_right_tile_image = numpy.zeros((self._tile_size, self._tile_size, self._color_channels))
-
-
             image = numpy.zeros((self._tile_size, self._tile_size, self._color_channels))
-
-            # image = file["tiles"][self._np_to_h5_key(top_left_coords)]["array"][:]
-
-
-
 
             if self._np_to_h5_key(top_left_coords) in file["tiles"].keys():
                 image[:(self._tile_size - local_coords[0]), :(self._tile_size - local_coords[1]), :] = file["tiles"][self._np_to_h5_key(top_left_coords)]["array"][local_coords[0]:, local_coords[1]:, :]
+            else:
+                print(f"took blank part of patch since {top_left_coords} didn't correspond to valid patch")
             
             if self._np_to_h5_key(top_left_coords + x_offset) in file["tiles"].keys():
                 image[(self._tile_size - local_coords[0]):, :(self._tile_size - local_coords[1]), :] = file["tiles"][self._np_to_h5_key(top_left_coords + x_offset)]["array"][:local_coords[0], local_coords[1]:, :]
+            else:
+                print(f"took blank part of patch since {top_left_coords + x_offset} didn't correspond to valid patch")
             
             if self._np_to_h5_key(top_left_coords + y_offset) in file["tiles"].keys():
                 image[:(self._tile_size - local_coords[0]), (self._tile_size - local_coords[1]):, :] = file["tiles"][self._np_to_h5_key(top_left_coords + y_offset)]["array"][local_coords[0]:, :local_coords[1], :]
+            else:
+                print(f"took blank part of patch since {top_left_coords + y_offset} didn't correspond to valid patch")
             
             if self._np_to_h5_key(top_left_coords + x_offset + y_offset) in file["tiles"].keys():
                 image[(self._tile_size - local_coords[0]):, (self._tile_size - local_coords[1]):, :] = file["tiles"][self._np_to_h5_key(top_left_coords + x_offset + y_offset)]["array"][:local_coords[0], :local_coords[1], :]
+            else:
+                print(f"took blank part of patch since {top_left_coords + x_offset + y_offset} didn't correspond to valid patch")
 
 
-
-            # top_left_tile_image = file["tiles"][self._np_to_h5_key(top_left_coords)]["array"][:]
-            # bottom_left_tile_image = file["tiles"][self._np_to_h5_key(top_left_coords + y_offset)]["array"][:]
-            # bottom_right_tile_image = file["tiles"][self._np_to_h5_key(top_left_coords + y_offset + x_offset)]["array"][:]
-            # top_right_tile_image = file["tiles"][self._np_to_h5_key(top_left_coords + x_offset)]["array"][:]
-            # local_coords = local_coords.astype(int)
-
-            # top_of_tile = numpy.concatenate((top_left_tile_image[local_coords[0]:, local_coords[1]:, :],
-            #                               top_right_tile_image[:local_coords[0], local_coords[1]:, :]),
-            #                              axis=0)
-            # bottom_of_tile = numpy.concatenate((bottom_left_tile_image[local_coords[0]:, :local_coords[1], :],
-            #                                  bottom_right_tile_image[:local_coords[0], :local_coords[1], :]),
-            #                                 axis=0)
-
-            # im = numpy.concatenate((top_of_tile, bottom_of_tile), axis=1)
-
-        return image
+        return numpy.squeeze(image.astype('float32'))
 
     def get_biomarker_value(self, bio_marker: BioMarker) -> bool:
         if bio_marker is BioMarker.ER:
@@ -689,12 +669,27 @@ class RandomPatchExtractor(PatchExtractor):
         super().__init__(slide=slide)
 
     def _extract_center_pixel(self) -> Optional[numpy.ndarray]:
-        # component = self._slide.get_random_component()
-        # tile = component.get_random_interior_tile()
         tile = self._slide.get_random_interior_tile()
         pixel = tile.get_random_pixel()
         return pixel
 
+# =================================================
+# StridedPatchExtractor Class
+# =================================================
+class StridedPatchExtractor(PatchExtractor):
+    def __init__(self, slide: Slide, num_patches):
+        self._num_patches = num_patches
+        self._patches_so_far = 0
+        self._stride = slide._legitimate_tiles_count // self._num_patches
+        super().__init__(slide=slide)
+    
+    def _extract_center_pixel(self) -> Optional[numpy.ndarray]:
+        if(self._patches_so_far >= self._num_patches):
+            raise Exception
+        self._patches_so_far = self._patches_so_far + 1
+        self._slide.get_interior_tile(self._stride)
+        pixel = tile.center_pixel()
+        return pixel
 
 # =================================================
 # ProximatePatchExtractor Class

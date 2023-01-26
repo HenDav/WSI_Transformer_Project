@@ -1,6 +1,6 @@
 # python peripherals
 import os
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Set
 from pathlib import Path
 
 # General parameters
@@ -9,6 +9,9 @@ max_attempts = 10
 white_ratio_threshold = 0.5
 white_intensity_threshold = 170
 current_mpp = 1.0 # TODO: maybe infer it directly from the folder?
+main_metadata_csv = '/home/royve/metadata/metadata.csv' # TODO: change to proper central metadata once Carmel9-11 & Haemek are incorporated.
+data_root_gipdeep10 = '/data/unsynced_data/h5'
+data_root_netapp = ''
 
 # Invalid values
 invalid_values = ['Missing Data', 'Not performed', '[Not Evaluated]', '[Not Available]']
@@ -16,11 +19,20 @@ invalid_value = 'NA'
 invalid_fold_column_names = ['test fold idx breast', 'test fold idx', 'test fold idx breast - original for carmel']
 
 # Dataset ids
+dataset_id_cat = 'CAT'
+dataset_id_ta = 'TA'
 dataset_id_abctb = 'ABCTB'
 dataset_id_sheba = 'SHEBA'
-dataset_id_carmel = 'CARMEL'
 dataset_id_tcga = 'TCGA'
-dataset_ids = [dataset_id_abctb, dataset_id_sheba, dataset_id_carmel, dataset_id_tcga]
+dataset_id_carmel = 'CARMEL'
+number_of_carmel_train_batches = 8
+dataset_containment_dict = {dataset_id_cat: [dataset_id_ta, dataset_id_carmel], 
+                            dataset_id_ta: [dataset_id_abctb, dataset_id_tcga], 
+                            dataset_id_carmel: [f"{dataset_id_carmel}{batch_num}" for batch_num in range(1, number_of_carmel_train_batches)]}
+folds_for_datasets = {f"{dataset_id_carmel}{batch_num}": [1, 2, 3, 4, 5] for batch_num in range(1, number_of_carmel_train_batches)}
+folds_for_datasets[dataset_id_tcga] = [1, 2, 3, 4, 5]
+folds_for_datasets[dataset_id_abctb] = [1, 2, 3, 4, 5]
+metadata_base_dataset_ids = [dataset_id_abctb, dataset_id_sheba, dataset_id_carmel, dataset_id_tcga]
 
 # Grid data
 bad_segmentation_column_name = 'bad segmentation'
@@ -112,3 +124,23 @@ def get_dataset_paths(datasets_base_dir_path: Path) -> Dict[str, Path]:
         dataset_paths[k] = Path(os.path.normpath(os.path.join(datasets_base_dir_path, path_suffix)))
 
     return dataset_paths
+
+def get_dataset_ids(dataset_id: str) -> Set[str]:
+    dataset_ids = set([dataset_id])
+    dataset_ids_updated = set()
+    set_contains_dict_keys = dataset_id in dataset_containment_dict.keys()
+    
+    while set_contains_dict_keys:
+        for dataset_id in dataset_ids:
+            if dataset_id in dataset_containment_dict.keys():
+                for contained_dataset_id in dataset_containment_dict[dataset_id]:
+                    dataset_ids_updated.add(contained_dataset_id)
+            else:
+                dataset_ids_updated.add(dataset_id)
+        dataset_ids = dataset_ids_updated.copy()
+        dataset_ids_updated = set()
+        set_contains_dict_keys = False
+        for dataset_id in dataset_ids:
+            set_contains_dict_keys = set_contains_dict_keys or dataset_id in dataset_containment_dict.keys()
+    
+    return dataset_ids
