@@ -9,7 +9,7 @@ max_attempts = 10
 white_ratio_threshold = 0.5
 white_intensity_threshold = 170
 current_mpp = 1.0 # TODO: maybe infer it directly from the folder?
-main_metadata_csv = '/home/royve/metadata/metadata.csv' # TODO: change to proper central metadata once Carmel9-11 & Haemek are incorporated.
+main_metadata_csv = '/home/dahen/WSI_ran_legacy/royve/WSI/metadata.csv' # TODO: change to proper central metadata once Carmel9-11 & Haemek are incorporated.
 data_root_gipdeep10 = '/data/unsynced_data/h5'
 data_root_netapp = ''
 
@@ -17,6 +17,7 @@ data_root_netapp = ''
 invalid_values = ['Missing Data', 'Not performed', '[Not Evaluated]', '[Not Available]']
 invalid_value = 'NA'
 invalid_fold_column_names = ['test fold idx breast', 'test fold idx', 'test fold idx breast - original for carmel']
+slides_with_invalid_values = ['TCGA-OL-A5S0-01Z-00-DX1.49A7AC9D-C186-406C-BA67-2D73DE82E13B.svs']
 
 # Dataset ids
 dataset_id_cat = 'CAT'

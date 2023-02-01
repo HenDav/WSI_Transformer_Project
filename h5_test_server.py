@@ -62,7 +62,7 @@ if __name__ == '__main__':
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     
     start_time = time.time_ns()
-    for batch_ndx, batch_data in enumerate(data_loader, 0):
+    for batch_ndx, batch_data in enumerate(data_loader):
         patches, labels = batch_data
         patches = patches.to(device)
         labels = labels.to(device)

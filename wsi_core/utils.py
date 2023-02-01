@@ -172,10 +172,3 @@ def argument_parser_type_cast(instance_type: Type[T], arguments_parser_name: str
 def round_to_nearest_power_of_two(mpp: float) -> float:
     log_mpp = math.log(mpp, 2.0)
     return 2.0 ** round(log_mpp)
-
-def datasets_have_compatible_folds(datasets: List[str]) -> bool:
-    assert len(datasets), "datasets list should not be empty"
-    compatible_folds = True
-    for dataset in datasets:
-        compatible_folds = compatible_folds and next(iter(datasets)) == dataset
-    return compatible_folds

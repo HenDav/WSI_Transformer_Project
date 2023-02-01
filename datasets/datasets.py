@@ -20,7 +20,6 @@ from torchvision import transforms
 
 # gipmed
 from wsi_core.metadata import MetadataBase
-from wsi_core.utils import datasets_have_compatible_folds
 from wsi_core import constants
 from wsi_core.base import SeedableObject
 from wsi_core.wsi import SlideContext, Tile, Slide, Patch, PatchExtractor, RandomPatchExtractor, ProximatePatchExtractor, BioMarker
@@ -41,7 +40,7 @@ class SlidesManager(SeedableObject, MetadataBase):
             row_predicate: Callable, #[[pandas.DataFrame, ...], pandas.Index] somehow causes a bug, I have no idea why
             **predicate_args):
         if "folds" in predicate_args.keys():
-            assert datasets_have_compatible_folds(predicate_args["datasets"]), "datasets do not have compatible folds"
+            assert self.datasets_have_compatible_folds(predicate_args["datasets"]), "datasets do not have compatible folds"
         self._desired_mpp = desired_mpp
         self._metadata_file_path = metadata_file_path
         self._slides = []
@@ -70,6 +69,15 @@ class SlidesManager(SeedableObject, MetadataBase):
         # self.filter_folds(folds=None)
 
         return slides
+    
+    @staticmethod
+    def datasets_have_compatible_folds(datasets: List[str]) -> bool:
+        assert len(datasets)>0, "datasets list should not be empty"
+        compatible_folds = True
+        datasets_folds = [constants.folds_for_datasets[dataset] for dataset in datasets]
+        for dataset_folds in datasets_folds:
+            compatible_folds = compatible_folds and datasets_folds[0] == dataset_folds
+        return compatible_folds
 
     @property
     def metadata(self) -> pandas.DataFrame:
@@ -208,13 +216,13 @@ class SlidesManager(SeedableObject, MetadataBase):
 # =================================================
 class WSIDataset(ABC, Dataset, SeedableObject):
     def __init__(self, 
-                 patches_per_slide: int = 10, 
+                 instances_per_slide: int = 10, 
                  target: str = 'ER', 
                  tile_size: int = 256,
                  desired_mpp: float = 1.0,
                  metadata_at_magnification: int = 10,
                  min_tiles: int = 100,
-                 dataset: str = 'CARMEL1',
+                 dataset: str = 'CAT',
                  metadata_file_path: str = None,
                  datasets_base_dir_path: str = None,
                  transform = transforms.Compose([transforms.ToTensor()]),
@@ -251,7 +259,7 @@ class WSIDataset(ABC, Dataset, SeedableObject):
             )
         self._slides_manager = slides_manager
         self.num_slides = len(slides_manager)
-        self._dataset_size = patches_per_slide * self.num_slides
+        self._dataset_size = instances_per_slide * self.num_slides
 
     def __len__(self):
         return self._dataset_size
@@ -268,9 +276,13 @@ class WSIDataset(ABC, Dataset, SeedableObject):
                           min_tiles: int = 100, 
                           datasets: List[str] = ['CARMEL1'],
                           folds: List[int] = constants.folds_for_datasets['CARMEL1']) -> pandas.Index:
+        fold_indecies = df.index[df[constants.fold_column_name].isin(folds)]
+        print(fold_indecies)
         dataset_indecies = df.index[df[constants.dataset_id_column_name].isin(datasets)]
+        print(dataset_indecies)
         min_tiles_indecies = df.index[df[constants.legitimate_tiles_column_name] > min_tiles]
-        return min_tiles_indecies.intersection(dataset_indecies)
+        print(min_tiles_indecies)
+        return min_tiles_indecies.intersection(dataset_indecies).intersection(fold_indecies)
 
 class PatchSupervisedDataset(WSIDataset):
     
@@ -281,18 +293,18 @@ class PatchSupervisedDataset(WSIDataset):
                  desired_mpp: float = 1.0, #TODO: make this useful through patch extraction
                  metadata_at_magnification: int = 10,
                  min_tiles: int = 100,
-                 dataset: str = 'CARMEL1',
+                 dataset: str = 'CAT',
                  metadata_file_path: str = None,
                  datasets_base_dir_path: str = None,
                  transform = transforms.Compose([transforms.ToTensor()]),
                  val_fold: int = None,
-                 train: bool = True, # TODO: understand how to do patch level validation
+                 train: bool = True, # TODO: maybe remove this?
                  slides_manager: SlidesManager = None, 
                  **kw: object):
         self._transform = transform
         self._target = BioMarker[target]
         self._train = train
-        super().__init__(patches_per_slide=patches_per_slide,
+        super().__init__(instances_per_slide=patches_per_slide,
                          slides_manager=slides_manager,
                          target=target, 
                          tile_size=tile_size,
@@ -308,7 +320,6 @@ class PatchSupervisedDataset(WSIDataset):
                          **kw)
 
     def __getitem__(self, item: int):
-
         slide = self._slides_manager.get_slide(item % self.num_slides)
         
         patch_extractor = RandomPatchExtractor(slide=slide)
@@ -325,14 +336,14 @@ class PatchSupervisedDataset(WSIDataset):
 class SlideSupervisedDataset(WSIDataset):
     
     def __init__(self, 
-                 patches_per_slide: int = 10, 
+                 bags_per_slide: int = 1,
                  target: str = 'ER', 
                  tile_size: int = 256, #TODO: make this useful through patch extraction
                  desired_mpp: float = 1.0, #TODO: make this useful through patch extraction
                  bag_size: int = 100,
                  metadata_at_magnification: int = 10,
                  min_tiles: int = 100,
-                 dataset: str = 'CARMEL1',
+                 dataset: str = 'CAT',
                  metadata_file_path: str = None,
                  datasets_base_dir_path: str = None,
                  transform = transforms.Compose([transforms.ToTensor()]),
@@ -344,7 +355,9 @@ class SlideSupervisedDataset(WSIDataset):
         self._target = BioMarker[target]
         self._train = train
         self._bag_size = bag_size
-        super().__init__(patches_per_slide=patches_per_slide,
+        assert self._bag_size<=min_tiles, "bag size needs to be smaller than min_tiles"
+        assert train or bags_per_slide==1, "since validation/test behaviour is constant, more than 1 bag per slide on validation is meaningless"
+        super().__init__(instances_per_slide=bags_per_slide,
                          slides_manager=slides_manager,
                          target=target, 
                          tile_size=tile_size, #TODO: make this useful through patch extraction

@@ -69,6 +69,8 @@ class SlideContext:
         self._image_file_name_stem = self._image_file_path.stem
         self._image_file_name_suffix = self._image_file_path.suffix
         self._orig_mpp = self._row[constants.mpp_column_name].item()
+        if math.isnan(self._orig_mpp):
+            self._orig_mpp = 0.25 # placeholder value, this should be dealt with when creating the metadata.
         self._curr_mpp = constants.current_mpp
         self._legitimate_tiles_count = self._row[constants.legitimate_tiles_column_name].item()
         self._fold = self._row[constants.fold_column_name].item()
@@ -687,7 +689,7 @@ class StridedPatchExtractor(PatchExtractor):
         if(self._patches_so_far >= self._num_patches):
             raise Exception
         self._patches_so_far = self._patches_so_far + 1
-        self._slide.get_interior_tile(self._stride)
+        self._slide.get_interior_tile(self._stride * self._patches_so_far)
         pixel = tile.center_pixel()
         return pixel
 
