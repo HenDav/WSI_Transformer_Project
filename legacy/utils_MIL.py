@@ -34,7 +34,7 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str,
                     },
                     'PR': {
                         'DataSet Name':
-                        r'FEATURES: Exp_40046-PR-TestFold_-1', 
+                        r'FEATURES: Exp_40046-PR-TestFold_-1',
                         'TrainSet Location':
                         r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40046-PR-TestFold_-1/Inference/train_w_features',
                         'TestSet Location': None,
@@ -43,7 +43,7 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str,
                     },
                     'ER_OR_PR': {
                         'DataSet Name':
-                        r'FEATURES: Exp_40046-PR-TestFold_-1+Exp_40015-ER-TestFold_-1', 
+                        r'FEATURES: Exp_40046-PR-TestFold_-1+Exp_40015-ER-TestFold_-1',
                         'TrainSet Location':
                         ['/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40015-ER-TestFold_-1/Inference/CAT_ER_features_for_OR/',
                         '/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40046-PR-TestFold_-1/Inference/CAT_PR_features_for_OR/'],
@@ -51,7 +51,7 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str,
                         'REG Model Location':
                         r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40046-PR-TestFold_-1/Model_CheckPoints/model_data_Last_Epoch.pt'
                     }
-                }, 
+                },
                 'Fold 1': {
                     'ER': {
                         'DataSet Name':
@@ -245,7 +245,7 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str,
                         'TestSet Location': None,
                         'REG Model Location': None
                     }
-                }, 
+                },
                 'Fold 1': {
                     'ER': {
                         'DataSet Name':
@@ -309,11 +309,11 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str,
                         'DataSet Name':
                         r'FEATURES: Exp_30090-Ki67-TestFold_4',
                         'TrainSet Location':
-                        r'/home/talneoran/workspace/wsi/runs/Exp_30090-Ki67-TestFold_4/Inference/train_w_features',
+                        r'/home/talneoran/workspace/wsi/legacy/runs/Exp_30090-Ki67-TestFold_4/Inference/train_w_features',
                         'TestSet Location':
-                        r'/home/talneoran/workspace/wsi/runs/Exp_30090-Ki67-TestFold_4/Inference/test_w_features',
+                        r'/home/talneoran/workspace/wsi/legacy/runs/Exp_30090-Ki67-TestFold_4/Inference/test_w_features',
                         'REG Model Location':
-                        r'/home/talneoran/workspace/wsi/runs/Exp_30090-Ki67-TestFold_4/Model_CheckPoints/model_data_Epoch_1000.pt'
+                        r'/home/talneoran/workspace/wsi/legacy/runs/Exp_30090-Ki67-TestFold_4/Model_CheckPoints/model_data_Epoch_1000.pt'
                     }
                 },
                 'Fold 5': {
@@ -321,11 +321,11 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str,
                         'DataSet Name':
                         r'FEATURES: Exp_30092-Ki67-TestFold_5',
                         'TrainSet Location':
-                        r'/home/talneoran/workspace/wsi/runs/Exp_30092-Ki67-TestFold_5/Inference/train_w_features',
+                        r'/home/talneoran/workspace/wsi/legacy/runs/Exp_30092-Ki67-TestFold_5/Inference/train_w_features',
                         'TestSet Location':
-                        r'/home/talneoran/workspace/wsi/runs/Exp_30092-Ki67-TestFold_5/Inference/test_w_features',
+                        r'/home/talneoran/workspace/wsi/legacy/runs/Exp_30092-Ki67-TestFold_5/Inference/test_w_features',
                         'REG Model Location':
-                        r'/home/talneoran/workspace/wsi/runs/Exp_30092-Ki67-TestFold_5/Model_CheckPoints/model_data_Epoch_1000.pt'
+                        r'/home/talneoran/workspace/wsi/legacy/runs/Exp_30092-Ki67-TestFold_5/Model_CheckPoints/model_data_Epoch_1000.pt'
                     }
                 }
             },
@@ -367,7 +367,7 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str,
                             '/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40019-Her2-TestFold_-1/Inference/CARMEL11'
                         }
                     }
-                }, 
+                },
                 'Fold 1': {
                     'ER': {
                         'DataSet Name':
@@ -560,11 +560,11 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str,
                         r'FEATURES: Exp_30090-Ki67-TestFold_4, CARMEL ONLY Slides Batch 9-11',
                         'TestSet Location': {
                             'Carmel 9':
-                            r'/home/talneoran/workspace/wsi/runs/Exp_30090-Ki67-TestFold_4/Inference/CARMEL9',
+                            r'/home/talneoran/workspace/wsi/legacy/runs/Exp_30090-Ki67-TestFold_4/Inference/CARMEL9',
                             'Carmel 10':
-                            r'/home/talneoran/workspace/wsi/runs/Exp_30090-Ki67-TestFold_4/Inference/CARMEL10',
+                            r'/home/talneoran/workspace/wsi/legacy/runs/Exp_30090-Ki67-TestFold_4/Inference/CARMEL10',
                             'Carmel 11':
-                            r'/home/talneoran/workspace/wsi/runs/Exp_30090-Ki67-TestFold_4/Inference/CARMEL11',
+                            r'/home/talneoran/workspace/wsi/legacy/runs/Exp_30090-Ki67-TestFold_4/Inference/CARMEL11',
                         }
                     }
                 },
@@ -610,11 +610,11 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str,
                         r'FEATURES: Exp_30092-Ki67-TestFold_5, CARMEL ONLY Slides Batch 9-11',
                         'TestSet Location': {
                             'Carmel 9':
-                            r'/home/talneoran/workspace/wsi/runs/Exp_30092-Ki67-TestFold_5/Inference/CARMEL9',
+                            r'/home/talneoran/workspace/wsi/legacy/runs/Exp_30092-Ki67-TestFold_5/Inference/CARMEL9',
                             'Carmel 10':
-                            r'/home/talneoran/workspace/wsi/runs/Exp_30092-Ki67-TestFold_5/Inference/CARMEL10',
+                            r'/home/talneoran/workspace/wsi/legacy/runs/Exp_30092-Ki67-TestFold_5/Inference/CARMEL10',
                             'Carmel 11':
-                            r'/home/talneoran/workspace/wsi/runs/Exp_30092-Ki67-TestFold_5/Inference/CARMEL11',
+                            r'/home/talneoran/workspace/wsi/legacy/runs/Exp_30092-Ki67-TestFold_5/Inference/CARMEL11',
                         }
                     }
                 },
@@ -741,7 +741,7 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str,
                         'DataSet Name':
                         r'FEATURES: Exp_30090-Ki67-TestFold_4, HAEMEK ONLY Slides',
                         'TestSet Location':
-                        r'/home/talneoran/workspace/wsi/runs/Exp_30090-Ki67-TestFold_4/Inference/HAEMEK',
+                        r'/home/talneoran/workspace/wsi/legacy/runs/Exp_30090-Ki67-TestFold_4/Inference/HAEMEK',
                     }
                 },
                 'Fold 5': {
@@ -761,7 +761,7 @@ def get_RegModel_Features_location_dict(train_DataSet: str, target: str,
                         'DataSet Name':
                         r'FEATURES: Exp_30092-Ki67-TestFold_5, HAEMEK ONLY Slides',
                         'TestSet Location':
-                        r'/home/talneoran/workspace/wsi/runs/Exp_30092-Ki67-TestFold_5/Inference/HAEMEK',
+                        r'/home/talneoran/workspace/wsi/legacy/runs/Exp_30092-Ki67-TestFold_5/Inference/HAEMEK',
                     },
                     'PR': {
                         'DataSet Name':
