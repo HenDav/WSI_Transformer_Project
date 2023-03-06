@@ -54,6 +54,10 @@ parser.add_argument('--haemek_test_set',
                     dest='haemek_test_set',
                     action='store_true',
                     help='run inference over HAEMEK ?')
+parser.add_argument('--TA_test_set',
+                    dest='TA_test_set',
+                    action='store_true',
+                    help='run inference over TA fold 6 ?')
 #parser.add_argument('-nt', '--num_tiles', type=int, default=500, help='Number of tiles to use')
 #parser.add_argument('-ds', '--dataset', type=str, default='HEROHE', help='DataSet to use')
 #parser.add_argument('-f', '--folds', type=list, default=[2], help=' folds to infer')
@@ -109,7 +113,8 @@ CAT_dsets = [
     r'FEATURES: Exp_20201-Her2-TestFold_4',
     r'FEATURES: Exp_20228-Her2-TestFold_5', r'FEATURES: Exp_10-PR-TestFold_1',
     r'FEATURES: Exp_20063-PR-TestFold_2', r'FEATURES: Exp_497-PR-TestFold_3',
-    r'FEATURES: Exp_20207-PR-TestFold_4', r'FEATURES: Exp_20235-PR-TestFold_5'
+    r'FEATURES: Exp_20207-PR-TestFold_4', r'FEATURES: Exp_20235-PR-TestFold_5',
+    r'FEATURES: Exp_355-ER-TestFold_-1+Exp_20010-PR-TestFold_-1'
 ]
 
 CAT_with_Location_dsets = [
@@ -142,6 +147,27 @@ TCGA_ABCTB_dsets = [
     r'FEATURES: Exp_321-PR-TestFold_5'
 ]
 
+HAEMEK_transfer_dsets = [
+    r'FEATURES: Exp_50015-ER-TestFold_1 transfered from CAT',
+    r'FEATURES: Exp_50143-ER-TestFold_2 transfered from CAT',
+    r'FEATURES: Exp_50157-ER-TestFold_3 transfered from CAT',
+    r'FEATURES: Exp_50171-ER-TestFold_4 transfered from CAT'
+]
+
+HAEMEK_finetuned_dsets = [
+    r'FEATURES: Exp_50151-ER-TestFold_1 finetuned from CAT',
+    r'FEATURES: Exp_50161-ER-TestFold_2 finetuned from CAT',
+    r'FEATURES: Exp_50163-ER-TestFold_3 finetuned from CAT',
+    r'FEATURES: Exp_50172-ER-TestFold_4 finetuned from CAT'
+]
+
+HAEMEK_dsets = [
+    r'FEATURES: Exp_50014-ER-TestFold_1 trained from scratch',
+    r'FEATURES: Exp_50142-ER-TestFold_2 trained from scratch',
+    r'FEATURES: Exp_50159-ER-TestFold_3 trained from scratch',
+    r'FEATURES: Exp_50175-ER-TestFold_4 trained from scratch'
+]
+
 if run_data_output['Dataset Name'] in CAT_dsets:
     dset = 'CAT'
 elif run_data_output['Dataset Name'] in CAT_with_Location_dsets:
@@ -152,6 +178,12 @@ elif run_data_output['Dataset Name'] in ABCTB_dsets:
     dset = 'ABCTB'
 elif run_data_output['Dataset Name'] in TCGA_ABCTB_dsets:
     dset = 'TCGA_ABCTB'
+elif run_data_output['Dataset Name'] in HAEMEK_finetuned_dsets:
+    dset = 'HAEMEK_finetuned'
+elif run_data_output['Dataset Name'] in HAEMEK_transfer_dsets:
+    dset = 'HAEMEK_transfer'
+elif run_data_output['Dataset Name'] in HAEMEK_dsets:
+    dset = 'HAEMEK->HAEMEK'
 else:
     dset = None
 
@@ -174,6 +206,10 @@ if args.haemek_test_set:
     else:
         dset = 'HAEMEK' # Implicitly CAT->HAEMEK
 
+if args.TA_test_set:
+    if args.experiment in [30069]:
+        dset = 'CAT->TA 6'
+        
 if dset == None:
     raise Exception('Dataset must be chosen')
 
@@ -246,7 +282,18 @@ elif dataset == 'Combined Features - Multi Resolution':
 
 else:
     print(f"test_data_dir is {test_data_dir}")
-    inf_dset = datasets.Features_MILdataset(dataset=dset,
+    if 'OR' in target:
+        inf_dset = datasets.Features_MILdataset_combined(dataset=dset,
+                                            data_location=test_data_dir,
+                                            is_per_patient=args.is_per_patient,
+                                            target=target,
+                                            is_all_tiles=True,
+                                            is_train=False,
+                                            test_fold=test_fold,
+                                            carmel_only=args.carmel_only)
+        is_or = True #flag for extract_tile_scores_for_slide function
+    else:
+        inf_dset = datasets.Features_MILdataset(dataset=dset,
                                             data_location=test_data_dir,
                                             target=target,
                                             is_per_patient=args.is_per_patient,
@@ -254,6 +301,7 @@ else:
                                             is_train=False,
                                             carmel_only=args.carmel_only,
                                             test_fold=test_fold)
+        is_or = False
 
 inf_loader = DataLoader(inf_dset,
                         batch_size=1,
@@ -459,7 +507,7 @@ for model_num, model_epoch in enumerate(args.from_epoch):
                         features_to_save = torch.transpose(
                             data[key].squeeze(0), 1, 0)
                         slide_tile_scores_list = utils_MIL.extract_tile_scores_for_slide(
-                            features_to_save, [model])
+                            features_to_save, [model], is_or)
 
                         if len(slide_tile_scores_list[0]) != 500:
                             new_slide_tile_scores_list = np.zeros(500, )
@@ -513,7 +561,7 @@ for model_num, model_epoch in enumerate(args.from_epoch):
 
                     features_to_save = torch.transpose(data.squeeze(0), 1, 0)
                     slide_tile_scores_list = utils_MIL.extract_tile_scores_for_slide(
-                        features_to_save, [model])
+                        features_to_save, [model], is_or)
 
                     if len(slide_tile_scores_list[0]) != 500:
                         new_slide_tile_scores_list = np.zeros(500, )
@@ -575,7 +623,6 @@ for model_num, model_epoch in enumerate(args.from_epoch):
             'MIL': all_slides_tile_scores_list,
             'REG': all_slides_tile_scores_list_ran
         }
-
         utils_MIL.save_all_slides_and_models_data(
             all_tile_scores_dict,
             all_slides_score_dict,
@@ -584,7 +631,8 @@ for model_num, model_epoch in enumerate(args.from_epoch):
             output_dir,
             args.from_epoch,
             '',
-            true_test_path=key)
+            true_test_path=key,
+            sub_dir='')
 
     #if not (args.carmel_test_set or args.haemek_test_set):  # We can skip this part when working with true test
     if compute_performance:
