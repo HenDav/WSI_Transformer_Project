@@ -6,7 +6,7 @@ import numpy as np
 # gipmed
 # from nn.experiments import Experiment, ExperimentArgumentsParser
 from wsi_core import constants
-from datasets.datasets import PatchSupervisedDataset
+from datasets.datasets import SlideRandomDataset
 from models import preact_resnet
 from wsi_core.wsi import BioMarker
 
@@ -30,26 +30,20 @@ import pandas
 if __name__ == '__main__':
 
     def my_collate(batch):
-        patches = [item[0] for item in batch]
-        patches = torch.from_numpy(np.stack(patches))
-        labels = torch.as_tensor([item[1] for item in batch])
-        return patches, labels
+        bags = [item["bag"] for item in batch]
+        bags = torch.from_numpy(np.stack(bags))
+        labels = torch.as_tensor([item["label"] for item in batch])
+        return bags, labels
 
-    wsi_dataset = PatchSupervisedDataset()
+    wsi_dataset = SlideRandomDataset(metadata_file_path = "/home/dahen/WSI/metadata.csv")
 
-    wsi_dataset_size = len(wsi_dataset)
-    wsi_dataset_size_indices = list(range(wsi_dataset_size))
-
-    sampler = SubsetRandomSampler(wsi_dataset_size_indices)
-
-    batch_size = 128
+    batch_size = 1
     fontsize = 20
     figsize = (60, 20)
 
     data_loader = DataLoader(
         wsi_dataset,
         batch_size=batch_size,
-        sampler=sampler,
         pin_memory=True,
         # drop_last=True,
         collate_fn=my_collate,
@@ -63,13 +57,13 @@ if __name__ == '__main__':
     
     start_time = time.time_ns()
     for batch_ndx, batch_data in enumerate(data_loader):
-        patches, labels = batch_data
-        patches = patches.to(device)
+        bags, labels = batch_data
+        bags = bags.to(device)
         labels = labels.to(device)
 
         optimizer.zero_grad()
 
-        outputs = model(patches)[0][:, 0:(batch_size+1)]
+        outputs = model(bags)[0][:, 0:(batch_size+1)]
 
         loss = loss_fn(outputs, labels)
         loss.backward()
@@ -81,7 +75,7 @@ if __name__ == '__main__':
         if batch_ndx == 0:
             patches = patches.detach()[:5]
             fig, axs = plt.subplots(ncols=len(patches), squeeze=False)
-            for i, img in enumerate(patches):
+            for i, img in enumerate(bags[0]):
                 img = img.detach()
                 img = F.to_pil_image(img)
                 axs[0, i].imshow(np.asarray(img))

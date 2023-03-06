@@ -140,6 +140,14 @@ class SlideContext:
     @property
     def zero_level_half_tile_size(self) -> int:
         return self._zero_level_tile_size // 2
+    
+    @property
+    def zero_level_tile_size_x_offset(self) -> int:
+        return np.array([self._zero_level_tile_size, 0])
+    
+    @property
+    def zero_level_tile_size_y_offset(self) -> int:
+        return np.array([0, self._zero_level_tile_size])
 
     @property
     def orig_mpp(self) -> float:
@@ -659,7 +667,7 @@ class PatchExtractor(ABC):
                 attempts = attempts + 1
                 continue
 
-            return patch
+            return patch, center_pixel
         return None
 
 
@@ -680,18 +688,50 @@ class RandomPatchExtractor(PatchExtractor):
 # =================================================
 class StridedPatchExtractor(PatchExtractor):
     def __init__(self, slide: Slide, num_patches):
+        super().__init__(slide=slide)
         self._num_patches = num_patches
         self._patches_so_far = 0
-        self._stride = slide._legitimate_tiles_count // self._num_patches
-        super().__init__(slide=slide)
+        self._stride = max(slide.slide_context._legitimate_tiles_count // self._num_patches, 1)
     
     def _extract_center_pixel(self) -> Optional[numpy.ndarray]:
         if(self._patches_so_far >= self._num_patches):
             raise Exception
         self._patches_so_far = self._patches_so_far + 1
-        self._slide.get_interior_tile(self._stride * self._patches_so_far)
-        pixel = tile.center_pixel()
+        tile = self._slide.get_interior_tile(self._stride * self._patches_so_far)
+        pixel = tile.center_pixel
         return pixel
+    
+# =================================================
+# SerialPatchExtractor Class
+# =================================================
+class SerialPatchExtractor(StridedPatchExtractor):
+    def __init__(self, slide: Slide):
+        super().__init__(slide=slide, num_patches=slide.tiles_count)
+        
+# =================================================
+# GridPatchExtractor Class
+# =================================================
+class GridPatchExtractor(PatchExtractor):
+    def __init__(self, slide: Slide, side_length):
+        super().__init__(slide=slide)
+        self._num_patches = side_length ** 2
+        self._side_length = side_length
+        self._patches_so_far = 0
+        self._pixels_to_extract = np.zeros(self._num_patches, 2)
+        tile = self._slide.get_interior_tile(self._stride * self._patches_so_far)
+        center_pixel = tile.center_pixel()
+        top_left_pixel = center_pixel - (tile._slide_context.zero_level_half_tile_size * self._side_length)
+        for i in range(self._side_length):
+            for j in range(self._side_length):
+               self._pixels_to_extract[j * self._side_length + i] = top_left_pixel + \
+                                                                    tile._slide_context.zero_level_tile_size_x_offset() * j + \
+                                                                    tile._slide_context.zero_level_tile_size_y_offset() * i
+    
+    def _extract_center_pixel(self) -> Optional[numpy.ndarray]:
+        if(self._patches_so_far >= self._num_patches):
+            raise Exception
+        self._patches_so_far += 1
+        return self._pixels_to_extract[self._patches_so_far - 1]
 
 # =================================================
 # ProximatePatchExtractor Class
