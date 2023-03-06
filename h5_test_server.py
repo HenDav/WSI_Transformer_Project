@@ -6,7 +6,7 @@ import numpy as np
 # gipmed
 # from nn.experiments import Experiment, ExperimentArgumentsParser
 from wsi_core import constants
-from datasets.datasets import SlideRandomDataset
+from datasets.datasets import SlideStridedDataset
 from models import preact_resnet
 from wsi_core.wsi import BioMarker
 
@@ -35,7 +35,7 @@ if __name__ == '__main__':
         labels = torch.as_tensor([item["label"] for item in batch])
         return bags, labels
 
-    wsi_dataset = SlideRandomDataset(metadata_file_path = "/home/dahen/WSI/metadata.csv")
+    wsi_dataset = SlideStridedDataset(metadata_file_path = "/home/dahen/WSI/metadata.csv")
 
     batch_size = 1
     fontsize = 20
@@ -48,7 +48,7 @@ if __name__ == '__main__':
         # drop_last=True,
         collate_fn=my_collate,
         # persistent_workers=True,
-        num_workers=8)
+        num_workers=0)
     
     device = torch.device('cuda')
     model = preact_resnet.PreActResNet50_Ron().to(device)
@@ -59,11 +59,11 @@ if __name__ == '__main__':
     for batch_ndx, batch_data in enumerate(data_loader):
         bags, labels = batch_data
         bags = bags.to(device)
-        labels = labels.to(device)
+        labels = labels.to(device)[0,...]
 
         optimizer.zero_grad()
 
-        outputs = model(bags)[0][:, 0:(batch_size+1)]
+        outputs = model(bags)[0][:, 0:(batch_size+1)].mean(dim=0)
 
         loss = loss_fn(outputs, labels)
         loss.backward()
@@ -73,9 +73,9 @@ if __name__ == '__main__':
         print(f"batch {batch_ndx} time is {(time.time_ns() - start_time) / (10 ** 9)}")
         start_time = time.time_ns()
         if batch_ndx == 0:
-            patches = patches.detach()[:5]
-            fig, axs = plt.subplots(ncols=len(patches), squeeze=False)
-            for i, img in enumerate(bags[0]):
+            bag = bags[0].detach()[:5]
+            fig, axs = plt.subplots(ncols=len(bag), squeeze=False)
+            for i, img in enumerate(bag):
                 img = img.detach()
                 img = F.to_pil_image(img)
                 axs[0, i].imshow(np.asarray(img))

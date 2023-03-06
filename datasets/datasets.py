@@ -492,8 +492,7 @@ class SlideRandomDataset(SlideDataset):
     def __getitem__(self, item: int):
         return self.get_bag(item)
 
-    @staticmethod
-    def patch_extractor_constructor(slide: Slide = None):
+    def patch_extractor_constructor(self, slide: Slide = None):
         return RandomPatchExtractor(slide)
 
 
@@ -537,8 +536,7 @@ class SlideStridedDataset(SlideDataset):
     def __getitem__(self, item: int):
         return self.get_bag(item)
 
-    @staticmethod
-    def patch_extractor_constructor(slide: Slide = None):
+    def patch_extractor_constructor(self, slide: Slide = None):
         return StridedPatchExtractor(slide, self._bag_size)
 
 
@@ -565,7 +563,7 @@ class SlideGridDataset(SlideDataset):
                          target=target, 
                          tile_size=tile_size, #TODO: make this useful through patch extraction
                          desired_mpp=desired_mpp, #TODO: make this useful through patch extraction
-                         bag_size=bag_size,
+                         bag_size=side_length ** 2,
                          metadata_at_magnification=metadata_at_magnification,
                          min_tiles=min_tiles,
                          dataset=dataset,
@@ -578,14 +576,12 @@ class SlideGridDataset(SlideDataset):
         self._transform = transform
         self._target = BioMarker[target]
         self._train = train
-        self._bag_size = side_length ** 2
         self._side_length = side_length
 
     def __getitem__(self, item: int):
         return self.get_bag(item)
 
-    @staticmethod
-    def patch_extractor_constructor(slide: Slide = None):
+    def patch_extractor_constructor(self, slide: Slide = None):
         return GridPatchExtractor(slide, self._side_length)
 
 # =================================================
