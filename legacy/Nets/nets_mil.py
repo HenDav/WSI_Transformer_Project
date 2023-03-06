@@ -708,6 +708,8 @@ class MIL_Feature_Attention_MultiBag(nn.Module):
         super(MIL_Feature_Attention_MultiBag, self).__init__()
 
         self.model_name = THIS_FILE + 'MIL_Feature_Attention_MultiBag()'
+        if M != 512:
+            self.model_name = self.model_name[:-1] + 'M='+str(M)+')'
         print('Using model {}'.format(self.model_name))
 
         self.features_only = True
