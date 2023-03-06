@@ -42,6 +42,7 @@ parser.add_argument('-tar', '--target', default='Survival_Time', type=str, help=
 parser.add_argument('--n_patches_test', default=1, type=int, help='# of patches at test time')
 parser.add_argument('--n_patches_train', default=10, type=int, help='# of patches at train time')
 parser.add_argument('--lr', default=1e-5, type=float, help='learning rate')
+parser.add_argument('--clr', default=-1, type=float, help='set a different learning rate for the convolutional layers, relevant for transfer learning experiments')
 parser.add_argument('--weight_decay', default=5e-5, type=float, help='L2 penalty')
 parser.add_argument('-balsam', '--balanced_sampling', dest='balanced_sampling', action='store_true', help='balanced_sampling')
 parser.add_argument('--transform_type', default='rvf', type=str, help='none / flip / wcfrs (weak color+flip+rotate+scale)')
@@ -736,8 +737,13 @@ if __name__ == '__main__':
                 model.load_state_dict(model_data_loaded['model_state_dict'])
             except:
                 raise IOError('Cannot load the saved transfer_learning model, check if it fits the current model')
-
-        optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+        if args.clr == -1:
+            args.clr = args.lr
+        linear_params = list(kv[1] for kv in model.named_parameters() if 'linear' in kv[0])
+        conv_params = list(kv[1] for kv in model.named_parameters() if 'linear' not in kv[0])
+        optimizer = optim.Adam([{'params': linear_params},
+                {'params': conv_params, 'lr': args.clr}], lr=args.lr, weight_decay=args.weight_decay)
+        #optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
         if isinstance(train_dset.target_kind, list):
             multi_target = True
