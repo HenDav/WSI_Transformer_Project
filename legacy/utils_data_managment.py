@@ -6,7 +6,7 @@ That includes:
 - Grid production
 """
 from Dataset_Maker import dataset_utils
-import utils
+import legacy.utils
 import pandas as pd
 from tqdm import tqdm
 import os

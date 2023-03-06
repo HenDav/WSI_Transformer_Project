@@ -300,8 +300,8 @@ def run_data(experiment: str = None,
             elif 40000 < int(experiment) < 50000:
                 # One of Hen's experiments
                 user_name = 'dahen'
-                run_file_name = r'/home/dahen/WSI_ran_legacy/WSI/legacy/runs/run_data.xlsx'
-                location_prefix = '/home/dahen/WSI_ran_legacy/WSI/legacy'
+                run_file_name = r'/home/dahen/WSI_ran_legacy/WSI/runs/run_data.xlsx'
+                location_prefix = '/home/dahen/WSI_ran_legacy/WSI'
             elif 50000 < int(experiment) < 60000:
                 # One of Shachar's experiments
                 user_name = 'Shachar'
@@ -522,7 +522,7 @@ def assert_dataset_target(DataSet, target_kind):
         raise ValueError('target should be one of: ER, PR, Her2, OR, is_cancer, Ki67')
     elif (DataSet in ['IC', 'HIC', 'HEROHE', 'HAEMEK']) and not target_kind <= {'ER', 'PR', 'Her2', 'OR', 'Ki67'}:
         raise ValueError('target should be one of: ER, PR, Her2, OR')
-    elif (DataSet == 'CARMEL') and not target_kind <= {'ER', 'PR', 'Her2', 'OR', 'Ki67', 'ER100'}:
+    elif (DataSet == 'CARMEL') and not target_kind <= {'ER', 'PR', 'Her2', 'OR', 'Ki67', 'ER100', 'Her2Low', 'Her2_0', 'Her2Score'}:
         raise ValueError('target should be one of: ER, PR, Her2, OR')
     elif (DataSet == 'RedSquares') and not target_kind <= {'RedSquares'}:
         raise ValueError('target should be: RedSquares')
