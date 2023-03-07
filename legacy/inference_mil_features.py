@@ -99,6 +99,9 @@ output_dir, test_fold, dataset, target, model_name, free_bias, CAT_only, is_tumo
     run_data_output['Location'], run_data_output['Test Fold'], run_data_output['Dataset Name'], run_data_output['Receptor'],\
     run_data_output['Model Name'], run_data_output['Free Bias'], run_data_output['CAT Only'], run_data_output['Receptor + is_Tumor Train Mode']
 
+#if 'self-supervised-pathology' in output_dir:
+#    output_dir = output_dir.replace('self-supervised-pathology', 'wsi/legacy')
+
 if sys.platform == 'darwin':
     # fix output_dir:
     if output_dir.split('/')[1] == 'home':
@@ -207,8 +210,10 @@ if args.haemek_test_set:
         dset = 'HAEMEK' # Implicitly CAT->HAEMEK
 
 if args.TA_test_set:
-    if args.experiment in [30069]:
+    if args.experiment in [30069, 30076, 30077]:
         dset = 'CAT->TA 6'
+    elif args.experiment in [30089, 30087, 30086]:
+        dset = 'TCGA_ABCTB->TA 6'
         
 if dset == None:
     raise Exception('Dataset must be chosen')
@@ -253,14 +258,16 @@ if args.carmel_test_set:
 
 elif args.haemek_test_set:
     key = 'HAEMEK'
+elif args.TA_test_set:
+    key = 'TA_fold6'
 
 else:
     key = ''
-
+    
 # Fix target:
 if target == 'ER_for_is_Tumor_Features':
     target = 'ER_Features'
-
+    
 # Get data:
 if dataset == 'Combined Features':
     inf_dset = datasets.Combined_Features_for_MIL_Training_dataset(
@@ -310,7 +317,7 @@ inf_loader = DataLoader(inf_dset,
                         pin_memory=True)
 
 #if not (args.carmel_test_set or args.haemek_test_set):
-if dset not in ['CARMEL 9-11', 'HAEMEK']:
+if dset not in ['CARMEL 9-11', 'HAEMEK', 'CAT->TA 6', 'TCGA_ABCTB->TA 6']:
     compute_performance = True
     fig1, ax1 = plt.subplots()
     ax1.set_prop_cycle(custom_cycler)

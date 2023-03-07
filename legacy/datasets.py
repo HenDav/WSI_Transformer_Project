@@ -8,14 +8,14 @@ from torchvision import transforms
 import time
 from torch.utils.data import Dataset
 from typing import List
-from .utils import _get_tiles, _choose_data, chunks, map_original_grid_list_to_equiv_grid_list
-from .transformations import define_transformations
-from .utils import assert_dataset_target
-from .utils import get_label
-from .utils_MIL import dataset_properties_to_location
-from .utils import balance_dataset
-from .Dataset_Maker.dataset_utils import get_datasets_dir_dict
-from .utils import get_optimal_slide_level, cohort_to_int
+from utils import _get_tiles, _choose_data, chunks, map_original_grid_list_to_equiv_grid_list
+from transformations import define_transformations
+from utils import assert_dataset_target
+from utils import get_label
+from utils_MIL import dataset_properties_to_location
+from utils import balance_dataset
+from Dataset_Maker.dataset_utils import get_datasets_dir_dict
+from utils import get_optimal_slide_level, cohort_to_int
 import openslide
 from tqdm import tqdm
 import sys
@@ -1206,11 +1206,9 @@ class Features_MILdataset(Dataset):
         #         raise Exception("Need to write which dictionaries to use in this receptor case")
 
         if sys.platform == 'linux':
-            if dataset == 'TCGA_ABCTB':
-                if target in ['ER', 'ER_Features'] or (
-                        target
-                        in ['PR', 'PR_Features', 'Her2', 'Her2_Features']
-                ):  # target in ['PR', 'PR_Features', 'Her2', 'Her2_Features'] and test_fold == 1):
+            if dataset in ['TCGA_ABCTB', 'CAT->TA 6', 'TCGA_ABCTB->TA 6']:
+                if target in ['ER', 'ER_Features', 'PR', 'PR_Features', 'Her2', 'Her2_Features']:  
+                    # target in ['PR', 'PR_Features', 'Her2', 'Her2_Features'] and test_fold == 1):
                     grid_location_dict = {
                         'TCGA':
                         r'/mnt/gipmed_new/Data/Breast/TCGA/Grids_10/Grid_data.xlsx',
@@ -1326,7 +1324,7 @@ class Features_MILdataset(Dataset):
         if type(data_files) is dict:
             data_files_2 = data_files['is_Tumor']
             data_files = data_files['Receptor']
-
+            
         for file_idx, file in enumerate(tqdm(data_files)):
             with open(file, 'rb') as filehandle:
                 inference_data = pickle.load(filehandle)
