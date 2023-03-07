@@ -4,14 +4,14 @@ from typing import List, Optional, Dict, Callable, cast
 from enum import Enum
 from pathlib import Path
 import multiprocessing
-import time
+from tqdm import tqdm
 import socket
 
 # pandas
 import pandas
 
 # numpy
-import numpy
+import numpy as np
 import torch
 
 # torch
@@ -22,7 +22,7 @@ from torchvision import transforms
 from wsi_core.metadata import MetadataBase
 from wsi_core import constants
 from wsi_core.base import SeedableObject
-from wsi_core.wsi import SlideContext, Tile, Slide, Patch, PatchExtractor, RandomPatchExtractor, ProximatePatchExtractor, BioMarker
+from wsi_core.wsi import SlideContext, Tile, Slide, Patch, PatchExtractor, RandomPatchExtractor, ProximatePatchExtractor, BioMarker, SerialPatchExtractor, StridedPatchExtractor, GridPatchExtractor
 from wsi_core.parallel_processing import TaskParallelProcessor, OnlineParallelProcessor, InfiniteOnlineParallelProcessor, FiniteOnlineParallelProcessor, GetItemPolicy
 
 
@@ -49,17 +49,17 @@ class SlidesManager(SeedableObject, MetadataBase):
         # self._tile_to_slide_dict = self._create_tile_to_slide_dict()
         MetadataBase.__init__(self, datasets_base_dir_path=datasets_base_dir_path, tile_size=tile_size, metadata_at_magnification=metadata_at_magnification, desired_mpp=desired_mpp)
         SeedableObject.__init__(self)
+        self._df = self._df.iloc[row_predicate(self._df, **predicate_args)]
         self._current_slides = self._create_slides()
-        self._current_df = self._df.iloc[row_predicate(self._df, **predicate_args)]
         # self.start()
         # self.join()
 
     def __len__(self) -> int:
-        return len(self._current_df)
+        return len(self._df)
     
     def _create_slides(self) -> List[Slide]:
         slides = []
-        for row_index in range(self._df.shape[0]):
+        for row_index in tqdm(range(self._df.shape[0])):
             slide_context = SlideContext(row_index=row_index, metadata=self._df, dataset_paths=self._dataset_paths, desired_mpp=self._desired_mpp, tile_size=self._tile_size)
             slide = Slide(slide_context=slide_context)
             slides.append(slide)
@@ -85,7 +85,7 @@ class SlidesManager(SeedableObject, MetadataBase):
 
     @property
     def slides_count(self) -> int:
-        return self._current_df.shape[0]
+        return self._df.shape[0]
 
     # def get_slide_by_tile(self, tile: Tile) -> Slide:
     #     return self._tile_to_slide_dict[tile]
@@ -99,9 +99,9 @@ class SlidesManager(SeedableObject, MetadataBase):
 
     def filter_folds(self, folds: Optional[List[int]]):
         if folds is not None:
-            self._current_df = self._df[self._df[constants.fold_column_name].isin(folds)]
+            self._df = self._df[self._df[constants.fold_column_name].isin(folds)]
         else:
-            self._current_df = self._df
+            self._df = self._df
 
         self._current_slides = self._get_slides()
         # self._slides_with_interior = self._get_slides_with_interior_tiles()
@@ -110,7 +110,7 @@ class SlidesManager(SeedableObject, MetadataBase):
         return self._current_slides[index]
 
     def get_random_slide(self) -> Slide:
-        index = self._rng.integers(low=0, high=self._current_df.shape[0])
+        index = self._rng.integers(low=0, high=self._df.shape[0])
         return self.get_slide(index=index)
 
     def get_slide_with_interior(self, index: int) -> Slide:
@@ -198,9 +198,9 @@ class SlidesManager(SeedableObject, MetadataBase):
         return tile_to_slide
 
     def _get_slides(self) -> List[Slide]:
-        # print(self._current_df[constants.file_column_name])
+        # print(self._df[constants.file_column_name])
         # print(self._file_name_to_slide)
-        return [self._file_name_to_slide[x] for x in self._current_df[constants.file_column_name]]
+        return [self._file_name_to_slide[x] for x in self._df[constants.file_column_name]]
 
     def _get_slides_with_interior_tiles(self) -> List[Slide]:
         slides_with_interior_tiles = []
@@ -225,7 +225,7 @@ class WSIDataset(ABC, Dataset, SeedableObject):
                  dataset: str = 'CAT',
                  metadata_file_path: str = None,
                  datasets_base_dir_path: str = None,
-                 transform = transforms.Compose([transforms.ToTensor()]),
+                 transform = transforms.Compose([]),
                  val_fold: int = None,
                  train: bool = True,
                  slides_manager: SlidesManager = None, 
@@ -277,14 +277,11 @@ class WSIDataset(ABC, Dataset, SeedableObject):
                           datasets: List[str] = ['CARMEL1'],
                           folds: List[int] = constants.folds_for_datasets['CARMEL1']) -> pandas.Index:
         fold_indecies = df.index[df[constants.fold_column_name].isin(folds)]
-        print(fold_indecies)
         dataset_indecies = df.index[df[constants.dataset_id_column_name].isin(datasets)]
-        print(dataset_indecies)
         min_tiles_indecies = df.index[df[constants.legitimate_tiles_column_name] > min_tiles]
-        print(min_tiles_indecies)
         return min_tiles_indecies.intersection(dataset_indecies).intersection(fold_indecies)
 
-class PatchSupervisedDataset(WSIDataset):
+class RandomPatchDataset(WSIDataset):
     
     def __init__(self, 
                  patches_per_slide: int = 10, 
@@ -296,14 +293,11 @@ class PatchSupervisedDataset(WSIDataset):
                  dataset: str = 'CAT',
                  metadata_file_path: str = None,
                  datasets_base_dir_path: str = None,
-                 transform = transforms.Compose([transforms.ToTensor()]),
+                 transform = transforms.Compose([]),
+                 train: bool = True, # controls folds
                  val_fold: int = None,
-                 train: bool = True, # TODO: maybe remove this?
                  slides_manager: SlidesManager = None, 
                  **kw: object):
-        self._transform = transform
-        self._target = BioMarker[target]
-        self._train = train
         super().__init__(instances_per_slide=patches_per_slide,
                          slides_manager=slides_manager,
                          target=target, 
@@ -318,22 +312,82 @@ class PatchSupervisedDataset(WSIDataset):
                          val_fold=val_fold,
                          train=train,
                          **kw)
+        self._transform = transform
+        self._target = BioMarker[target]
+        self._train = train
 
     def __getitem__(self, item: int):
         slide = self._slides_manager.get_slide(item % self.num_slides)
         
+        slide_name = slide.slide_context.image_file_name_stem
         patch_extractor = RandomPatchExtractor(slide=slide)
-        patch = patch_extractor.extract_patch(patch_validators=[])
+        patch, center_pixel = patch_extractor.extract_patch(patch_validators=[])
         label = slide.slide_context.get_biomarker_value(bio_marker=self._target)
-        if label == "Positive":
+        if (label == "Positive"):
             label = 1
-        elif label == "Negative":
+        elif (label == "Negative"):
             label = 0
 
-        return self._transform(patch.image), label
+        return {"patch": self._transform(transforms.ToTensor()(patch.image)), "label": label, "slide_name": slide_name, "center_pixel": center_pixel}
+    
+    
+class SerialPatchDataset(WSIDataset):
+    
+    def __init__(self, 
+                 patches_per_slide: int = 10, 
+                 target: str = 'ER', 
+                 tile_size: int = 256, #TODO: make this useful through patch extraction
+                 desired_mpp: float = 1.0, #TODO: make this useful through patch extraction
+                 metadata_at_magnification: int = 10,
+                 min_tiles: int = 100,
+                 dataset: str = 'CAT',
+                 metadata_file_path: str = None,
+                 datasets_base_dir_path: str = None,
+                 transform = transforms.Compose([]),
+                 train: bool = True, # controls folds
+                 val_fold: int = None,
+                 slides_manager: SlidesManager = None, 
+                 **kw: object):
+        super().__init__(instances_per_slide=patches_per_slide,
+                         slides_manager=slides_manager,
+                         target=target, 
+                         tile_size=tile_size,
+                         desired_mpp=desired_mpp,
+                         metadata_at_magnification=metadata_at_magnification,
+                         min_tiles=min_tiles,
+                         dataset=dataset,
+                         metadata_file_path=metadata_file_path,
+                         datasets_base_dir_path=datasets_base_dir_path,
+                         transform=transform,
+                         val_fold=val_fold,
+                         train=train,
+                         **kw)
+        self._transform = transform
+        self._target = BioMarker[target]
+        self._train = train
+        self._n_slides = 1 #slides touched so far
+        self._slide = self._slides_manager.get_slide(self._n_slides - 1)
+        self._n_slide_patches = 0
+        self.patch_extractor = SerialPatchExtractor(slide=self._slide)
+
+    def __getitem__(self, item: int):
+        if self._n_slide_patches >= (self._slide.tiles_count - 1):
+            self._n_slides += 1
+            self._slide = self._slides_manager.get_slide(self._n_slides - 1)
+            self._n_slide_patches = 0
+        self._n_slide_patches += 1
+        slide_name = self._slide.slide_context.image_file_name_stem
+        patch, center_pixel = self.patch_extractor.extract_patch(patch_validators=[])
+        label = self._slide.slide_context.get_biomarker_value(bio_marker=self._target)
+        if (label == "Positive"):
+            label = 1
+        elif (label == "Negative"):
+            label = 0
+
+        return {"patch": self._transform(transforms.ToTensor()(patch.image)), "label": label, "slide_name": slide_name, "center_pixel": center_pixel}
         
     
-class SlideSupervisedDataset(WSIDataset):
+class SlideDataset(WSIDataset):
     
     def __init__(self, 
                  bags_per_slide: int = 1,
@@ -346,17 +400,15 @@ class SlideSupervisedDataset(WSIDataset):
                  dataset: str = 'CAT',
                  metadata_file_path: str = None,
                  datasets_base_dir_path: str = None,
-                 transform = transforms.Compose([transforms.ToTensor()]),
+                 transform = transforms.Compose([]),
+                 train: bool = True, # controls folds
                  val_fold: int = None,
-                 train: bool = True,
                  slides_manager: SlidesManager = None, 
                  **kw: object):
         self._transform = transform
         self._target = BioMarker[target]
         self._train = train
         self._bag_size = bag_size
-        assert self._bag_size<=min_tiles, "bag size needs to be smaller than min_tiles"
-        assert train or bags_per_slide==1, "since validation/test behaviour is constant, more than 1 bag per slide on validation is meaningless"
         super().__init__(instances_per_slide=bags_per_slide,
                          slides_manager=slides_manager,
                          target=target, 
@@ -371,20 +423,23 @@ class SlideSupervisedDataset(WSIDataset):
                          val_fold=val_fold,
                          train=train,
                          **kw)
-        self.patch_extractor_constructor = self.patch_extractor_constructor_train if train else self.patch_extractor_constructor_test
-
+    
+    @abstractmethod
     def __getitem__(self, item: int):
-
-        slide = self._slides_manager.get_slide(item % self.num_slides)
+        pass
         
-        patch_extractor = self.patch_extractor_constructor(slide=slide)
-        patch = patch_extractor.extract_patch(patch_validators=[])
-        bag_item = self._transform(patch.image)
-        bag = torch.zeros((self._bag_size, *bag_item.size()))
+    def get_bag(self, item: int):
+        slide = self._slides_manager.get_slide(item % self.num_slides)
+        slide_name = slide.slide_context.image_file_name_stem
+        self.patch_extractor = self.patch_extractor_constructor(slide=slide)
+        patch, center_pixel = self.patch_extractor.extract_patch(patch_validators=[])
+        bag_item = transforms.ToTensor()(patch.image)
+        bag_shape = (self._bag_size, *bag_item.shape)
+        bag = torch.zeros(bag_shape)
         bag[0] = bag_item
         for idx in range(1, self._bag_size):
-            patch = patch_extractor.extract_patch(patch_validators=[])
-            bag_item = self._transform(patch.image)
+            patch, center_pixel = self.patch_extractor.extract_patch(patch_validators=[])
+            bag_item = transforms.ToTensor()(patch.image)
             bag[idx] = bag_item
             
         label = slide.slide_context.get_biomarker_value(bio_marker=self._target)
@@ -393,14 +448,141 @@ class SlideSupervisedDataset(WSIDataset):
         elif label == "Negative":
             label = 0
 
-        return bag, label
+        return {"bag": self._transform(bag), "label": label, "slide_name": slide_name}
     
-    def patch_extractor_constructor_train(slide: Slide = None):
-        RandomPatchExtractor(slide)
-        
-    def patch_extractor_constructor_test(slide: Slide = None):
-        StridedPatchExtractor(slide, self._bag_size)
-        
+
+class SlideRandomDataset(SlideDataset):
+
+    def __init__(self, 
+                 bags_per_slide: int = 1,
+                 target: str = 'ER', 
+                 tile_size: int = 256, #TODO: make this useful through patch extraction
+                 desired_mpp: float = 1.0, #TODO: make this useful through patch extraction
+                 bag_size: int = 100,
+                 metadata_at_magnification: int = 10,
+                 min_tiles: int = 100,
+                 dataset: str = 'CAT',
+                 metadata_file_path: str = None,
+                 datasets_base_dir_path: str = None,
+                 transform = transforms.Compose([]),
+                 train: bool = True, # controls folds
+                 val_fold: int = None,
+                 slides_manager: SlidesManager = None, 
+                 **kw: object):
+        self._transform = transform
+        self._target = BioMarker[target]
+        self._train = train
+        self._bag_size = bag_size
+        super().__init__(bags_per_slide=bags_per_slide,
+                         slides_manager=slides_manager,
+                         target=target, 
+                         tile_size=tile_size, #TODO: make this useful through patch extraction
+                         desired_mpp=desired_mpp, #TODO: make this useful through patch extraction
+                         bag_size=bag_size,
+                         metadata_at_magnification=metadata_at_magnification,
+                         min_tiles=min_tiles,
+                         dataset=dataset,
+                         metadata_file_path=metadata_file_path,
+                         datasets_base_dir_path=datasets_base_dir_path,
+                         transform=transform,
+                         val_fold=val_fold,
+                         train=train,
+                         **kw)
+
+    def __getitem__(self, item: int):
+        return self.get_bag(item)
+
+    def patch_extractor_constructor(self, slide: Slide = None):
+        return RandomPatchExtractor(slide)
+
+
+class SlideStridedDataset(SlideDataset):
+
+    def __init__(self, 
+                 target: str = 'ER', 
+                 tile_size: int = 256, #TODO: make this useful through patch extraction
+                 desired_mpp: float = 1.0, #TODO: make this useful through patch extraction
+                 bag_size: int = 100,
+                 metadata_at_magnification: int = 10,
+                 min_tiles: int = 100,
+                 dataset: str = 'CAT',
+                 metadata_file_path: str = None,
+                 datasets_base_dir_path: str = None,
+                 transform = transforms.Compose([]),
+                 train: bool = True, # controls folds
+                 val_fold: int = None,
+                 slides_manager: SlidesManager = None, 
+                 **kw: object):
+        self._transform = transform
+        self._target = BioMarker[target]
+        self._train = train
+        self._bag_size = bag_size
+        super().__init__(bags_per_slide=1,
+                         slides_manager=slides_manager,
+                         target=target, 
+                         tile_size=tile_size, #TODO: make this useful through patch extraction
+                         desired_mpp=desired_mpp, #TODO: make this useful through patch extraction
+                         bag_size=bag_size,
+                         metadata_at_magnification=metadata_at_magnification,
+                         min_tiles=min_tiles,
+                         dataset=dataset,
+                         metadata_file_path=metadata_file_path,
+                         datasets_base_dir_path=datasets_base_dir_path,
+                         transform=transform,
+                         val_fold=val_fold,
+                         train=train,
+                         **kw)
+
+    def __getitem__(self, item: int):
+        return self.get_bag(item)
+
+    def patch_extractor_constructor(self, slide: Slide = None):
+        return StridedPatchExtractor(slide, self._bag_size)
+
+
+class SlideGridDataset(SlideDataset):
+
+    def __init__(self, 
+                 bags_per_slide: int = 1,
+                 side_length=3,
+                 target: str = 'ER', 
+                 tile_size: int = 256, #TODO: make this useful through patch extraction
+                 desired_mpp: float = 1.0, #TODO: make this useful through patch extraction
+                 metadata_at_magnification: int = 10,
+                 min_tiles: int = 100,
+                 dataset: str = 'CAT',
+                 metadata_file_path: str = None,
+                 datasets_base_dir_path: str = None,
+                 transform = transforms.Compose([]),
+                 train: bool = True, # controls folds
+                 val_fold: int = None,
+                 slides_manager: SlidesManager = None, 
+                 **kw: object):
+        super().__init__(bags_per_slide=bags_per_slide,
+                         slides_manager=slides_manager,
+                         target=target, 
+                         tile_size=tile_size, #TODO: make this useful through patch extraction
+                         desired_mpp=desired_mpp, #TODO: make this useful through patch extraction
+                         bag_size=side_length ** 2,
+                         metadata_at_magnification=metadata_at_magnification,
+                         min_tiles=min_tiles,
+                         dataset=dataset,
+                         metadata_file_path=metadata_file_path,
+                         datasets_base_dir_path=datasets_base_dir_path,
+                         transform=transform,
+                         val_fold=val_fold,
+                         train=train,
+                         **kw)
+        self._transform = transform
+        self._target = BioMarker[target]
+        self._train = train
+        self._side_length = side_length
+
+    def __getitem__(self, item: int):
+        return self.get_bag(item)
+
+    def patch_extractor_constructor(self, slide: Slide = None):
+        return GridPatchExtractor(slide, self._side_length)
 
 # =================================================
 # WSIMultiProcessingDataset Class
@@ -456,7 +638,7 @@ class SingleTargetValidationDataset(WSIDataset, FiniteOnlineParallelProcessor):
         slide = self._slides_manager.get_slide_by_tile(tile=tile)
         patch_images.append(tile.image)
         label = slide.slide_context.get_biomarker_value(bio_marker=self._bio_marker)
-        images_tuplet = numpy.transpose(numpy.stack(patch_images), (0, 3, 1, 2))
+        images_tuplet = np.transpose(np.stack(patch_images), (0, 3, 1, 2))
 
         return {
             'input': images_tuplet,
@@ -525,19 +707,19 @@ class SSLDataset(WSIDataset, InfiniteOnlineParallelProcessor):
         #     if anchor_patch is None:
         #         continue
         #
-        #     patch_images.append(numpy.array(anchor_patch.image))
+        #     patch_images.append(np.array(anchor_patch.image))
         #
         #     patch_extractor = ProximatePatchExtractor(slide=slide, reference_patch=anchor_patch, inner_radius_mm=self._inner_radius_mm)
         #     positive_patch = patch_extractor.extract_patch(patch_validators=[])
         #     if positive_patch is None:
         #         continue
         #
-        #     patch_images.append(numpy.array(positive_patch.image))
+        #     patch_images.append(np.array(positive_patch.image))
         #
         #     # for i in range(negative_examples_count):
         #     #     pass
         #
-        #     images_tuplet = numpy.transpose(numpy.stack(patch_images), (0, 3, 1, 2))
+        #     images_tuplet = np.transpose(np.stack(patch_images), (0, 3, 1, 2))
         #     return images_tuplet
 
     def _add_shared_objects(self, namespace: multiprocessing.managers.Namespace):
@@ -547,8 +729,8 @@ class SSLDataset(WSIDataset, InfiniteOnlineParallelProcessor):
     @staticmethod
     def _validate_histogram(patch: Patch) -> bool:
         patch_grayscale = patch.image.convert('L')
-        hist, _ = numpy.histogram(a=patch_grayscale, bins=patch.slide_context.tile_size)
-        white_ratio = numpy.sum(hist[SSLDataset._white_intensity_threshold:]) / (patch.slide_context.tile_size * patch.slide_context.tile_size)
+        hist, _ = np.histogram(a=patch_grayscale, bins=patch.slide_context.tile_size)
+        white_ratio = np.sum(hist[SSLDataset._white_intensity_threshold:]) / (patch.slide_context.tile_size * patch.slide_context.tile_size)
         if white_ratio > SSLDataset._white_ratio_threshold:
             return False
         return True

@@ -15,7 +15,7 @@ import h5py
 import pandas
 
 # numpy
-import numpy
+import numpy as np
 
 # openslide
 # OPENSLIDE_PATH = r'C:\openslide-win64-20220811\bin'
@@ -140,6 +140,14 @@ class SlideContext:
     @property
     def zero_level_half_tile_size(self) -> int:
         return self._zero_level_tile_size // 2
+    
+    @property
+    def zero_level_tile_size_x_offset(self) -> int:
+        return np.array([self._zero_level_tile_size, 0])
+    
+    @property
+    def zero_level_tile_size_y_offset(self) -> int:
+        return np.array([0, self._zero_level_tile_size])
 
     @property
     def orig_mpp(self) -> float:
@@ -165,16 +173,16 @@ class SlideContext:
         pixels = int(mm / (self._curr_mpp / 1000))
         return pixels
 
-    def pixels_to_locations(self, pixels: numpy.ndarray) -> numpy.ndarray:
-        return (pixels / self._zero_level_tile_size).astype(numpy.int64)
+    def pixels_to_locations(self, pixels: np.ndarray) -> np.ndarray:
+        return (pixels / self._zero_level_tile_size).astype(np.int64)
 
-    def locations_to_pixels(self, locations: numpy.ndarray) -> numpy.ndarray:
-        return (locations * self._zero_level_tile_size).astype(numpy.int64)
+    def locations_to_pixels(self, locations: np.ndarray) -> np.ndarray:
+        return (locations * self._zero_level_tile_size).astype(np.int64)
 
-    def read_region_around_pixel(self, pixel: numpy.ndarray) -> Image:
+    def read_region_around_pixel(self, pixel: np.ndarray) -> Image:
         return self._read_region_around_pixel_h5(pixel=pixel)
 
-    def _read_region_around_pixel_openslide(self, pixel: numpy.ndarray) -> Image:
+    def _read_region_around_pixel_openslide(self, pixel: np.ndarray) -> Image:
         pass
         # slide = openslide.open_slide(self._image_file_path)
         # level, level_downsample = self._get_best_level_for_downsample(slide=slide)
@@ -185,25 +193,25 @@ class SlideContext:
         #     region = region.resize((self.tile_size, self.tile_size))
         # return region
 
-    def _np_to_h5_key(self, coords: numpy.ndarray) -> str:
+    def _np_to_h5_key(self, coords: np.ndarray) -> str:
         coords = coords.astype(int)
         key = str((coords[0], coords[1]))
         return key
 
     # TODO enable larger sample & sample at other mpp.
-    def _read_region_around_pixel_h5(self, pixel: numpy.ndarray) -> Image:
+    def _read_region_around_pixel_h5(self, pixel: np.ndarray) -> Image:
         pixel = pixel // self._downsample_from_orig
         pixel = pixel.flatten()
-        pixel = numpy.array([pixel[0], pixel[1]])
+        pixel = np.array([pixel[0], pixel[1]])
         with h5py.File(f'{self._image_file_path}.h5', "r") as file:
             tile_size = self._tile_size
-            x_offset = numpy.array([tile_size, 0])
-            y_offset = numpy.array([0, tile_size])
+            x_offset = np.array([tile_size, 0])
+            y_offset = np.array([0, tile_size])
             top_left_pixel = (pixel - 1 / 2 * (x_offset + y_offset)).astype(int)
             local_coords = (top_left_pixel % tile_size)
             top_left_coords = top_left_pixel - local_coords
 
-            image = numpy.zeros((self._tile_size, self._tile_size, self._color_channels))
+            image = np.zeros((self._tile_size, self._tile_size, self._color_channels))
 
             if self._np_to_h5_key(top_left_coords) in file["tiles"].keys():
                 image[:(self._tile_size - local_coords[0]), :(self._tile_size - local_coords[1]), :] = file["tiles"][self._np_to_h5_key(top_left_coords)]["array"][local_coords[0]:, local_coords[1]:, :]
@@ -226,7 +234,7 @@ class SlideContext:
                 print(f"took blank part of patch since {top_left_coords + x_offset + y_offset} didn't correspond to valid patch")
 
 
-        return numpy.squeeze(image.astype('float32'))
+        return np.squeeze(image.astype('float32'))
 
     def get_biomarker_value(self, bio_marker: BioMarker) -> bool:
         if bio_marker is BioMarker.ER:
@@ -274,7 +282,7 @@ class SlideElement(SeedableObject):
 class Patch(SlideElement):
     # __slots__ = ['_center_pixel', '_image']
 
-    def __init__(self, slide_context: SlideContext, center_pixel: numpy.ndarray):
+    def __init__(self, slide_context: SlideContext, center_pixel: np.ndarray):
         super().__init__(slide_context=slide_context)
         self._center_pixel = center_pixel
         self._image = None
@@ -289,13 +297,13 @@ class Patch(SlideElement):
         return self._image
 
     @property
-    def center_pixel(self) -> numpy.ndarray:
+    def center_pixel(self) -> np.ndarray:
         return self._center_pixel
 
     # def get_white_ratio(self, white_intensity_threshold: int) -> float:
     #     patch_grayscale = self._image.convert('L')
-    #     hist, _ = numpy.histogram(a=patch_grayscale, bins=self._slide_context.tile_size)
-    #     white_ratio = numpy.sum(hist[white_intensity_threshold:]) / (self._slide_context.tile_size * self._slide_context.tile_size)
+    #     hist, _ = np.histogram(a=patch_grayscale, bins=self._slide_context.tile_size)
+    #     white_ratio = np.sum(hist[white_intensity_threshold:]) / (self._slide_context.tile_size * self._slide_context.tile_size)
     #     return white_ratio
 
 
@@ -305,8 +313,8 @@ class Patch(SlideElement):
 class Tile(Patch):
     # __slots__ = ['_location', '_top_left_pixel', '_center_pixel']
 
-    def __init__(self, slide_context: SlideContext, location: numpy.ndarray):
-        self._location = location.astype(numpy.int64)
+    def __init__(self, slide_context: SlideContext, location: np.ndarray):
+        self._location = location.astype(np.int64)
         self._top_left_pixel = slide_context.locations_to_pixels(locations=location)
         self._center_pixel = self._top_left_pixel + slide_context.zero_level_half_tile_size
         super().__init__(slide_context=slide_context, center_pixel=self._center_pixel)
@@ -321,19 +329,19 @@ class Tile(Patch):
         return not(self == other)
 
     @property
-    def tile_location(self) -> numpy.ndarray:
+    def tile_location(self) -> np.ndarray:
         return self._location
 
     @property
-    def center_pixel(self) -> numpy.ndarray:
+    def center_pixel(self) -> np.ndarray:
         return self._center_pixel
 
     @property
-    def top_left_pixel(self) -> numpy.ndarray:
+    def top_left_pixel(self) -> np.ndarray:
         return self._top_left_pixel
 
-    def get_random_pixel(self) -> numpy.ndarray:
-        offset = (self._slide_context.zero_level_half_tile_size * numpy.random.uniform(size=2)).astype(numpy.int64)
+    def get_random_pixel(self) -> np.ndarray:
+        offset = (self._slide_context.zero_level_half_tile_size * np.random.uniform(size=2)).astype(np.int64)
         pixel = self._center_pixel + offset
         return pixel
 
@@ -351,7 +359,7 @@ class TilesManager(ABC, SlideElement):
     location_y = 'location_y'
     is_interior = 'is_interior'
 
-    def __init__(self, slide_context: SlideContext, pixels: Optional[numpy.array]):
+    def __init__(self, slide_context: SlideContext, pixels: Optional[np.array]):
         super().__init__(slide_context=slide_context)
 
         self._tiles_df = self._create_tiles_dataframe(pixels=pixels)
@@ -418,15 +426,15 @@ class TilesManager(ABC, SlideElement):
         tile_index = self._rng.integers(low=0, high=self.interior_tiles_count)
         return self.get_interior_tile(tile_index=tile_index)
 
-    def get_random_pixel(self) -> numpy.ndarray:
+    def get_random_pixel(self) -> np.ndarray:
         tile = self.get_random_tile()
         return tile.get_random_pixel()
 
-    def get_random_interior_pixel(self) -> numpy.ndarray:
+    def get_random_interior_pixel(self) -> np.ndarray:
         tile = self.get_random_interior_tile()
         return tile.get_random_pixel()
 
-    def get_tile_at_pixel(self, pixel: numpy.ndarray) -> Optional[Tile]:
+    def get_tile_at_pixel(self, pixel: np.ndarray) -> Optional[Tile]:
         location = self._slide_context.pixels_to_locations(pixels=pixel)
         row = self._tiles_df.loc[(self._tiles_df[TilesManager.pixel_x] == location[0]) & (self._tiles_df[TilesManager.pixel_y] == location[1])]
         return self._location_to_tile.get(location.tobytes())
@@ -434,7 +442,7 @@ class TilesManager(ABC, SlideElement):
     def is_interior_tile(self, tile: Tile) -> bool:
         for i in range(3):
             for j in range(3):
-                current_tile_location = tile.tile_location + numpy.array([i, j])
+                current_tile_location = tile.tile_location + np.array([i, j])
                 if not self._is_valid_tile_location(tile_location=current_tile_location):
                     return False
         return True
@@ -443,7 +451,7 @@ class TilesManager(ABC, SlideElement):
         return self._tiles_df.loc[self._tiles_df[TilesManager.is_interior] == 1]
 
     @staticmethod
-    def _locations_to_bytes_list(locations: numpy.ndarray) -> List[bytes]:
+    def _locations_to_bytes_list(locations: np.ndarray) -> List[bytes]:
         bytes_list = []
         for location in locations:
             bytes_list.append(location.tobytes())
@@ -451,18 +459,18 @@ class TilesManager(ABC, SlideElement):
         return bytes_list
 
     @staticmethod
-    def _is_interior_location(location: numpy.ndarray, locations_bytes_list: List[bytes]) -> bool:
+    def _is_interior_location(location: np.ndarray, locations_bytes_list: List[bytes]) -> bool:
         for i in range(3):
             for j in range(3):
-                adjacent_location = location + numpy.array([i, j])
+                adjacent_location = location + np.array([i, j])
                 if adjacent_location.tobytes() not in locations_bytes_list:
                     return False
 
         return True
 
     @staticmethod
-    def _flag_interior_locations(locations: numpy.ndarray) -> numpy.ndarray:
-        interior_location_flags = numpy.zeros(shape=locations.shape[0])
+    def _flag_interior_locations(locations: np.ndarray) -> np.ndarray:
+        interior_location_flags = np.zeros(shape=locations.shape[0])
         locations_bytes_list = TilesManager._locations_to_bytes_list(locations=locations)
         for index, location in enumerate(locations):
             interior_location_flags[index] = TilesManager._is_interior_location(location=location, locations_bytes_list=locations_bytes_list)
@@ -470,26 +478,26 @@ class TilesManager(ABC, SlideElement):
         return interior_location_flags
 
     @staticmethod
-    def _get_locations_from_dataframe(df: pandas.DataFrame) -> numpy.ndarray:
+    def _get_locations_from_dataframe(df: pandas.DataFrame) -> np.ndarray:
         return df[[TilesManager.location_x, TilesManager.location_y]].to_numpy()
 
-    def _tiles_from_locations(self, locations: numpy.ndarray) -> List[Tile]:
+    def _tiles_from_locations(self, locations: np.ndarray) -> List[Tile]:
         return [Tile(slide_context=self._slide_context, location=locations[i]) for i in range(locations.shape[0])]
 
-    def _create_tiles_dataframe(self, pixels: Optional[numpy.ndarray]) -> pandas.DataFrame:
+    def _create_tiles_dataframe(self, pixels: Optional[np.ndarray]) -> pandas.DataFrame:
         if pixels is None:
             pixels = self._load_pixels()
 
         locations = self._slide_context.pixels_to_locations(pixels=pixels)
         interior_locations_flags = TilesManager._flag_interior_locations(locations=locations)
-        interior_locations_flags = numpy.expand_dims(interior_locations_flags, axis=1)
-        tile_indices = numpy.array(list(range(locations.shape[0])))
-        tile_indices = numpy.expand_dims(tile_indices, axis=1)
-        data = numpy.concatenate((tile_indices, pixels, locations, interior_locations_flags), axis=1).astype(numpy.int32)
+        interior_locations_flags = np.expand_dims(interior_locations_flags, axis=1)
+        tile_indices = np.array(list(range(locations.shape[0])))
+        tile_indices = np.expand_dims(tile_indices, axis=1)
+        data = np.concatenate((tile_indices, pixels, locations, interior_locations_flags), axis=1).astype(np.int32)
         tiles_df = pandas.DataFrame(data=data, columns=[TilesManager.tile_index, TilesManager.pixel_x, TilesManager.pixel_y, TilesManager.location_x, TilesManager.location_y, TilesManager.is_interior])
         return tiles_df
 
-    def _load_pixels(self) -> numpy.ndarray:
+    def _load_pixels(self) -> np.ndarray:
         with h5py.File(f'{self._slide_context._image_file_path}.h5', "r") as file_handle:
             pixels = file_handle["segmentation_pixels"][...]
             pixels[:, 0], pixels[:, 1] = pixels[:, 1], pixels[:, 0].copy()
@@ -517,16 +525,16 @@ class TilesManager(ABC, SlideElement):
     #
     #     return tiles_dict
 
-    def _is_valid_tile_location(self, tile_location: numpy.ndarray) -> bool:
+    def _is_valid_tile_location(self, tile_location: np.ndarray) -> bool:
         if tile_location.tobytes() in self._location_to_tile:
             return True
         return False
 
-    # def _pixels_to_locations(self, pixels: numpy.ndarray) -> numpy.ndarray:
-    #     return (pixels / self._slide_context.zero_level_tile_size).astype(numpy.int64)
+    # def _pixels_to_locations(self, pixels: np.ndarray) -> np.ndarray:
+    #     return (pixels / self._slide_context.zero_level_tile_size).astype(np.int64)
     #
-    # def _locations_to_pixels(self, locations: numpy.ndarray) -> numpy.ndarray:
-    #     return (locations * self._slide_context.zero_level_tile_size).astype(numpy.int64)
+    # def _locations_to_pixels(self, locations: np.ndarray) -> np.ndarray:
+    #     return (locations * self._slide_context.zero_level_tile_size).astype(np.int64)
 
 
 # =================================================
@@ -535,17 +543,17 @@ class TilesManager(ABC, SlideElement):
 class ConnectedComponent(TilesManager):
     # __slots__ = ['_top_left_tile_location', '_bottom_right_tile_location']
 
-    def __init__(self, slide_context: SlideContext, pixels: numpy.ndarray):
+    def __init__(self, slide_context: SlideContext, pixels: np.ndarray):
         super().__init__(slide_context=slide_context, pixels=pixels)
-        self._top_left_tile_location = numpy.array([numpy.min(self._locations[:, 0]), numpy.min(self._locations[:, 1])])
-        self._bottom_right_tile_location = numpy.array([numpy.max(self._locations[:, 0]), numpy.max(self._locations[:, 1])])
+        self._top_left_tile_location = np.array([np.min(self._locations[:, 0]), np.min(self._locations[:, 1])])
+        self._bottom_right_tile_location = np.array([np.max(self._locations[:, 0]), np.max(self._locations[:, 1])])
 
     @property
-    def top_left_tile_location(self) -> numpy.ndarray:
+    def top_left_tile_location(self) -> np.ndarray:
         return self._top_left_tile_location
 
     @property
-    def bottom_right_tile_location(self) -> numpy.ndarray:
+    def bottom_right_tile_location(self) -> np.ndarray:
         return self._bottom_right_tile_location
 
     def calculate_bounding_box_aspect_ratio(self):
@@ -574,23 +582,23 @@ class Slide(TilesManager):
         return self._components[component_index]
 
     def get_random_component(self) -> ConnectedComponent:
-        component_index = int(numpy.random.randint(len(self._components), size=1))
+        component_index = int(np.random.randint(len(self._components), size=1))
         return self.get_component(component_index=component_index)
 
-    def get_component_at_pixel(self, pixel: numpy.ndarray) -> Optional[ConnectedComponent]:
-        tile_location = (pixel / self._slide_context.zero_level_tile_size).astype(numpy.int64)
+    def get_component_at_pixel(self, pixel: np.ndarray) -> Optional[ConnectedComponent]:
+        tile_location = (pixel / self._slide_context.zero_level_tile_size).astype(np.int64)
         return self._location_to_tile.get(tile_location.tobytes())
 
     def _create_bitmap(self, plot_bitmap: bool = False) -> Image:
-        # indices = (numpy.array(self._locations) / self._slide_context.zero_level_tile_size).astype(int)
+        # indices = (np.array(self._locations) / self._slide_context.zero_level_tile_size).astype(int)
         dim1_size = self._locations[:, 0].max() + 1
         dim2_size = self._locations[:, 1].max() + 1
-        bitmap = numpy.zeros([dim1_size, dim2_size]).astype(int)
+        bitmap = np.zeros([dim1_size, dim2_size]).astype(int)
 
         for (x, y) in self._locations:
             bitmap[x, y] = 1
 
-        bitmap = numpy.uint8(Image.fromarray((bitmap * 255).astype(numpy.uint8)))
+        bitmap = np.uint8(Image.fromarray((bitmap * 255).astype(np.uint8)))
 
         if plot_bitmap is True:
             plt.imshow(bitmap, cmap='gray')
@@ -598,9 +606,9 @@ class Slide(TilesManager):
 
         return bitmap
 
-    def _create_connected_component_from_bitmap(self, bitmap: numpy.ndarray) -> ConnectedComponent:
-        valid_tile_indices = numpy.where(bitmap)
-        locations = numpy.array([valid_tile_indices[0], valid_tile_indices[1]]).transpose()
+    def _create_connected_component_from_bitmap(self, bitmap: np.ndarray) -> ConnectedComponent:
+        valid_tile_indices = np.where(bitmap)
+        locations = np.array([valid_tile_indices[0], valid_tile_indices[1]]).transpose()
         pixels = self._slide_context.locations_to_pixels(locations=locations)
         return ConnectedComponent(slide_context=self._slide_context, pixels=pixels)
 
@@ -621,7 +629,7 @@ class Slide(TilesManager):
         for component in components_sorted[1:]:
             current_aspect_ratio = component.calculate_bounding_box_aspect_ratio()
             current_component_size = component.tiles_count
-            if (numpy.abs(largest_component_aspect_ratio - current_aspect_ratio) < self._max_aspect_ratio_diff) and ((current_component_size / largest_component_size) > self._min_component_ratio):
+            if (np.abs(largest_component_aspect_ratio - current_aspect_ratio) < self._max_aspect_ratio_diff) and ((current_component_size / largest_component_size) > self._min_component_ratio):
                 valid_components.append(component)
 
         return valid_components
@@ -636,7 +644,7 @@ class PatchExtractor(ABC):
         self._max_attempts = max_attempts
 
     @abstractmethod
-    def _extract_center_pixel(self) -> Optional[numpy.ndarray]:
+    def _extract_center_pixel(self) -> Optional[np.ndarray]:
         pass
 
     def extract_patch(self, patch_validators: List[Callable[[Patch], bool]]) -> Optional[Patch]:
@@ -659,7 +667,7 @@ class PatchExtractor(ABC):
                 attempts = attempts + 1
                 continue
 
-            return patch
+            return patch, center_pixel
         return None
 
 
@@ -670,7 +678,7 @@ class RandomPatchExtractor(PatchExtractor):
     def __init__(self, slide: Slide):
         super().__init__(slide=slide)
 
-    def _extract_center_pixel(self) -> Optional[numpy.ndarray]:
+    def _extract_center_pixel(self) -> Optional[np.ndarray]:
         tile = self._slide.get_random_interior_tile()
         pixel = tile.get_random_pixel()
         return pixel
@@ -680,18 +688,50 @@ class RandomPatchExtractor(PatchExtractor):
 # =================================================
 class StridedPatchExtractor(PatchExtractor):
     def __init__(self, slide: Slide, num_patches):
+        super().__init__(slide=slide)
         self._num_patches = num_patches
         self._patches_so_far = 0
-        self._stride = slide._legitimate_tiles_count // self._num_patches
-        super().__init__(slide=slide)
+        self._stride = max(self._slide.interior_tiles_count // self._num_patches, 1)
     
-    def _extract_center_pixel(self) -> Optional[numpy.ndarray]:
+    def _extract_center_pixel(self) -> Optional[np.ndarray]:
         if(self._patches_so_far >= self._num_patches):
             raise Exception
         self._patches_so_far = self._patches_so_far + 1
-        self._slide.get_interior_tile(self._stride * self._patches_so_far)
-        pixel = tile.center_pixel()
+        tile = self._slide.get_interior_tile((self._stride * self._patches_so_far) % self._slide.interior_tiles_count)
+        pixel = tile.center_pixel
         return pixel
+    
+# =================================================
+# SerialPatchExtractor Class
+# =================================================
+class SerialPatchExtractor(StridedPatchExtractor):
+    def __init__(self, slide: Slide):
+        super().__init__(slide=slide, num_patches=slide.tiles_count)
+        
+# =================================================
+# GridPatchExtractor Class
+# =================================================
+class GridPatchExtractor(PatchExtractor):
+    def __init__(self, slide: Slide, side_length):
+        super().__init__(slide=slide)
+        self._num_patches = side_length ** 2
+        self._side_length = side_length
+        self._patches_so_far = 0
+        self._pixels_to_extract = np.zeros((self._num_patches, 2))
+        tile = self._slide.get_random_interior_tile()
+        center_pixel = tile.center_pixel
+        top_left_pixel = center_pixel - (tile._slide_context.zero_level_half_tile_size * self._side_length)
+        for i in range(self._side_length):
+            for j in range(self._side_length):
+               self._pixels_to_extract[j * self._side_length + i] = top_left_pixel + \
+                                                                    tile._slide_context.zero_level_tile_size_x_offset * j + \
+                                                                    tile._slide_context.zero_level_tile_size_y_offset * i
+    
+    def _extract_center_pixel(self) -> Optional[np.ndarray]:
+        if(self._patches_so_far >= self._num_patches):
+            raise Exception
+        self._patches_so_far += 1
+        return self._pixels_to_extract[self._patches_so_far - 1]
 
 # =================================================
 # ProximatePatchExtractor Class
@@ -705,10 +745,10 @@ class ProximatePatchExtractor(PatchExtractor):
         self._inner_radius_mm = inner_radius_mm
         self._inner_radius_pixels = self._slide.slide_context.mm_to_pixels(mm=inner_radius_mm)
 
-    def _extract_center_pixel(self) -> Optional[numpy.ndarray]:
+    def _extract_center_pixel(self) -> Optional[np.ndarray]:
         pixel = self._reference_patch.center_pixel
-        angle = 2 * numpy.pi * numpy.random.uniform(size=1)[0]
-        direction = numpy.array([numpy.cos(angle), numpy.sin(angle)])
+        angle = 2 * np.pi * np.random.uniform(size=1)[0]
+        direction = np.array([np.cos(angle), np.sin(angle)])
         proximate_pixel = (pixel + self._inner_radius_pixels * direction).astype(int)
         tile = self._slide.get_tile_at_pixel(pixel=proximate_pixel)
         if (tile is not None) and self._slide.is_interior_tile(tile=cast(Tile, tile)):
