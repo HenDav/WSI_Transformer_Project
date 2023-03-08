@@ -1206,7 +1206,7 @@ class Features_MILdataset(Dataset):
         #         raise Exception("Need to write which dictionaries to use in this receptor case")
 
         if sys.platform == 'linux':
-            if dataset in ['TCGA_ABCTB', 'CAT->TA 6', 'TCGA_ABCTB->TA 6']:
+            if dataset in ['TCGA_ABCTB']:
                 if target in ['ER', 'ER_Features', 'PR', 'PR_Features', 'Her2', 'Her2_Features']:  
                     # target in ['PR', 'PR_Features', 'Her2', 'Her2_Features'] and test_fold == 1):
                     grid_location_dict = {
@@ -1268,7 +1268,7 @@ class Features_MILdataset(Dataset):
                     for i in range(1, 9)
                 })
 
-            elif dataset in ['HAEMEK', 'HAEMEK_finetuned', 'HAEMEK_transfer']:
+            elif dataset in ['HAEMEK']:
                 grid_location_dict = {
                     'HAEMEK':
                     r'/mnt/gipmed_new/Data/Breast/Haemek/Batch_1/HAEMEK1/Grids_10/Grid_data.xlsx'
