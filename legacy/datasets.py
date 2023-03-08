@@ -1207,11 +1207,9 @@ class Features_MILdataset(Dataset):
         #         raise Exception("Need to write which dictionaries to use in this receptor case")
 
         if sys.platform == 'linux':
-            if dataset == 'TCGA_ABCTB':
-                if target in ['ER', 'ER_Features'] or (
-                        target
-                        in ['PR', 'PR_Features', 'Her2', 'Her2_Features']
-                ):  # target in ['PR', 'PR_Features', 'Her2', 'Her2_Features'] and test_fold == 1):
+            if dataset in ['TCGA_ABCTB']:
+                if target in ['ER', 'ER_Features', 'PR', 'PR_Features', 'Her2', 'Her2_Features']:  
+                    # target in ['PR', 'PR_Features', 'Her2', 'Her2_Features'] and test_fold == 1):
                     grid_location_dict = {
                         'TCGA':
                         r'/mnt/gipmed_new/Data/Breast/TCGA/Grids_10/Grid_data.xlsx',
@@ -1271,7 +1269,7 @@ class Features_MILdataset(Dataset):
                     for i in range(1, 9)
                 })
 
-            elif dataset in ['HAEMEK', 'HAEMEK_finetuned', 'HAEMEK_transfer']:
+            elif dataset in ['HAEMEK']:
                 grid_location_dict = {
                     'HAEMEK':
                     r'/mnt/gipmed_new/Data/Breast/Haemek/Batch_1/HAEMEK1/Grids_10/Grid_data.xlsx'
@@ -1351,7 +1349,7 @@ class Features_MILdataset(Dataset):
         if type(data_files) is dict:
             data_files_2 = data_files['is_Tumor']
             data_files = data_files['Receptor']
-
+            
         for file_idx, file in enumerate(tqdm(data_files)):
             with open(file, 'rb') as filehandle:
                 inference_data = pickle.load(filehandle)
