@@ -99,8 +99,8 @@ output_dir, test_fold, dataset, target, model_name, free_bias, CAT_only, is_tumo
     run_data_output['Location'], run_data_output['Test Fold'], run_data_output['Dataset Name'], run_data_output['Receptor'],\
     run_data_output['Model Name'], run_data_output['Free Bias'], run_data_output['CAT Only'], run_data_output['Receptor + is_Tumor Train Mode']
 
-#if 'self-supervised-pathology' in output_dir:
-#    output_dir = output_dir.replace('self-supervised-pathology', 'wsi/legacy')
+if 'self-supervised-pathology' in output_dir:
+    output_dir = output_dir.replace('self-supervised-pathology', 'wsi/legacy')
 
 if sys.platform == 'darwin':
     # fix output_dir:
@@ -210,7 +210,7 @@ if args.haemek_test_set:
         dset = 'HAEMEK' # Implicitly CAT->HAEMEK
 
 if args.TA_test_set:
-    if args.experiment in [30069, 30076, 30077]:
+    if args.experiment in list(range(30065,30070)) + list(range(30071,30074)) + list(range(30075, 30082)):
         dset = 'CAT->TA 6'
     elif args.experiment in [30089, 30087, 30086]:
         dset = 'TCGA_ABCTB->TA 6'
@@ -260,6 +260,7 @@ elif args.haemek_test_set:
     key = 'HAEMEK'
 elif args.TA_test_set:
     key = 'TA_fold6'
+    dset = 'TCGA_ABCTB'
 
 else:
     key = ''
