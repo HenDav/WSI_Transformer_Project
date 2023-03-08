@@ -58,6 +58,10 @@ parser.add_argument('--TA_test_set',
                     dest='TA_test_set',
                     action='store_true',
                     help='run inference over TA fold 6 ?')
+parser.add_argument('--hic_test_set',
+                    dest='hic_test_set',
+                    action='store_true',
+                    help='run inference over hic ?')
 #parser.add_argument('-nt', '--num_tiles', type=int, default=500, help='Number of tiles to use')
 #parser.add_argument('-ds', '--dataset', type=str, default='HEROHE', help='DataSet to use')
 #parser.add_argument('-f', '--folds', type=list, default=[2], help=' folds to infer')
@@ -210,6 +214,14 @@ if args.TA_test_set:
     if args.experiment in [30069]:
         dset = 'CAT->TA 6'
         
+if args.hic_test_set:
+    if args.experiment in [30086, 30087, 30089] + list(range(30093, 30105)) + [40072]:
+        dset = 'TCGA_ABCTB->hic'
+    elif args.experiment in [40068,40067]:
+        dset = 'CARMEL->hic'
+    else:
+        dset = 'HIC' # Implicitly CAT->HIC
+
 if dset == None:
     raise Exception('Dataset must be chosen')
 
@@ -232,6 +244,8 @@ carmel_only = False
 '''
 if args.haemek_test_set:
     dset = 'HAEMEK'
+if args.hic_test_set:
+    dset = 'HIC'
 if args.carmel_test_set:
     if dset == 'CARMEL 9-11':
         if args.batch not in [9, 10, 11]:
@@ -253,7 +267,8 @@ if args.carmel_test_set:
 
 elif args.haemek_test_set:
     key = 'HAEMEK'
-
+elif args.hic_test_set:
+    key = 'HIC'
 else:
     key = ''
 
@@ -310,7 +325,7 @@ inf_loader = DataLoader(inf_dset,
                         pin_memory=True)
 
 #if not (args.carmel_test_set or args.haemek_test_set):
-if dset not in ['CARMEL 9-11', 'HAEMEK']:
+if dset not in ['CARMEL 9-11', 'HAEMEK', 'HIC']:
     compute_performance = True
     fig1, ax1 = plt.subplots()
     ax1.set_prop_cycle(custom_cycler)

@@ -850,7 +850,7 @@ def send_run_data_via_mail():
         user = 'talneoran'
 
     elif 'dahen' in path_parts:
-        filename = '/home/dahen/WSI_ran_legacy/WSI/legacy/runs/run_data.xlsx'
+        filename = '/home/dahen/WSI_ran_legacy/WSI/runs/run_data.xlsx'
         user = 'dahen'
 
     elif 'shacharcohen' in path_parts:
