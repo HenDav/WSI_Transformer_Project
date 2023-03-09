@@ -1,184 +1,284 @@
-from argparse import ArgumentParser
+import logging
+from typing import Literal, Optional
 
+import pandas as pd
+import timm
 import torch
 import torchmetrics
+import wandb
 from pytorch_lightning import LightningModule
-from torch import nn, optim
-from torchmetrics.functional import auroc
+from pytorch_lightning.loggers import WandbLogger
+from torch import nn
+from torchmetrics.functional import accuracy, auroc
 
 from models.preact_resnet import PreActResNet50
 
 
 class WsiClassifier(LightningModule):
-
-    # TODO: review hyperparams and add to argparser
-    def __init__(self,
-                 lr=0.001,
-                 num_classes=2,
-                 transfer=False,
-                 finetune=False,
-                 freeze=False,
-                 **kwargs):
+    def __init__(
+        self,
+        model: str = "resnet50",
+        lr: float = 0.001,
+        num_classes: int = 2,
+        ckpt_path: Optional[str] = None,
+        imagenet_pretrained: bool = False,
+        finetune: bool = False,
+        criterion: Literal["crossentropy"] = "crossentropy",
+        log_params: bool = False,
+        **kwargs,
+    ):
+        """
+        Args:
+            model: backbone model, either a timm model or "preact_resnet50"
+            lr: learning rate
+            num_classes: number of target classes
+            ckpt_path: path to pretrained backbone checkpoint
+            imagenet_pretrained: use imagenet pretrained weights for the backbone
+            finetune: whether or not to finetune the backbone
+            criterion: loss function to use
+            log_params: debug: log model parameters and gradients to wandb
+        """
         super().__init__()
 
-        self.finetune = finetune
         self.save_hyperparameters()
 
-        # TODO: configureable loss function
+        self.backbone, self.classifier = self._init_model(
+            model, num_classes, ckpt_path, imagenet_pretrained, finetune
+        )
+
+        # TODO: support for more loss functions, balance weighting, etc
         self.criterion = nn.CrossEntropyLoss()
-
-        self.model = PreActResNet50(num_classes=num_classes)
-
-        if transfer:  # TODO: transfer / freeze / finetune implementations
-            # TODO: loading from different types of checkpoints
-            if freeze:
-                #  TODO: make configurable or based on specific layer list
-                for child in list(self.model.children())[:-1]:
-                    for param in child.parameters():
-                        param.requires_grad = False
-            # self.model.linear = nn.Linear(512 * block.expansion, num_classes)
 
         self.train_acc = torchmetrics.Accuracy()
         self.val_acc = torchmetrics.Accuracy()
 
+        self.log_params = log_params
+
     def forward(self, x):
-        return self.model(x)
+        return self.classifier(self.backbone(x))
+
+    def forward_features(self, x):
+        return self.backbone(x)
+
+    def on_fit_start(self):
+        if self.log_params:
+            self.logger.watch(self, log="all")
 
     def training_step(self, batch, batch_idx):
-        loss, preds, scores, y = self.shared_step(batch)
+        x = batch["patch"]
+        y = batch["label"]
+        loss, preds, scores = self.shared_step(x, y)
 
         self.train_acc(preds, y)
-        self.log("train/loss",
-                 loss,
-                 on_step=True,
-                 on_epoch=True,
-                 prog_bar=True,
-                 logger=True)
-        self.log("train/acc",
-                 self.train_acc,
-                 on_epoch=True,
-                 prog_bar=True,
-                 logger=True)
+        self.log(
+            "train/loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
+        )
+        self.log(
+            "train/patch_acc", self.train_acc, on_epoch=True, prog_bar=True, logger=True
+        )
 
-        return {'loss': loss, 'scores': scores.detach(), 'y': y}
+        return {"loss": loss, "patch_preds": preds, "patch_scores": scores, "y": y}
 
     def training_epoch_end(self, outputs):
-        self.log('train_auc',
-                 auroc(torch.cat([x['scores'] for x in outputs], dim=0),
-                       torch.cat([x['y'] for x in outputs])),
-                 prog_bar=True,
-                 logger=True)
+        scores = torch.cat([x["patch_scores"] for x in outputs], dim=0).detach().cpu()
+        y = torch.cat([x["y"] for x in outputs], dim=0).cpu()
+
+        if self.num_classes == 2:
+            self.log(
+                "train/patch_auc",
+                auroc(scores[:, 1], y, task="binary"),
+                prog_bar=True,
+                logger=True,
+            )
+        else:
+            self.log(
+                "train/patch_auc",
+                auroc(scores, y, task="multiclass"),
+                prog_bar=True,
+                logger=True,
+            )
 
     def validation_step(self, batch, batch_idx):
-        loss, preds, scores, y = self.shared_step(batch)
+        x = batch["bag"]
+        y = batch["label"]
+        slide_name = batch["slide_name"]
+        # patch_coords = batch["center_pixel"]
+        loss, patch_preds, patch_scores = self.shared_step(x, y)
+        patch_labels = y.expand(x.shape[0])
+        slide_score = patch_scores.mean(dim=0)  # of shape [num_classes]
+        slide_pred = slide_score.argmax()
 
-        self.val_acc(preds, y)
+        self.val_acc(patch_preds, y)
         self.log("val/loss", loss, on_epoch=True, prog_bar=True, logger=True)
-        self.log("val/acc",
-                 self.val_acc,
-                 on_epoch=True,
-                 prog_bar=True,
-                 logger=True)
+        self.log(
+            "val/patch_acc", self.val_acc, on_epoch=True, prog_bar=True, logger=True
+        )
 
-        return {'loss': loss, 'scores': scores, 'y': y}
+        return {
+            "loss": loss,
+            "patch_preds": patch_preds,
+            "patch_scores": patch_scores,
+            "patch_labels": patch_labels,
+            "slide_score": slide_score,
+            "slide_pred": slide_pred,
+            "slide_name": slide_name,
+            "slide_label": y,
+        }
 
     def validation_epoch_end(self, outputs):
-        self.log('val/auc',
-                 auroc(torch.cat([x['scores'] for x in outputs], dim=0),
-                       torch.cat([x['y'] for x in outputs])),
-                 prog_bar=True,
-                 logger=True)
+        patch_scores = (
+            torch.cat([x["patch_scores"] for x in outputs], dim=0).detach().cpu()
+        )
+        # patch_preds = (
+        #     torch.cat([x["patch_preds"] for x in outputs], dim=0).detach().cpu()
+        # )
+        patch_labels = torch.cat([x["patch_labels"] for x in outputs], dim=0).cpu()
+        slide_scores = torch.stack([x["slide_score"] for x in outputs]).detch().cpu()
+        slide_preds = torch.stack([x["slide_preds"] for x in outputs]).detch().cpu()
+        slide_names = [x["slide_name"] for x in outputs]
+        slide_labels = torch.stack([x["slide_label"] for x in outputs]).cpu()
+
+        self.log(
+            "val/slide_acc",
+            accuracy(
+                slide_preds,
+                slide_labels,
+                task="multiclass",
+                num_classes=self.num_classes,
+            ),
+            prog_bar=True,
+            logger=True,
+        )
+
+        if self.num_classes > 2:
+            self.log(
+                "val/patch_auc",
+                auroc(patch_scores, patch_labels, task="multiclass"),
+                prog_bar=True,
+                logger=True,
+            )
+            self.log(
+                "val/slide_auc",
+                auroc(slide_scores, slide_labels, task="multiclass"),
+                prog_bar=True,
+                logger=True,
+            )
+            return
+
+        # assume binary classification and use positive class score
+        patch_scores, slide_scores = patch_scores[:, 1], slide_scores[:, 1]
+        self.log(
+            "val/patch_auc",
+            auroc(patch_scores, patch_labels, task="binary"),
+            prog_bar=True,
+            logger=True,
+        )
+        self.log(
+            "val/slide_auc",
+            auroc(slide_scores, slide_labels, task="binary"),
+            prog_bar=True,
+            logger=True,
+        )
+
+        if isinstance(self.logger, WandbLogger):
+            class_names = ["Negative", "Positive"]
+            wandb.log(
+                {
+                    "val/slide_roc": wandb.plot.roc_curve(
+                        slide_labels.unsqueeze(1), slide_scores
+                    )
+                },
+                labels=class_names,
+            )
+
+            df = pd.DataFrame(
+                data={
+                    "slide_name": slide_names,
+                    "score": slide_scores,
+                    "target": slide_labels,
+                }
+            )
+
+            # this also logs the table
+            table = wandb.Table(data=df)
+            wandb.log(
+                {
+                    "val/slide_scores": wandb.plot.histogram(
+                        table, "score", title="Val Slide Scores Histogram"
+                    )
+                }
+            )
+
+            cm = wandb.plot.confusion_matrix(
+                y_true=slide_labels.numpy(),
+                preds=slide_preds.numpy(),
+                class_names=class_names,
+            )
+            wandb.log({"val/conf_mat": cm})
 
     def test_step(self, batch, batch_idx):
-        _, preds, scores, y = self.shared_step(batch)
-
-        self.val_acc(preds, y)
-        self.log("test_acc",
-                 self.val_acc,
-                 on_epoch=True,
-                 prog_bar=True,
-                 logger=True)
+        # TODO: patch/slide level testing
+        raise NotImplementedError()
 
     def test_epoch_end(self, outputs):
-        # TODO: logging and metrics on validation set for best model
-        pass
-        # all_slide_scores_max = torch.stack(
-        #     [x['slide_score_max'] for x in outputs])
-        # all_slide_scores_avg = torch.stack(
-        #     [x['slide_score_avg'] for x in outputs])
-        # slide_targets = torch.stack([x['y'] for x in outputs]).squeeze()
-        # slide_names = [x['slide_name'][0] for x in outputs]
-        # slide_scores_orig = [x['slide_score_orig'].item() for x in outputs]
-        #
-        # # self.log('test_slide_acc_max', torchmetrics.functional.accuracy(all_slide_scores_max, torch.stack([x['y'] for x in outputs]).squeeze()))
-        # self.log(
-        #     'test_slide_auc_max',
-        #     torchmetrics.functional.auroc(all_slide_scores_max, slide_targets))
-        #
-        # # self.log('test_slide_acc_avg', torchmetrics.functional.accuracy(all_slide_scores_avg, torch.cat([x['y'] for x in outputs]).squeeze()))
-        # self.log(
-        #     'test_slide_auc_avg',
-        #     torchmetrics.functional.auroc(all_slide_scores_avg, slide_targets))
-        #
-        # # save slide scores
-        # df = pd.DataFrame(
-        #     data={
-        #         'Slide Name': slide_names,
-        #         'MilTransformer Score AVG': all_slide_scores_avg.cpu(),
-        #         'MilTransformer Score MAX': all_slide_scores_max.cpu(),
-        #         'Regular Slide Score': slide_scores_orig,
-        #         'Slide Label': slide_targets.cpu()
-        #     })
-        # if isinstance(self.logger, WandbLogger):
-        #     self.logger.log_table(key='slide_scores', dataframe=df)
-        # else:
-        #     df.to_csv(os.path.join(self.logger.log_dir, 'slide_scores.csv'))
-        #
+        # TODO: patch/slide level testing
+        raise NotImplementedError()
 
-    def shared_step(self, batch):
-        # TODO: update based on dataset api
-        x, y = batch
+    def predict_step(self, batch, batch_idx):
+        x = batch["patch"]
+        features = self.forward_features(x)
+        return features
+
+    def shared_step(self, x, y):
         logits = self(x)
         loss = self.criterion(logits, y)
         preds = torch.argmax(logits, dim=1)
-        # TODO: scores vs preds, also this currently only works for binary classification?
-        scores = logits.softmax(1)[:, 1]
+        scores = logits.softmax(1)
 
-        return loss, preds, scores, y
+        return loss, preds, scores
 
     def configure_optimizers(self):
-        # TODO: review optimizer and learning rate scheduler
-        if self.finetune:
-            pass  # TODO: different learning rates for different layers in finetune, see https://discuss.pytorch.org/t/different-learning-rate-for-a-specific-layer/33670/3
-        optimizer = optim.Adam(self.parameters(),
-                               lr=self.hparams.lr,
-                               betas=(0.9, 0.999),
-                               weight_decay=5e-4)
-        lr_scheduler = {
-            'scheduler':
-            torch.optim.lr_scheduler.MultiStepLR(
-                optimizer,
-                milestones=[
-                    int(0.3 * self.trainer.max_epochs),
-                    int(0.7 * self.trainer.max_epochs)
-                ],
-                gamma=0.1),
-            'interval':
-            'epoch'
-        }
+        optimizer = torch.optim.Adam(
+            params=[p for p in self.parameters() if p.requires_grad],
+            lr=self.hparams.lr,
+        )
+
+        lr_scheduler = torch.optim.lr_scheduler.StepLR(
+            optimizer, step_size=50, gamma=0.1
+        )
+
         return [optimizer], [lr_scheduler]
 
-    @staticmethod
-    def add_model_specific_args(parent_parser):
-        parser = ArgumentParser(parents=[parent_parser], add_help=False)
-        parser.add_argument('--lr',
-                            '--learning_rate',
-                            dest='lr',
-                            type=float,
-                            default=0.001)
-        # TODO: transfer / freeze / finetune implemenations and behavior
-        parser.add_argument('--transfer', help='', action="store_true")
-        parser.add_argument('--finetune', help='', action="store_true")
-        parser.add_argument('--freeze', help='', action="store_true")
+    def _init_model(self, model, num_classes, ckpt_path, imagenet_pretrained, finetune):
+        if model == "preact_resnet50":
+            backbone = PreActResNet50()
+            num_features = backbone.linear.in_features
+            backbone.linear = nn.Identity()
+        # elif model == "resnet50":
+        #     # torchvision resnet
+        #     backbone = resnet50(weights="DEFAULT" if imagenet_pretrained else None)
+        #     num_features = backbone.fc.in_features
+        #     backbone.fc = nn.Identity()
+        else:
+            # timm model
+            backbone = timm.create_model(model, pretrained=imagenet_pretrained)
+            num_features = backbone.get_classifier().in_features
+            backbone.reset_classifier(0)
 
-        return parser
+        classifier = nn.Linear(num_features, num_classes)
+
+        if ckpt_path is not None:
+            state_dict = torch.load(ckpt_path)
+            incompatible_keys = backbone.load_state_dict(state_dict, strict=False)
+            logging.info(f"Loaded backbone from checkpoint at: {ckpt_path}")
+            if incompatible_keys.missing_keys or incompatible_keys.unexpected_keys:
+                logging.warning(
+                    f"Incompatible keys when loading backbone from checkpoint: {incompatible_keys}"
+                )
+
+        if not finetune:
+            for child in list(backbone.children()):
+                for param in child.parameters():
+                    param.requires_grad = False
+
+        return backbone, classifier
