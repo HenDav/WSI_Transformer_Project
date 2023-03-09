@@ -1,9 +1,8 @@
-import multiprocessing
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
 import pandas
-import tqdm
+from tqdm import tqdm
 
 from wsi_core import constants
 from wsi_core.base import SeedableObject
@@ -20,7 +19,7 @@ class SlidesManager(SeedableObject, MetadataBase):
         metadata_at_magnification: int,
         metadata_file_path: Path,
         row_predicate: Callable,  # [[pandas.DataFrame, ...], pandas.Index] somehow causes a bug, I have no idea why
-        **predicate_args
+        **predicate_args,
     ):
         if "folds" in predicate_args.keys():
             assert self.datasets_have_compatible_folds(
@@ -42,6 +41,7 @@ class SlidesManager(SeedableObject, MetadataBase):
         SeedableObject.__init__(self)
         self._df = self._df.iloc[row_predicate(self._df, **predicate_args)]
         self._current_slides = self._create_slides()
+
         # self.start()
         # self.join()
 
@@ -50,7 +50,9 @@ class SlidesManager(SeedableObject, MetadataBase):
 
     def _create_slides(self) -> List[Slide]:
         slides = []
-        for row_index in tqdm(range(self._df.shape[0])):
+        total = self._df.shape[0]
+        row_index = 0
+        for idx in tqdm(self._df.index, desc="Loading slides"):
             slide_context = SlideContext(
                 row_index=row_index,
                 metadata=self._df,
@@ -59,7 +61,16 @@ class SlidesManager(SeedableObject, MetadataBase):
                 tile_size=self._tile_size,
             )
             slide = Slide(slide_context=slide_context)
+            # TODO: This is a temporary fix for the issue where the slide doesn't have interior tiles
+            if not slide.has_interior_tiles:
+                self._df.drop(index=idx, inplace=True)
+                continue
             slides.append(slide)
+            row_index += 1
+
+        print(
+            f"Loaded {len(slides)} slides, skipped {total - len(slides)} which have no interior tiles"
+        )
 
         # self._df = self._update_metadata()
         self._file_name_to_slide = self._create_file_name_to_slide_dict()
@@ -117,7 +128,7 @@ class SlidesManager(SeedableObject, MetadataBase):
         index = self._rng.integers(low=0, high=len(self._slides_with_interior))
         return self.get_slide_with_interior(index=index)
 
-    def _add_shared_objects(self, namespace: multiprocessing.managers.Namespace):
+    def _add_shared_objects(self, namespace):
         namespace.metadata = self._df
 
     def _load_metadata(self) -> pandas.DataFrame:

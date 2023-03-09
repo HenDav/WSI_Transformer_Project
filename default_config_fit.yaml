@@ -13,15 +13,15 @@ trainer:
   callbacks:
   - class_path: pytorch_lightning.callbacks.ModelCheckpoint
     init_args:
-      monitor: val/auc
-      filename: epoch={epoch}-val_auc={val/auc:.3f}
+      monitor: val/slide_auc
+      filename: epoch={epoch}-val_auc={val/slide_auc:.3f}
       save_last: true
       save_top_k: 3
       mode: max
       auto_insert_metric_name: false
   - class_path: pytorch_lightning.callbacks.EarlyStopping
     init_args:
-      monitor: val/auc
+      monitor: val/slide_auc
       min_delta: 0.0
       patience: 10
       mode: max
@@ -46,11 +46,11 @@ model:
   criterion: crossentropy
   log_params: false
 data:
-  dataset: TCGA
+  dataset: CAT
   target: ER
   val_fold: 1
   patches_per_slide_train: 10
-  patches_per_slide_eval: 100
+  patches_per_slide_eval: 10
   img_size: 256
   batch_size: 128
   num_workers: 8

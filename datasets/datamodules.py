@@ -29,8 +29,10 @@ NORMALIZATIONS = {
 class WsiDataModule(LightningDataModule):
     def __init__(
         self,
-        dataset: Literal["CAT"] = "CAT",  # TODO: dataset enum/choices
-        target: Literal["ER", "PR", "Her2", "Ki67"] = "ER",  # TODO: target enum/choices
+        dataset: Literal[
+            "CAT", "TCGA", "Carmel", "ABCTB", "HAEMEK"
+        ] = "CAT",  # TODO: dataset enum/choices
+        target: Literal["ER", "PR", "HER2", "KI67"] = "ER",  # TODO: target enum/choices
         val_fold: Optional[int] = 1,
         patches_per_slide_train: int = 10,
         patches_per_slide_eval: int = 100,

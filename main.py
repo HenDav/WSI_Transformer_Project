@@ -43,7 +43,7 @@ def cli_main(args: ArgsType = None):
         WsiDataModule,
         trainer_defaults=trainer_defaults,
         seed_everything_default=True,
-        # parser_kwargs={"fit": {"default_config_files": ["default_config_fit.yaml"]}},
+        parser_kwargs={"fit": {"default_config_files": ["default_config_fit.yaml"]}},
         save_config_kwargs={"overwrite": True},
         args=args,
     )

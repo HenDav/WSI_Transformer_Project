@@ -34,6 +34,13 @@ class BioMarker(Enum):
     HER2 = auto()
 
 
+BIOMARKER_TO_COLUMN = {
+    BioMarker.ER: constants.er_status_column_name,
+    BioMarker.PR: constants.pr_status_column_name,
+    BioMarker.HER2: constants.her2_status_column_name,
+}
+
+
 # =================================================
 # SlideContext Class
 # =================================================
@@ -134,11 +141,11 @@ class SlideContext:
     @property
     def zero_level_half_tile_size(self) -> int:
         return self._zero_level_tile_size // 2
-    
+
     @property
     def zero_level_tile_size_x_offset(self) -> int:
         return np.array([self._zero_level_tile_size, 0])
-    
+
     @property
     def zero_level_tile_size_y_offset(self) -> int:
         return np.array([0, self._zero_level_tile_size])
@@ -278,7 +285,7 @@ class SlideContext:
                     f"took blank part of patch since {top_left_coords + x_offset + y_offset} didn't correspond to valid patch"
                 )
 
-        return np.squeeze(image.astype("float32"))
+        return Image.fromarray(image.astype(int), mode="RGB")
 
     def get_biomarker_value(self, bio_marker: BioMarker) -> bool:
         if bio_marker is BioMarker.ER:
@@ -817,35 +824,41 @@ class StridedPatchExtractor(PatchExtractor):
         )
         pixel = tile.center_pixel
         return pixel
-    
+
+
 # =================================================
 # SerialPatchExtractor Class
 # =================================================
 class SerialPatchExtractor(StridedPatchExtractor):
     def __init__(self, slide: Slide):
         super().__init__(slide=slide, num_patches=slide.tiles_count)
-        
+
+
 # =================================================
 # GridPatchExtractor Class
 # =================================================
 class GridPatchExtractor(PatchExtractor):
     def __init__(self, slide: Slide, side_length):
         super().__init__(slide=slide)
-        self._num_patches = side_length ** 2
+        self._num_patches = side_length**2
         self._side_length = side_length
         self._patches_so_far = 0
         self._pixels_to_extract = np.zeros((self._num_patches, 2))
         tile = self._slide.get_random_interior_tile()
         center_pixel = tile.center_pixel
-        top_left_pixel = center_pixel - (tile._slide_context.zero_level_half_tile_size * self._side_length)
+        top_left_pixel = center_pixel - (
+            tile._slide_context.zero_level_half_tile_size * self._side_length
+        )
         for i in range(self._side_length):
             for j in range(self._side_length):
-               self._pixels_to_extract[j * self._side_length + i] = top_left_pixel + \
-                                                                    tile._slide_context.zero_level_tile_size_x_offset * j + \
-                                                                    tile._slide_context.zero_level_tile_size_y_offset * i
-    
+                self._pixels_to_extract[j * self._side_length + i] = (
+                    top_left_pixel
+                    + tile._slide_context.zero_level_tile_size_x_offset * j
+                    + tile._slide_context.zero_level_tile_size_y_offset * i
+                )
+
     def _extract_center_pixel(self) -> Optional[np.ndarray]:
-        if(self._patches_so_far >= self._num_patches):
+        if self._patches_so_far >= self._num_patches:
             raise Exception
         self._patches_so_far += 1
         return self._pixels_to_extract[self._patches_so_far - 1]

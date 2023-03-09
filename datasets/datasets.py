@@ -6,11 +6,13 @@ import pandas
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
+from torchvision.transforms.functional import to_tensor
 
 from datasets.slides_manager import SlidesManager
 from wsi_core import constants
 from wsi_core.base import SeedableObject
 from wsi_core.wsi import (
+    BIOMARKER_TO_COLUMN,
     BioMarker,
     GridPatchExtractor,
     RandomPatchExtractor,
@@ -39,6 +41,7 @@ class WSIDataset(ABC, Dataset, SeedableObject):
         **kw: object
     ):
         super().__init__(**kw)
+        self._target = BioMarker[target]
         if not slides_manager:
             if not datasets_base_dir_path:
                 if socket.gethostname() == "gipdeep10":
@@ -66,6 +69,7 @@ class WSIDataset(ABC, Dataset, SeedableObject):
                 min_tiles=min_tiles,
                 datasets=datasets,
                 folds=current_folds,
+                target=self._target,
             )
         self._slides_manager = slides_manager
         self.num_slides = len(slides_manager)
@@ -87,14 +91,20 @@ class WSIDataset(ABC, Dataset, SeedableObject):
         min_tiles: int = 100,
         datasets: List[str] = ["CARMEL1"],
         folds: List[int] = constants.folds_for_datasets["CARMEL1"],
+        target: BioMarker = BioMarker.ER,
     ) -> pandas.Index:
-        fold_indecies = df.index[df[constants.fold_column_name].isin(folds)]
-        dataset_indecies = df.index[df[constants.dataset_id_column_name].isin(datasets)]
-        min_tiles_indecies = df.index[
+        fold_indices = df.index[df[constants.fold_column_name].isin(folds)]
+        dataset_indices = df.index[df[constants.dataset_id_column_name].isin(datasets)]
+        min_tiles_indices = df.index[
             df[constants.legitimate_tiles_column_name] > min_tiles
         ]
-        return min_tiles_indecies.intersection(dataset_indecies).intersection(
-            fold_indecies
+        target_indices = df.index[
+            df[BIOMARKER_TO_COLUMN[target]].isin(("Positive", "Negative"))
+        ]  # TODO: review this and check possible column values
+        return (
+            min_tiles_indices.intersection(dataset_indices)
+            .intersection(fold_indices)
+            .intersection(target_indices)
         )
 
 
@@ -112,7 +122,7 @@ class RandomPatchDataset(WSIDataset):
         datasets_base_dir_path: str = None,
         transform=transforms.Compose([]),
         train: bool = True,  # controls folds
-        val_fold: int = None,
+        val_fold: Optional[int] = None,
         slides_manager: SlidesManager = None,
         **kw: object
     ):
@@ -133,7 +143,6 @@ class RandomPatchDataset(WSIDataset):
             **kw
         )
         self._transform = transform
-        self._target = BioMarker[target]
         self._train = train
 
     def __getitem__(self, item: int):
@@ -143,13 +152,13 @@ class RandomPatchDataset(WSIDataset):
         patch_extractor = RandomPatchExtractor(slide=slide)
         patch, center_pixel = patch_extractor.extract_patch(patch_validators=[])
         label = slide.slide_context.get_biomarker_value(bio_marker=self._target)
-        if (label == "Positive"):
+        if label == "Positive":
             label = 1
-        elif (label == "Negative"):
+        elif label == "Negative":
             label = 0
 
         return {
-            "patch": self._transform(transforms.ToTensor()(patch.image)),
+            "patch": self._transform(patch.image),
             "label": label,
             "slide_name": slide_name,
             "center_pixel": center_pixel,
@@ -170,7 +179,7 @@ class SerialPatchDataset(WSIDataset):
         datasets_base_dir_path: str = None,
         transform=transforms.Compose([]),
         train: bool = True,  # controls folds
-        val_fold: int = None,
+        val_fold: Optional[int] = None,
         slides_manager: SlidesManager = None,
         **kw: object
     ):
@@ -191,7 +200,6 @@ class SerialPatchDataset(WSIDataset):
             **kw
         )
         self._transform = transform
-        self._target = BioMarker[target]
         self._train = train
         self._n_slides = 1  # slides touched so far
         self._slide = self._slides_manager.get_slide(self._n_slides - 1)
@@ -213,7 +221,7 @@ class SerialPatchDataset(WSIDataset):
             label = 0
 
         return {
-            "patch": self._transform(transforms.ToTensor()(patch.image)),
+            "patch": self._transform(patch.image),
             "label": label,
             "slide_name": slide_name,
             "center_pixel": center_pixel,
@@ -235,12 +243,11 @@ class SlideDataset(WSIDataset):
         datasets_base_dir_path: str = None,
         transform=transforms.Compose([]),
         train: bool = True,  # controls folds
-        val_fold: int = None,
+        val_fold: Optional[int] = None,
         slides_manager: SlidesManager = None,
         **kw: object
     ):
         self._transform = transform
-        self._target = BioMarker[target]
         self._train = train
         self._bag_size = bag_size
         super().__init__(
@@ -266,21 +273,19 @@ class SlideDataset(WSIDataset):
 
     def get_bag(self, item: int):
         slide = self._slides_manager.get_slide(item % self.num_slides)
-        
-    def get_bag(self, item: int):
-        slide = self._slides_manager.get_slide(item % self.num_slides)
         slide_name = slide.slide_context.image_file_name_stem
         self.patch_extractor = self.patch_extractor_constructor(slide=slide)
         patch, center_pixel = self.patch_extractor.extract_patch(patch_validators=[])
-        bag_item = transforms.ToTensor()(patch.image)
+        bag_item = to_tensor(patch.image)
         bag_shape = (self._bag_size, *bag_item.shape)
         bag = torch.zeros(bag_shape)
-        bag[0] = bag_item
+        bag[0] = self._transform(patch.image)
         for idx in range(1, self._bag_size):
             patch, center_pixel = self.patch_extractor.extract_patch(
                 patch_validators=[]
             )
-            bag_item = transforms.ToTensor()(patch.image)
+            bag_item = self._transform(patch.image)
+
             bag[idx] = bag_item
 
         label = slide.slide_context.get_biomarker_value(bio_marker=self._target)
@@ -288,9 +293,35 @@ class SlideDataset(WSIDataset):
             label = 1
         elif label == "Negative":
             label = 0
+        label = torch.tensor(label).expand(self._bag_size).clone()
 
         # TODO: add patch locations/coords
-        return {"bag": self._transform(bag), "label": label, "slide_name": slide_name}
+        return {"bag": bag, "label": label, "slide_name": slide_name}
+
+    # def get_bag(self, item: int):
+    #     slide = self._slides_manager.get_slide(item % self.num_slides)
+    #     slide_name = slide.slide_context.image_file_name_stem
+    #     self.patch_extractor = self.patch_extractor_constructor(slide=slide)
+    #     patch, center_pixel = self.patch_extractor.extract_patch(patch_validators=[])
+    #     bag_item = transforms.ToTensor()(patch.image)
+    #     bag_shape = (self._bag_size, *bag_item.shape)
+    #     bag = torch.zeros(bag_shape)
+    #     bag[0] = bag_item
+    #     for idx in range(1, self._bag_size):
+    #         patch, center_pixel = self.patch_extractor.extract_patch(
+    #             patch_validators=[]
+    #         )
+    #         bag_item = transforms.ToTensor()(patch.image)
+    #         bag[idx] = bag_item
+    #
+    #     label = slide.slide_context.get_biomarker_value(bio_marker=self._target)
+    #     if label == "Positive":
+    #         label = 1
+    #     elif label == "Negative":
+    #         label = 0
+    #
+    #     # TODO: add patch locations/coords
+    #     return {"bag": self._transform(bag), "label": label, "slide_name": slide_name}
 
 
 class SlideRandomDataset(SlideDataset):
@@ -308,12 +339,11 @@ class SlideRandomDataset(SlideDataset):
         datasets_base_dir_path: str = None,
         transform=transforms.Compose([]),
         train: bool = True,  # controls folds
-        val_fold: int = None,
+        val_fold: Optional[int] = None,
         slides_manager: SlidesManager = None,
         **kw: object
     ):
         self._transform = transform
-        self._target = BioMarker[target]
         self._train = train
         self._bag_size = bag_size
         super().__init__(
@@ -355,12 +385,11 @@ class SlideStridedDataset(SlideDataset):
         datasets_base_dir_path: str = None,
         transform=transforms.Compose([]),
         train: bool = True,  # controls folds
-        val_fold: int = None,
+        val_fold: Optional[int] = None,
         slides_manager: SlidesManager = None,
         **kw: object
     ):
         self._transform = transform
-        self._target = BioMarker[target]
         self._train = train
         self._bag_size = bag_size
         super().__init__(
@@ -403,7 +432,7 @@ class SlideGridDataset(SlideDataset):
         datasets_base_dir_path: str = None,
         transform=transforms.Compose([]),
         train: bool = True,  # controls folds
-        val_fold: int = None,
+        val_fold: Optional[int] = None,
         slides_manager: SlidesManager = None,
         **kw: object
     ):
@@ -425,7 +454,6 @@ class SlideGridDataset(SlideDataset):
             **kw
         )
         self._transform = transform
-        self._target = BioMarker[target]
         self._train = train
         self._side_length = side_length
 

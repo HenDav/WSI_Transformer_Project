@@ -46,6 +46,7 @@ folds_for_datasets = {
 }
 folds_for_datasets[dataset_id_tcga] = [1, 2, 3, 4, 5]
 folds_for_datasets[dataset_id_abctb] = [1, 2, 3, 4, 5]
+folds_for_datasets[dataset_id_cat] = [1, 2, 3, 4, 5]
 metadata_base_dataset_ids = [
     dataset_id_abctb,
     dataset_id_sheba,

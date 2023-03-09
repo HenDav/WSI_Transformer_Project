@@ -9,7 +9,7 @@ import wandb
 from pytorch_lightning import LightningModule
 from pytorch_lightning.loggers import WandbLogger
 from torch import nn
-from torchmetrics.functional import accuracy, auroc
+from torchmetrics.functional.classification import accuracy, auroc
 
 from models.preact_resnet import PreActResNet50
 
@@ -49,9 +49,12 @@ class WsiClassifier(LightningModule):
         # TODO: support for more loss functions, balance weighting, etc
         self.criterion = nn.CrossEntropyLoss()
 
-        self.train_acc = torchmetrics.Accuracy()
-        self.val_acc = torchmetrics.Accuracy()
+        self.train_acc = torchmetrics.Accuracy(
+            task="multiclass", num_classes=num_classes
+        )
+        self.val_acc = torchmetrics.Accuracy(task="multiclass", num_classes=num_classes)
 
+        self.num_classes = num_classes
         self.log_params = log_params
 
     def forward(self, x):
@@ -104,7 +107,7 @@ class WsiClassifier(LightningModule):
         slide_name = batch["slide_name"]
         # patch_coords = batch["center_pixel"]
         loss, patch_preds, patch_scores = self.shared_step(x, y)
-        patch_labels = y.expand(x.shape[0])
+        slide_label = y[0]
         slide_score = patch_scores.mean(dim=0)  # of shape [num_classes]
         slide_pred = slide_score.argmax()
 
@@ -118,11 +121,11 @@ class WsiClassifier(LightningModule):
             "loss": loss,
             "patch_preds": patch_preds,
             "patch_scores": patch_scores,
-            "patch_labels": patch_labels,
+            "patch_labels": y,
             "slide_score": slide_score,
             "slide_pred": slide_pred,
             "slide_name": slide_name,
-            "slide_label": y,
+            "slide_label": slide_label,
         }
 
     def validation_epoch_end(self, outputs):
@@ -133,8 +136,8 @@ class WsiClassifier(LightningModule):
         #     torch.cat([x["patch_preds"] for x in outputs], dim=0).detach().cpu()
         # )
         patch_labels = torch.cat([x["patch_labels"] for x in outputs], dim=0).cpu()
-        slide_scores = torch.stack([x["slide_score"] for x in outputs]).detch().cpu()
-        slide_preds = torch.stack([x["slide_preds"] for x in outputs]).detch().cpu()
+        slide_scores = torch.stack([x["slide_score"] for x in outputs]).detach().cpu()
+        slide_preds = torch.stack([x["slide_pred"] for x in outputs]).detach().cpu()
         slide_names = [x["slide_name"] for x in outputs]
         slide_labels = torch.stack([x["slide_label"] for x in outputs]).cpu()
 
@@ -150,46 +153,53 @@ class WsiClassifier(LightningModule):
             logger=True,
         )
 
-        if self.num_classes > 2:
-            self.log(
-                "val/patch_auc",
-                auroc(patch_scores, patch_labels, task="multiclass"),
-                prog_bar=True,
-                logger=True,
-            )
-            self.log(
-                "val/slide_auc",
-                auroc(slide_scores, slide_labels, task="multiclass"),
-                prog_bar=True,
-                logger=True,
-            )
-            return
-
-        # assume binary classification and use positive class score
-        patch_scores, slide_scores = patch_scores[:, 1], slide_scores[:, 1]
         self.log(
             "val/patch_auc",
-            auroc(patch_scores, patch_labels, task="binary"),
+            auroc(
+                patch_scores,
+                patch_labels,
+                task="multiclass",
+                num_classes=self.num_classes,
+            ),
             prog_bar=True,
             logger=True,
         )
         self.log(
             "val/slide_auc",
-            auroc(slide_scores, slide_labels, task="binary"),
+            auroc(
+                slide_scores,
+                slide_labels,
+                task="multiclass",
+                num_classes=self.num_classes,
+            ),
             prog_bar=True,
             logger=True,
         )
 
+        # self.log(
+        #         "val/patch_auc",
+        #         auroc(patch_scores, patch_labels, task="binary"),
+        #         prog_bar=True,
+        #         logger=True,
+        #         )
+        # self.log(
+        #         "val/slide_auc",
+        #         auroc(slide_scores, slide_labels, task="binary"),
+        #         prog_bar=True,
+        #         logger=True,
+        #         )
+
         if isinstance(self.logger, WandbLogger):
-            class_names = ["Negative", "Positive"]
             wandb.log(
-                {
-                    "val/slide_roc": wandb.plot.roc_curve(
-                        slide_labels.unsqueeze(1), slide_scores
-                    )
-                },
-                labels=class_names,
+                {"val/slide_roc": wandb.plot.roc_curve(slide_labels, slide_scores)},
             )
+
+            # from this point on, we only support binary classification for now
+            if self.num_classes > 2:
+                return
+
+            patch_scores, slide_scores = patch_scores[:, 1], slide_scores[:, 1]
+            class_names = ["Negative", "Positive"]
 
             df = pd.DataFrame(
                 data={
@@ -231,7 +241,7 @@ class WsiClassifier(LightningModule):
 
     def shared_step(self, x, y):
         logits = self(x)
-        loss = self.criterion(logits, y)
+        loss = self.criterion(logits, y.long())
         preds = torch.argmax(logits, dim=1)
         scores = logits.softmax(1)
 
