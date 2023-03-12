@@ -1122,7 +1122,7 @@ def get_RegModel_Features_location_dict(
                     'ER': {
                         'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
                         'TestSet Location': 
-                        r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_301-ER-TestFold_1/Inference/TA_fold6'
+                        r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_301-ER-TestFold_3/Inference/TA_fold6'
                     },
                     'PR': {
                         'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',

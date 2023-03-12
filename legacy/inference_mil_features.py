@@ -216,7 +216,7 @@ if args.haemek_test_set:
 if args.TA_test_set:
     if args.experiment in list(range(30065,30070)) + list(range(30071,30074)) + list(range(30075, 30082)) + [40064, 40074, 40066]:
         dset = 'CAT->TA 6'
-    elif args.experiment in [30086, 30087, 30089] + list(range(30093,30105)):
+    elif args.experiment in [30086, 30087, 30089] + list(range(30093,30105)) + [40072]:
         dset = 'TCGA_ABCTB->TA 6'
     elif args.experiment == 40067:
         dset = 'CARMEL->TA 6'
