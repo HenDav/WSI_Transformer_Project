@@ -285,7 +285,7 @@ class SlideContext:
                     f"took blank part of patch since {top_left_coords + x_offset + y_offset} didn't correspond to valid patch"
                 )
 
-        return Image.fromarray(image.astype(int), mode="RGB")
+        return Image.fromarray(np.uint8(image), mode="RGB")
 
     def get_biomarker_value(self, bio_marker: BioMarker) -> bool:
         if bio_marker is BioMarker.ER:

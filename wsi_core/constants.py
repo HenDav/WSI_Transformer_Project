@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Dict, Set
+from typing import Dict, List
 
 # General parameters
 test_fold_id = "test"
@@ -33,26 +33,25 @@ dataset_id_tcga = "TCGA"
 dataset_id_carmel = "CARMEL"
 number_of_carmel_train_batches = 8
 dataset_containment_dict = {
-    dataset_id_cat: [dataset_id_ta, dataset_id_carmel],
-    dataset_id_ta: [dataset_id_abctb, dataset_id_tcga],
-    dataset_id_carmel: [
+    dataset_id_cat: (dataset_id_ta, dataset_id_carmel),
+    dataset_id_ta: (dataset_id_abctb, dataset_id_tcga),
+    dataset_id_carmel: (
         f"{dataset_id_carmel}{batch_num}"
-        for batch_num in range(1, number_of_carmel_train_batches)
-    ],
+        for batch_num in range(1, number_of_carmel_train_batches + 1)
+    ),
 }
 folds_for_datasets = {
-    f"{dataset_id_carmel}{batch_num}": [1, 2, 3, 4, 5]
-    for batch_num in range(1, number_of_carmel_train_batches)
+    f"{dataset_id_carmel}{batch_num}": (1, 2, 3, 4, 5)
+    for batch_num in range(1, number_of_carmel_train_batches + 1)
 }
-folds_for_datasets[dataset_id_tcga] = [1, 2, 3, 4, 5]
-folds_for_datasets[dataset_id_abctb] = [1, 2, 3, 4, 5]
-folds_for_datasets[dataset_id_cat] = [1, 2, 3, 4, 5]
-metadata_base_dataset_ids = [
+folds_for_datasets[dataset_id_tcga] = (1, 2, 3, 4, 5)
+folds_for_datasets[dataset_id_abctb] = (1, 2, 3, 4, 5)
+metadata_base_dataset_ids = (
     dataset_id_abctb,
     dataset_id_sheba,
     dataset_id_carmel,
     dataset_id_tcga,
-]
+)
 
 # Grid data
 bad_segmentation_column_name = "bad segmentation"
@@ -152,7 +151,7 @@ def get_dataset_paths(datasets_base_dir_path: Path) -> Dict[str, Path]:
     return dataset_paths
 
 
-def get_dataset_ids(dataset_id: str) -> Set[str]:
+def get_dataset_ids(dataset_id: str) -> List[str]:
     dataset_ids = set([dataset_id])
     dataset_ids_updated = set()
     set_contains_dict_keys = dataset_id in dataset_containment_dict.keys()
@@ -172,4 +171,4 @@ def get_dataset_ids(dataset_id: str) -> Set[str]:
                 set_contains_dict_keys or dataset_id in dataset_containment_dict.keys()
             )
 
-    return dataset_ids
+    return sorted(list(dataset_ids))

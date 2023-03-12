@@ -67,9 +67,8 @@ class SlidesManager(SeedableObject, MetadataBase):
                 continue
             slides.append(slide)
             row_index += 1
-
         print(
-            f"Loaded {len(slides)} slides, skipped {total - len(slides)} which have no interior tiles"
+            f"Loaded {len(slides)} slides, skipped {total - len(slides)} that have no interior tiles"
         )
 
         # self._df = self._update_metadata()

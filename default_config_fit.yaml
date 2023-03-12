@@ -49,12 +49,14 @@ data:
   dataset: CAT
   target: ER
   val_fold: 1
+  eval_on_train: false
   patches_per_slide_train: 10
   patches_per_slide_eval: 10
   img_size: 256
   batch_size: 128
   num_workers: 8
-  normalization: none
+  normalization: wsi_ron
+  autoaug: false
   transforms: null
 # override default optimizer and lr scheduler
 # optimizer:

@@ -38,7 +38,7 @@ class WSIDataset(ABC, Dataset, SeedableObject):
         val_fold: Optional[int] = None,
         train: bool = True,
         slides_manager: SlidesManager = None,
-        **kw: object
+        **kw: object,
     ):
         super().__init__(**kw)
         self._target = BioMarker[target]
@@ -54,7 +54,7 @@ class WSIDataset(ABC, Dataset, SeedableObject):
             if not metadata_file_path:
                 metadata_file_path = constants.main_metadata_csv
             datasets = constants.get_dataset_ids(dataset)
-            current_folds = constants.folds_for_datasets[next(iter(datasets))]
+            current_folds = list(constants.folds_for_datasets[next(iter(datasets))])
             if val_fold is not None and train:
                 current_folds.remove(val_fold)
             elif val_fold is not None and not train:
@@ -101,10 +101,16 @@ class WSIDataset(ABC, Dataset, SeedableObject):
         target_indices = df.index[
             df[BIOMARKER_TO_COLUMN[target]].isin(("Positive", "Negative"))
         ]  # TODO: review this and check possible column values
-        return (
-            min_tiles_indices.intersection(dataset_indices)
-            .intersection(fold_indices)
-            .intersection(target_indices)
+
+        matching_indices = dataset_indices.intersection(fold_indices)
+        print(
+            f"Found {len(matching_indices)} slides in datasets {datasets} and folds {folds}"
+        )
+        print(
+            f"Filtering {len(df) - len(min_tiles_indices)} slides that have less than {min_tiles} tiles, {len(df) - len(target_indices)} without target {target.name}"
+        )
+        return matching_indices.intersection(min_tiles_indices).intersection(
+            target_indices
         )
 
 
@@ -124,7 +130,7 @@ class RandomPatchDataset(WSIDataset):
         train: bool = True,  # controls folds
         val_fold: Optional[int] = None,
         slides_manager: SlidesManager = None,
-        **kw: object
+        **kw: object,
     ):
         super().__init__(
             instances_per_slide=patches_per_slide,
@@ -140,7 +146,7 @@ class RandomPatchDataset(WSIDataset):
             transform=transform,
             val_fold=val_fold,
             train=train,
-            **kw
+            **kw,
         )
         self._transform = transform
         self._train = train
@@ -168,7 +174,7 @@ class RandomPatchDataset(WSIDataset):
 class SerialPatchDataset(WSIDataset):
     def __init__(
         self,
-        patches_per_slide: int = 10,  # TODO: remove this and update len of the dataset
+        patches_per_slide: int = 10,  # TODO: remove this and update instances_per_slide
         target: str = "ER",
         tile_size: int = 256,  # TODO: make this useful through patch extraction
         desired_mpp: float = 1.0,  # TODO: make this useful through patch extraction
@@ -181,7 +187,7 @@ class SerialPatchDataset(WSIDataset):
         train: bool = True,  # controls folds
         val_fold: Optional[int] = None,
         slides_manager: SlidesManager = None,
-        **kw: object
+        **kw: object,
     ):
         super().__init__(
             instances_per_slide=patches_per_slide,
@@ -197,7 +203,7 @@ class SerialPatchDataset(WSIDataset):
             transform=transform,
             val_fold=val_fold,
             train=train,
-            **kw
+            **kw,
         )
         self._transform = transform
         self._train = train
@@ -245,7 +251,7 @@ class SlideDataset(WSIDataset):
         train: bool = True,  # controls folds
         val_fold: Optional[int] = None,
         slides_manager: SlidesManager = None,
-        **kw: object
+        **kw: object,
     ):
         self._transform = transform
         self._train = train
@@ -264,7 +270,7 @@ class SlideDataset(WSIDataset):
             transform=transform,
             val_fold=val_fold,
             train=train,
-            **kw
+            **kw,
         )
 
     @abstractmethod
@@ -341,7 +347,7 @@ class SlideRandomDataset(SlideDataset):
         train: bool = True,  # controls folds
         val_fold: Optional[int] = None,
         slides_manager: SlidesManager = None,
-        **kw: object
+        **kw: object,
     ):
         self._transform = transform
         self._train = train
@@ -361,7 +367,7 @@ class SlideRandomDataset(SlideDataset):
             transform=transform,
             val_fold=val_fold,
             train=train,
-            **kw
+            **kw,
         )
 
     def __getitem__(self, item: int):
@@ -387,7 +393,7 @@ class SlideStridedDataset(SlideDataset):
         train: bool = True,  # controls folds
         val_fold: Optional[int] = None,
         slides_manager: SlidesManager = None,
-        **kw: object
+        **kw: object,
     ):
         self._transform = transform
         self._train = train
@@ -407,7 +413,7 @@ class SlideStridedDataset(SlideDataset):
             transform=transform,
             val_fold=val_fold,
             train=train,
-            **kw
+            **kw,
         )
 
     def __getitem__(self, item: int):
@@ -434,7 +440,7 @@ class SlideGridDataset(SlideDataset):
         train: bool = True,  # controls folds
         val_fold: Optional[int] = None,
         slides_manager: SlidesManager = None,
-        **kw: object
+        **kw: object,
     ):
         super().__init__(
             bags_per_slide=bags_per_slide,
@@ -451,7 +457,7 @@ class SlideGridDataset(SlideDataset):
             transform=transform,
             val_fold=val_fold,
             train=train,
-            **kw
+            **kw,
         )
         self._transform = transform
         self._train = train
