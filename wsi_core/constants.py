@@ -35,9 +35,11 @@ number_of_carmel_train_batches = 8
 dataset_containment_dict = {
     dataset_id_cat: (dataset_id_ta, dataset_id_carmel),
     dataset_id_ta: (dataset_id_abctb, dataset_id_tcga),
-    dataset_id_carmel: (
-        f"{dataset_id_carmel}{batch_num}"
-        for batch_num in range(1, number_of_carmel_train_batches + 1)
+    dataset_id_carmel: tuple(
+        [
+            f"{dataset_id_carmel}{batch_num}"
+            for batch_num in range(1, number_of_carmel_train_batches + 1)
+        ]
     ),
 }
 folds_for_datasets = {

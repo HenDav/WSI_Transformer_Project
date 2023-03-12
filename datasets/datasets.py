@@ -54,11 +54,12 @@ class WSIDataset(ABC, Dataset, SeedableObject):
             if not metadata_file_path:
                 metadata_file_path = constants.main_metadata_csv
             datasets = constants.get_dataset_ids(dataset)
-            current_folds = list(constants.folds_for_datasets[next(iter(datasets))])
+            current_folds = list(constants.folds_for_datasets[datasets[0]])
             if val_fold is not None and train:
                 current_folds.remove(val_fold)
             elif val_fold is not None and not train:
                 current_folds = [val_fold]
+
             slides_manager = SlidesManager(
                 datasets_base_dir_path=datasets_base_dir_path,
                 desired_mpp=desired_mpp,
@@ -87,11 +88,11 @@ class WSIDataset(ABC, Dataset, SeedableObject):
 
     @staticmethod
     def default_predicate(
-        df: pandas.DataFrame = None,
-        min_tiles: int = 100,
-        datasets: List[str] = ["CARMEL1"],
-        folds: List[int] = constants.folds_for_datasets["CARMEL1"],
-        target: BioMarker = BioMarker.ER,
+        df: pandas.DataFrame,
+        min_tiles: int,
+        datasets: List[str],
+        folds: List[int],
+        target: BioMarker,
     ) -> pandas.Index:
         fold_indices = df.index[df[constants.fold_column_name].isin(folds)]
         dataset_indices = df.index[df[constants.dataset_id_column_name].isin(datasets)]

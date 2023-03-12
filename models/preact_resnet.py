@@ -346,6 +346,9 @@ class PreActResNet50(PreActResNet_Ron):
         super().__init__(PreActBottleneck_Ron, [3, 4, 6, 3],
                          num_classes=num_classes)
 
+    def forward(self, x):
+        return super().forward(x)[0]
+
 
 def PreActResNet50_Ron(train_classifier_only=False, num_classes=2):
     model = PreActResNet_Ron(PreActBottleneck_Ron, [3, 4, 6, 3],

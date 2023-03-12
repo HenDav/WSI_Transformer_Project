@@ -251,6 +251,7 @@ class WsiClassifier(LightningModule):
         optimizer = torch.optim.Adam(
             params=[p for p in self.parameters() if p.requires_grad],
             lr=self.hparams.lr,
+            weight_decay=1e-4,
         )
 
         lr_scheduler = torch.optim.lr_scheduler.StepLR(
