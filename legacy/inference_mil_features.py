@@ -214,10 +214,12 @@ if args.haemek_test_set:
         dset = 'HAEMEK' # Implicitly CAT->HAEMEK
 
 if args.TA_test_set:
-    if args.experiment in list(range(30065,30070)) + list(range(30071,30074)) + list(range(30075, 30082)):
+    if args.experiment in list(range(30065,30070)) + list(range(30071,30074)) + list(range(30075, 30082)) + [40064, 40074, 40066]:
         dset = 'CAT->TA 6'
-    elif args.experiment in [30089, 30087, 30086]:
+    elif args.experiment in [30086, 30087, 30089] + list(range(30093,30105)) + [40072]:
         dset = 'TCGA_ABCTB->TA 6'
+    elif args.experiment == 40067:
+        dset = 'CARMEL->TA 6'
         
 if args.hic_test_set:
     if args.experiment in [30086, 30087, 30089] + list(range(30093, 30105)) + [40072]:
@@ -333,7 +335,7 @@ inf_loader = DataLoader(inf_dset,
                         pin_memory=True)
 
 #if not (args.carmel_test_set or args.haemek_test_set):
-if dset not in ['CARMEL 9-11', 'HAEMEK', 'HIC', 'CAT->TA 6', 'TCGA_ABCTB->TA 6']:
+if dset not in ['CARMEL 9-11', 'HAEMEK', 'HIC'] and not args.TA_test_set:
     compute_performance = True
     fig1, ax1 = plt.subplots()
     ax1.set_prop_cycle(custom_cycler)
