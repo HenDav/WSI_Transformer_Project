@@ -1280,6 +1280,19 @@ class Features_MILdataset(Dataset):
                         '/mnt/gipmed_new/Data/Breast/Haemek/Batch_1/HAEMEK1/slides_data_HAEMEK1.xlsx'
                     )
                 }
+            
+            elif dataset in ['SHEBA']:
+                grid_location_dict = {
+                    f'SHEBA{i}':
+                    fr'/mnt/gipmed_new/Data/Breast/Sheba/Batch_{i}/SHEBA{i}/Grids_10/Grid_data.xlsx'
+                    for i in range(2, 7)
+                }
+                slide_data_DF_dict = {
+                    f'SHEBA{i}': pd.read_excel(
+                        fr'/mnt/gipmed_new/Data/Breast/Sheba/Batch_{i}/SHEBA{i}/slides_data_SHEBA{i}.xlsx'
+                    )
+                    for i in range(2, 7)
+                }
 
             elif dataset == 'CARMEL':
                 grid_location_dict = {
