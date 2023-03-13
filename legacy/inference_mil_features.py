@@ -175,6 +175,10 @@ HAEMEK_dsets = [
     r'FEATURES: Exp_50175-ER-TestFold_4 trained from scratch'
 ]
 
+SHEBA_dsets = [
+    r'FEATURES: Exp_50197-onco_score_26-TestFold_1'
+]
+
 if run_data_output['Dataset Name'] in CAT_dsets:
     dset = 'CAT'
 elif run_data_output['Dataset Name'] in CAT_with_Location_dsets:
@@ -191,6 +195,8 @@ elif run_data_output['Dataset Name'] in HAEMEK_transfer_dsets:
     dset = 'HAEMEK_transfer'
 elif run_data_output['Dataset Name'] in HAEMEK_dsets:
     dset = 'HAEMEK->HAEMEK'
+elif run_data_output['Dataset Name'] in SHEBA_dsets:
+    dset = 'SHEBA'
 else:
     dset = None
 

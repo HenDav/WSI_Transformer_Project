@@ -1712,6 +1712,16 @@ def get_RegModel_Features_location_dict(
                         r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50175-ER-TestFold_4/Model_CheckPoints/model_data_Epoch_1000.pt'
                     }
                 }
+            },
+            'SHEBA': {
+                'Fold 1': {
+                    'onco_score_26': {
+                        'DataSet Name': r'FEATURES: Exp_50197-onco_score_26-TestFold_1',
+                        'TrainSet Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50197-onco_score_26-TestFold_1/Inference/SHEBA_fold2345_onco_features/',
+                        'TestSet Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50197-onco_score_26-TestFold_1/Inference/SHEBA_fold1_onco_features/',
+                        'REG Model Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50197-onco_score_26-TestFold_1/Model_CheckPoints/model_data_Epoch_1000.pt'
+                    }
+                }
             }
         }
     }
