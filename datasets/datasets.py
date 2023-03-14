@@ -107,12 +107,13 @@ class WSIDataset(ABC, Dataset, SeedableObject):
         print(
             f"Found {len(matching_indices)} slides in datasets {datasets} and folds {folds}"
         )
+        filtered_target = matching_indices.intersection(target_indices)
+        filtered_min_tiles = filtered_target.intersection(min_tiles_indices)
         print(
-            f"Filtering {len(df) - len(min_tiles_indices)} slides that have less than {min_tiles} tiles, {len(df) - len(target_indices)} without target {target.name}"
+            f"Filtering {len(matching_indices) - len(filtered_target)} slides without target {target.name}, {len(filtered_target) - len(filtered_min_tiles)} that have less than {min_tiles} tiles"
         )
-        return matching_indices.intersection(min_tiles_indices).intersection(
-            target_indices
-        )
+
+        return filtered_min_tiles
 
 
 class RandomPatchDataset(WSIDataset):

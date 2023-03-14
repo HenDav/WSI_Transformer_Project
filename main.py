@@ -11,6 +11,9 @@ from wsi_classifier import WsiClassifier
 
 
 class WsiLightningCLI(LightningCLI):
+    def add_arguments_to_parser(self, parser):
+        parser.link_arguments("data.batch_size", "model.batch_size")
+
     def before_fit(self):
         # allow specifying wandb checkpoint paths in the form of "wandb:USER/PROJECT/MODEL-RUN_ID:VERSION"
         # reference can be retrieved in artifacts panel

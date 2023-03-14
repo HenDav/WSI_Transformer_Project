@@ -1,4 +1,3 @@
-import logging
 from typing import Literal, Optional
 
 import pandas as pd
@@ -25,6 +24,7 @@ class WsiClassifier(LightningModule):
         finetune: bool = False,
         criterion: Literal["crossentropy"] = "crossentropy",
         log_params: bool = False,
+        batch_size: int = 128,
         **kwargs,
     ):
         """
@@ -37,6 +37,7 @@ class WsiClassifier(LightningModule):
             finetune: whether or not to finetune the backbone
             criterion: loss function to use
             log_params: debug: log model parameters and gradients to wandb
+            batch_size: batch size
         """
         super().__init__()
 
@@ -74,10 +75,21 @@ class WsiClassifier(LightningModule):
 
         self.train_acc(preds, y)
         self.log(
-            "train/loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
+            "train/loss",
+            loss,
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+            batch_size=self.hparams.batch_size,
         )
         self.log(
-            "train/patch_acc", self.train_acc, on_epoch=True, prog_bar=True, logger=True
+            "train/patch_acc",
+            self.train_acc,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+            batch_size=self.hparams.batch_size,
         )
 
         return {"loss": loss, "patch_preds": preds, "patch_scores": scores, "y": y}
@@ -112,9 +124,21 @@ class WsiClassifier(LightningModule):
         slide_pred = slide_score.argmax()
 
         self.val_acc(patch_preds, y)
-        self.log("val/loss", loss, on_epoch=True, prog_bar=True, logger=True)
         self.log(
-            "val/patch_acc", self.val_acc, on_epoch=True, prog_bar=True, logger=True
+            "val/loss",
+            loss,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+            batch_size=self.hparams.batch_size,
+        )
+        self.log(
+            "val/patch_acc",
+            self.val_acc,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+            batch_size=self.hparams.batch_size,
         )
 
         return {
@@ -280,10 +304,17 @@ class WsiClassifier(LightningModule):
 
         if ckpt_path is not None:
             state_dict = torch.load(ckpt_path)
+
+            # handle ssl pretrained model checkpoint
+            for k in list(state_dict.keys()):
+                if "backbone" in k:
+                    state_dict[k.replace("backbone.", "")] = state_dict[k]
+                del state_dict[k]
+
             incompatible_keys = backbone.load_state_dict(state_dict, strict=False)
-            logging.info(f"Loaded backbone from checkpoint at: {ckpt_path}")
+            self.print(f"Loaded backbone from checkpoint at: {ckpt_path}")
             if incompatible_keys.missing_keys or incompatible_keys.unexpected_keys:
-                logging.warning(
+                self.print(
                     f"Incompatible keys when loading backbone from checkpoint: {incompatible_keys}"
                 )
 

@@ -25,9 +25,6 @@ from wsi_core.base import SeedableObject
 #     import openslide
 
 
-# =================================================
-# BioMarker Class
-# =================================================
 class BioMarker(Enum):
     ER = auto()
     PR = auto()
@@ -41,9 +38,6 @@ BIOMARKER_TO_COLUMN = {
 }
 
 
-# =================================================
-# SlideContext Class
-# =================================================
 class SlideContext:
     def __init__(
         self,
@@ -211,7 +205,6 @@ class SlideContext:
     def _read_region_around_pixel_h5(self, pixel: np.ndarray) -> Image:
         pixel = pixel // self._downsample_from_orig
         pixel = pixel.flatten()
-        pixel = np.array([pixel[0], pixel[1]])
         with h5py.File(f"{self._image_file_path}.h5", "r") as file:
             tile_size = self._tile_size
             x_offset = np.array([tile_size, 0])
@@ -221,6 +214,7 @@ class SlideContext:
             top_left_coords = top_left_pixel - local_coords
 
             image = np.zeros((self._tile_size, self._tile_size, self._color_channels))
+            filled_area = 0
 
             if self._np_to_h5_key(top_left_coords) in file["tiles"].keys():
                 image[
@@ -230,10 +224,16 @@ class SlideContext:
                 ] = file["tiles"][self._np_to_h5_key(top_left_coords)]["array"][
                     local_coords[0] :, local_coords[1] :, :
                 ]
-            else:
-                print(
-                    f"took blank part of patch since {top_left_coords} didn't correspond to valid patch"
+                filled_area += (self._tile_size - local_coords[0]) * (
+                    self._tile_size - local_coords[1]
                 )
+            # else:
+            #     print(
+            #         f"took blank part of patch since {top_left_coords} didn't correspond to valid patch"
+            #     )
+
+            if filled_area == self._tile_size**2:
+                return Image.fromarray(np.uint8(image), mode="RGB")
 
             if self._np_to_h5_key(top_left_coords + x_offset) in file["tiles"].keys():
                 image[
@@ -245,10 +245,14 @@ class SlideContext:
                 ][
                     : local_coords[0], local_coords[1] :, :
                 ]
-            else:
-                print(
-                    f"took blank part of patch since {top_left_coords + x_offset} didn't correspond to valid patch"
-                )
+                filled_area += local_coords[0] * (self._tile_size - local_coords[1])
+            # else:
+            #     print(
+            #         f"took blank part of patch since {top_left_coords + x_offset} didn't correspond to valid patch"
+            #     )
+
+            if filled_area == self._tile_size**2:
+                return Image.fromarray(np.uint8(image), mode="RGB")
 
             if self._np_to_h5_key(top_left_coords + y_offset) in file["tiles"].keys():
                 image[
@@ -260,10 +264,14 @@ class SlideContext:
                 ][
                     local_coords[0] :, : local_coords[1], :
                 ]
-            else:
-                print(
-                    f"took blank part of patch since {top_left_coords + y_offset} didn't correspond to valid patch"
-                )
+                filled_area += (self._tile_size - local_coords[0]) * local_coords[1]
+            # else:
+            #     print(
+            #         f"took blank part of patch since {top_left_coords + y_offset} didn't correspond to valid patch"
+            #     )
+
+            if filled_area == self._tile_size**2:
+                return Image.fromarray(np.uint8(image), mode="RGB")
 
             if (
                 self._np_to_h5_key(top_left_coords + x_offset + y_offset)
@@ -280,10 +288,11 @@ class SlideContext:
                 ][
                     : local_coords[0], : local_coords[1], :
                 ]
-            else:
-                print(
-                    f"took blank part of patch since {top_left_coords + x_offset + y_offset} didn't correspond to valid patch"
-                )
+                filled_area += local_coords[0] * local_coords[1]
+            # else:
+            #     print(
+            #         f"took blank part of patch since {top_left_coords + x_offset + y_offset} didn't correspond to valid patch"
+            #     )
 
         return Image.fromarray(np.uint8(image), mode="RGB")
 
@@ -312,9 +321,6 @@ class SlideContext:
     #     return level, level_downsample
 
 
-# =================================================
-# SlideElement Class
-# =================================================
 class SlideElement(SeedableObject):
     # __slots__ = ['_slide_context']
 
@@ -327,9 +333,6 @@ class SlideElement(SeedableObject):
         return self._slide_context
 
 
-# =================================================
-# Patch Class
-# =================================================
 class Patch(SlideElement):
     # __slots__ = ['_center_pixel', '_image']
 
@@ -360,9 +363,6 @@ class Patch(SlideElement):
     #     return white_ratio
 
 
-# =================================================
-# Tile Class
-# =================================================
 class Tile(Patch):
     # __slots__ = ['_location', '_top_left_pixel', '_center_pixel']
 
@@ -403,9 +403,6 @@ class Tile(Patch):
         return pixel
 
 
-# =================================================
-# TilesManager Class
-# =================================================
 class TilesManager(ABC, SlideElement):
     # __slots__ = ['_pixels', '_locations', '_tiles', '_location_to_tile', '_interior_tiles']
 
@@ -524,11 +521,11 @@ class TilesManager(ABC, SlideElement):
     def _is_interior_location(
         location: np.ndarray, locations_bytes_list: List[bytes]
     ) -> bool:
-        for i in range(3):
-            for j in range(3):
-                adjacent_location = location + np.array([i, j])
-                if adjacent_location.tobytes() not in locations_bytes_list:
-                    return False
+        # for i in range(3):
+        #     for j in range(3):
+        #         adjacent_location = location + np.array([i, j])
+        #         if adjacent_location.tobytes() not in locations_bytes_list:
+        #             return False
 
         return True
 
@@ -624,9 +621,6 @@ class TilesManager(ABC, SlideElement):
     #     return (locations * self._slide_context.zero_level_tile_size).astype(np.int64)
 
 
-# =================================================
-# ConnectedComponent Class
-# =================================================
 class ConnectedComponent(TilesManager):
     # __slots__ = ['_top_left_tile_location', '_bottom_right_tile_location']
 
@@ -652,9 +646,6 @@ class ConnectedComponent(TilesManager):
         return box[0] / box[1]
 
 
-# =================================================
-# Slide Class
-# =================================================
 class Slide(TilesManager):
     # __slots__ = ['_min_component_ratio', '_max_aspect_ratio_diff', '_bitmap', '_components']
 
@@ -752,9 +743,6 @@ class Slide(TilesManager):
         return valid_components
 
 
-# =================================================
-# PatchExtractor Class
-# =================================================
 class PatchExtractor(ABC):
     def __init__(self, slide: Slide, max_attempts: int = 10):
         self._slide = slide
@@ -792,9 +780,6 @@ class PatchExtractor(ABC):
         return None
 
 
-# =================================================
-# RandomPatchExtractor Class
-# =================================================
 class RandomPatchExtractor(PatchExtractor):
     def __init__(self, slide: Slide):
         super().__init__(slide=slide)
@@ -805,9 +790,6 @@ class RandomPatchExtractor(PatchExtractor):
         return pixel
 
 
-# =================================================
-# StridedPatchExtractor Class
-# =================================================
 class StridedPatchExtractor(PatchExtractor):
     def __init__(self, slide: Slide, num_patches):
         super().__init__(slide=slide)
@@ -826,17 +808,11 @@ class StridedPatchExtractor(PatchExtractor):
         return pixel
 
 
-# =================================================
-# SerialPatchExtractor Class
-# =================================================
 class SerialPatchExtractor(StridedPatchExtractor):
     def __init__(self, slide: Slide):
         super().__init__(slide=slide, num_patches=slide.tiles_count)
 
 
-# =================================================
-# GridPatchExtractor Class
-# =================================================
 class GridPatchExtractor(PatchExtractor):
     def __init__(self, slide: Slide, side_length):
         super().__init__(slide=slide)
@@ -846,13 +822,16 @@ class GridPatchExtractor(PatchExtractor):
         self._pixels_to_extract = np.zeros((self._num_patches, 2))
         tile = self._slide.get_random_interior_tile()
         center_pixel = tile.center_pixel
-        top_left_pixel = center_pixel - (
-            tile._slide_context.zero_level_half_tile_size * self._side_length
+        top_left_tile_center_pixel = center_pixel - (
+            tile._slide_context.zero_level_tile_size
+            * (self._side_length - int(side_length % 2 != 0))
+            // 2
         )
+
         for i in range(self._side_length):
             for j in range(self._side_length):
                 self._pixels_to_extract[j * self._side_length + i] = (
-                    top_left_pixel
+                    top_left_tile_center_pixel
                     + tile._slide_context.zero_level_tile_size_x_offset * j
                     + tile._slide_context.zero_level_tile_size_y_offset * i
                 )
@@ -864,47 +843,6 @@ class GridPatchExtractor(PatchExtractor):
         return self._pixels_to_extract[self._patches_so_far - 1]
 
 
-# =================================================
-# SerialPatchExtractor Class
-# =================================================
-class SerialPatchExtractor(StridedPatchExtractor):
-    def __init__(self, slide: Slide):
-        super().__init__(slide=slide, num_patches=slide.tiles_count)
-
-
-# =================================================
-# GridPatchExtractor Class
-# =================================================
-class GridPatchExtractor(PatchExtractor):
-    def __init__(self, slide: Slide, side_length):
-        super().__init__(slide=slide)
-        self._num_patches = side_length**2
-        self._side_length = side_length
-        self._patches_so_far = 0
-        self._pixels_to_extract = np.zeros((self._num_patches, 2))
-        tile = self._slide.get_random_interior_tile()
-        center_pixel = tile.center_pixel
-        top_left_pixel = center_pixel - (
-            tile._slide_context.zero_level_half_tile_size * self._side_length
-        )
-        for i in range(self._side_length):
-            for j in range(self._side_length):
-                self._pixels_to_extract[j * self._side_length + i] = (
-                    top_left_pixel
-                    + tile._slide_context.zero_level_tile_size_x_offset * j
-                    + tile._slide_context.zero_level_tile_size_y_offset * i
-                )
-
-    def _extract_center_pixel(self) -> Optional[np.ndarray]:
-        if self._patches_so_far >= self._num_patches:
-            raise Exception
-        self._patches_so_far += 1
-        return self._pixels_to_extract[self._patches_so_far - 1]
-
-
-# =================================================
-# ProximatePatchExtractor Class
-# =================================================
 class ProximatePatchExtractor(PatchExtractor):
     _max_attempts = 10
 

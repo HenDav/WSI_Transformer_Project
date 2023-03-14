@@ -99,6 +99,7 @@ class WsiDataModule(LightningDataModule):
                 target=self.target,
                 val_fold=self.val_fold,
                 patches_per_slide=self.patches_per_slide_train,
+                min_tiles=self.patches_per_slide_train,
                 train=True,
                 transform=self.train_transforms,
             )
@@ -108,6 +109,7 @@ class WsiDataModule(LightningDataModule):
                 target=self.target,
                 val_fold=self.val_fold,
                 bag_size=self.patches_per_slide_eval,
+                min_tiles=self.patches_per_slide_eval,
                 train=False,
                 transform=self.eval_transforms,
             )
@@ -137,6 +139,7 @@ class WsiDataModule(LightningDataModule):
             shuffle=True,
             num_workers=self.num_workers,
             pin_memory=True,
+            drop_last=True,
         )
 
     def val_dataloader(self):
@@ -182,11 +185,11 @@ class WsiDataModule(LightningDataModule):
                 *train_transforms,
             ]
 
-        train_transforms = [
-            transforms.RandomResizedCrop(size=self.img_size),
-            transforms.RandomHorizontalFlip(),
-            *train_transforms,
-        ]
+        # train_transforms = [
+        #     transforms.RandomResizedCrop(size=self.img_size),
+        #     transforms.RandomHorizontalFlip(),
+        #     *train_transforms,
+        # ]
 
         train_transforms = transforms.Compose(train_transforms)
         eval_transforms = transforms.Compose(eval_transforms)

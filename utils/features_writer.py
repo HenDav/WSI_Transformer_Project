@@ -60,7 +60,11 @@ class FeaturesWriter(BasePredictionWriter):
             self._save_hdf5(asset_dict, attr_dict=attr_dict)
 
     def _save_hdf5(self, asset_dict, attr_dict=None):
-        path = self.output_dir / f"slide_{self._slide_num}.h5"
+        file_name = (
+            attr_dict["name"] if attr_dict is not None else str(self._slide_num)
+        ) + "_features.h5"
+        path = self.output_dir / file_name
+
         mode = "a" if path.exists() else "w"
         if mode == "w":  # new file
             self._slide_num += 1
