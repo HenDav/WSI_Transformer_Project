@@ -93,6 +93,13 @@ class SlidesManager(SeedableObject, MetadataBase):
     @property
     def slides_count(self) -> int:
         return self._df.shape[0]
+    
+    @property
+    def tiles_count(self) -> int:
+        n_tiles = 0
+        for slide in self._current_slides:
+            n_tiles += slide.tiles_count
+        return n_tiles
 
     # def get_slide_by_tile(self, tile: Tile) -> Slide:
     #     return self._tile_to_slide_dict[tile]

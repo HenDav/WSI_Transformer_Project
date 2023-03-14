@@ -176,7 +176,6 @@ class RandomPatchDataset(WSIDataset):
 class SerialPatchDataset(WSIDataset):
     def __init__(
         self,
-        patches_per_slide: int = 10,  # TODO: remove this and update instances_per_slide
         target: str = "ER",
         tile_size: int = 256,  # TODO: make this useful through patch extraction
         desired_mpp: float = 1.0,  # TODO: make this useful through patch extraction
@@ -192,7 +191,7 @@ class SerialPatchDataset(WSIDataset):
         **kw: object,
     ):
         super().__init__(
-            instances_per_slide=patches_per_slide,
+            instances_per_slide=1, # will not be used
             slides_manager=slides_manager,
             target=target,
             tile_size=tile_size,
@@ -207,6 +206,7 @@ class SerialPatchDataset(WSIDataset):
             train=train,
             **kw,
         )
+        self._dataset_size = self._slides_manager.tiles_count
         self._transform = transform
         self._train = train
         self._n_slides = 1  # slides touched so far
@@ -218,6 +218,7 @@ class SerialPatchDataset(WSIDataset):
         if self._n_slide_patches >= (self._slide.tiles_count - 1):
             self._n_slides += 1
             self._slide = self._slides_manager.get_slide(self._n_slides - 1)
+            self.patch_extractor = SerialPatchExtractor(slide=self._slide)
             self._n_slide_patches = 0
         self._n_slide_patches += 1
         slide_name = self._slide.slide_context.image_file_name_stem
