@@ -201,7 +201,7 @@ class SlideContext:
         slide = self._slide
         level, _ = self._level, self._level_downsample
         selected_level_tile_size = self._selected_level_tile_size
-        top_left_pixel = (pixel - selected_level_tile_size / 2).astype(int).flatten()
+        top_left_pixel = (pixel - self.zero_level_half_tile_size).astype(int).flatten()
         top_left_pixel[0], top_left_pixel[1] = top_left_pixel[1], top_left_pixel[0]
         region = slide.read_region(
             top_left_pixel, level, (selected_level_tile_size, selected_level_tile_size)
