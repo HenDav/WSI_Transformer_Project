@@ -1714,12 +1714,95 @@ def get_RegModel_Features_location_dict(
                 }
             },
             'SHEBA': {
+                'Fold none': {
+                    'onco_score_26': {
+                        'DataSet Name': r'FEATURES: Exp_50209-onco_score_26-TestFold_-1',
+                        'TrainSet Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50209-onco_score_26-TestFold_-1/Inference/SHEBA_fold12345_onco_features/',
+                        'REG Model Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50209-onco_score_26-TestFold_-1/Model_CheckPoints/model_data_Epoch_1000.pt'
+                    }
+                },
                 'Fold 1': {
                     'onco_score_26': {
                         'DataSet Name': r'FEATURES: Exp_50197-onco_score_26-TestFold_1',
                         'TrainSet Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50197-onco_score_26-TestFold_1/Inference/SHEBA_fold2345_onco_features/',
                         'TestSet Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50197-onco_score_26-TestFold_1/Inference/SHEBA_fold1_onco_features/',
                         'REG Model Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50197-onco_score_26-TestFold_1/Model_CheckPoints/model_data_Epoch_1000.pt'
+                    }
+                },
+                'Fold 2': {
+                    'onco_score_26': {
+                        'DataSet Name': r'FEATURES: Exp_50200-onco_score_26-TestFold_2',
+                        'TrainSet Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50200-onco_score_26-TestFold_2/Inference/SHEBA_fold1345_onco_features/',
+                        'TestSet Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50200-onco_score_26-TestFold_2/Inference/SHEBA_fold2_onco_features/',
+                        'REG Model Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50200-onco_score_26-TestFold_2/Model_CheckPoints/model_data_Epoch_1000.pt'
+                    }
+                },
+                'Fold 3': {
+                    'onco_score_26': {
+                        'DataSet Name': r'FEATURES: Exp_50202-onco_score_26-TestFold_3',
+                        'TrainSet Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50202-onco_score_26-TestFold_3/Inference/SHEBA_fold1245_onco_features/',
+                        'TestSet Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50202-onco_score_26-TestFold_3/Inference/SHEBA_fold3_onco_features/',
+                        'REG Model Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50202-onco_score_26-TestFold_3/Model_CheckPoints/model_data_Epoch_1000.pt'
+                    }
+                },
+                'Fold 4': {
+                    'onco_score_26': {
+                        'DataSet Name': r'FEATURES: Exp_50203-onco_score_26-TestFold_4',
+                        'TrainSet Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50203-onco_score_26-TestFold_4/Inference/SHEBA_fold1235_onco_features/',
+                        'TestSet Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50203-onco_score_26-TestFold_4/Inference/SHEBA_fold4_onco_features/',
+                        'REG Model Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50203-onco_score_26-TestFold_4/Model_CheckPoints/model_data_Epoch_1000.pt'
+                    }
+                },
+                'Fold 5': {
+                    'onco_score_26': {
+                        'DataSet Name': r'FEATURES: Exp_50204-onco_score_26-TestFold_5',
+                        'TrainSet Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50204-onco_score_26-TestFold_5/Inference/SHEBA_fold1234_onco_features/',
+                        'TestSet Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50204-onco_score_26-TestFold_5/Inference/SHEBA_fold5_onco_features/',
+                        'REG Model Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50204-onco_score_26-TestFold_5/Model_CheckPoints/model_data_Epoch_1000.pt'
+                    }
+                }
+            },
+            'SHEBA->SHEBA 6': {
+                'Fold none': {
+                    'onco_score_26': {
+                        'DataSet Name': r'FEATURES: Exp_50209-onco_score_26-TestFold_-1',
+                        'TestSet Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50209-onco_score_26-TestFold_-1/Inference/SHEBA_fold6_onco_features/',
+                        'REG Model Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50209-onco_score_26-TestFold_-1/Model_CheckPoints/model_data_Epoch_1000.pt'
+                    }
+                },
+                'Fold 1': {
+                    'onco_score_26': {
+                        'DataSet Name': r'FEATURES: Exp_50197-onco_score_26-TestFold_1',
+                        'TestSet Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50197-onco_score_26-TestFold_1/Inference/SHEBA_fold6_onco_features/',
+                        'REG Model Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50197-onco_score_26-TestFold_1/Model_CheckPoints/model_data_Epoch_1000.pt'
+                    }
+                },
+                'Fold 2': {
+                    'onco_score_26': {
+                        'DataSet Name': r'FEATURES: Exp_50200-onco_score_26-TestFold_2',
+                        'TestSet Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50200-onco_score_26-TestFold_2/Inference/SHEBA_fold6_onco_features/',
+                        'REG Model Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50200-onco_score_26-TestFold_2/Model_CheckPoints/model_data_Epoch_1000.pt'
+                    }
+                },
+                'Fold 3': {
+                    'onco_score_26': {
+                        'DataSet Name': r'FEATURES: Exp_50202-onco_score_26-TestFold_3',
+                        'TestSet Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50202-onco_score_26-TestFold_3/Inference/SHEBA_fold6_onco_features/',
+                        'REG Model Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50202-onco_score_26-TestFold_3/Model_CheckPoints/model_data_Epoch_1000.pt'
+                    }
+                },
+                'Fold 4': {
+                    'onco_score_26': {
+                        'DataSet Name': r'FEATURES: Exp_50203-onco_score_26-TestFold_4',
+                        'TestSet Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50203-onco_score_26-TestFold_4/Inference/SHEBA_fold6_onco_features/',
+                        'REG Model Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50203-onco_score_26-TestFold_4/Model_CheckPoints/model_data_Epoch_1000.pt'
+                    }
+                },
+                'Fold 5': {
+                    'onco_score_26': {
+                        'DataSet Name': r'FEATURES: Exp_50204-onco_score_26-TestFold_5',
+                        'TestSet Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50204-onco_score_26-TestFold_5/Inference/SHEBA_fold6_onco_features/',
+                        'REG Model Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50204-onco_score_26-TestFold_5/Model_CheckPoints/model_data_Epoch_1000.pt'
                     }
                 }
             }
