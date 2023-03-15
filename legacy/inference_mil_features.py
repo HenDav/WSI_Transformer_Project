@@ -62,6 +62,10 @@ parser.add_argument('--hic_test_set',
                     dest='hic_test_set',
                     action='store_true',
                     help='run inference over hic ?')
+parser.add_argument('--SHEBA_test_set',
+                    dest='SHEBA_test_set',
+                    action='store_true',
+                    help='run inference over SHEBA fold 6 ?')
 #parser.add_argument('-nt', '--num_tiles', type=int, default=500, help='Number of tiles to use')
 #parser.add_argument('-ds', '--dataset', type=str, default='HEROHE', help='DataSet to use')
 #parser.add_argument('-f', '--folds', type=list, default=[2], help=' folds to infer')
@@ -176,7 +180,11 @@ HAEMEK_dsets = [
 ]
 
 SHEBA_dsets = [
-    r'FEATURES: Exp_50197-onco_score_26-TestFold_1'
+    r'FEATURES: Exp_50197-onco_score_26-TestFold_1',
+    r'FEATURES: Exp_50200-onco_score_26-TestFold_2',
+    r'FEATURES: Exp_50202-onco_score_26-TestFold_3',
+    r'FEATURES: Exp_50203-onco_score_26-TestFold_4',
+    r'FEATURES: Exp_50204-onco_score_26-TestFold_5'
 ]
 
 if run_data_output['Dataset Name'] in CAT_dsets:
@@ -226,7 +234,11 @@ if args.TA_test_set:
         dset = 'TCGA_ABCTB->TA 6'
     elif args.experiment == 40067:
         dset = 'CARMEL->TA 6'
-        
+
+if args.SHEBA_test_set:
+    if args.experiment in [50199, 50201, 50205, 50206, 50208]:
+        dset = 'SHEBA->SHEBA 6'
+    
 if args.hic_test_set:
     if args.experiment in [30086, 30087, 30089] + list(range(30093, 30105)) + [40072]:
         dset = 'TCGA_ABCTB->hic'
@@ -283,6 +295,9 @@ elif args.haemek_test_set:
 elif args.TA_test_set:
     key = 'TA_fold6'
     dset = 'TCGA_ABCTB'
+elif args.SHEBA_test_set:
+    key = 'SHEBA_fold6_onco_features'
+    dset = 'SHEBA'
 elif args.hic_test_set:
     key = 'HIC'
 else:
@@ -341,7 +356,7 @@ inf_loader = DataLoader(inf_dset,
                         pin_memory=True)
 
 #if not (args.carmel_test_set or args.haemek_test_set):
-if dset not in ['CARMEL 9-11', 'HAEMEK', 'HIC'] and not args.TA_test_set:
+if dset not in ['CARMEL 9-11', 'HAEMEK', 'HIC'] and not (args.TA_test_set or args.SHEBA_test_set):
     compute_performance = True
     fig1, ax1 = plt.subplots()
     ax1.set_prop_cycle(custom_cycler)
