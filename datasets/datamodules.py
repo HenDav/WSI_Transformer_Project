@@ -29,13 +29,13 @@ NORMALIZATIONS = {
     "none": {"mean": [0.0, 0.0, 0.0], "std": [1.0, 1.0, 1.0]},
 }
 
+GIPDEEP10_DATA_ROOT = "/data"
+
 
 class WsiDataModule(LightningDataModule):
     def __init__(
         self,
-        dataset: Literal[
-            "CAT", "TCGA", "Carmel", "ABCTB", "HAEMEK"
-        ] = "CAT",  # TODO: dataset enum/choices
+        dataset: str = "CAT",  # TODO: dataset enum/choices
         target: Literal["ER", "PR", "HER2", "KI67"] = "ER",  # TODO: target enum/choices
         val_fold: Optional[int] = 1,
         eval_on_train: bool = False,
@@ -49,6 +49,7 @@ class WsiDataModule(LightningDataModule):
         ] = "wsi_ron",
         autoaug: bool = False,
         transforms: Optional[Tuple[Callable, Callable]] = None,
+        openslide: bool = False,
         **kwargs
     ):
         """
@@ -65,6 +66,7 @@ class WsiDataModule(LightningDataModule):
             normalization: normalization scheme
             autoaug: whether to use autoaugment imagenet recipe for default train transforms
             transforms: override default transforms, of the form (train_transforms, eval_transforms)
+            openslide: whether to use openslide for reading images
         """
         super().__init__()
 
@@ -81,6 +83,7 @@ class WsiDataModule(LightningDataModule):
         self.num_workers = num_workers
         self.normalization = normalization
         self.autoaug = autoaug
+        self.openslide = openslide
 
         self.train_transforms, self.eval_transforms = (
             self.define_transforms() if transforms is None else transforms
@@ -102,6 +105,9 @@ class WsiDataModule(LightningDataModule):
                 min_tiles=self.patches_per_slide_train,
                 train=True,
                 transform=self.train_transforms,
+                datasets_base_dir_path=(
+                    GIPDEEP10_DATA_ROOT if self.openslide else None
+                ),
             )
 
             self.val_dataset = SlideStridedDataset(
@@ -112,6 +118,9 @@ class WsiDataModule(LightningDataModule):
                 min_tiles=self.patches_per_slide_eval,
                 train=False,
                 transform=self.eval_transforms,
+                datasets_base_dir_path=(
+                    GIPDEEP10_DATA_ROOT if self.openslide else None
+                ),
             )
         elif stage == "test":
             # TODO: allow testing on more patches per slide with batching, currently the bag size is the batch size so this is limited
@@ -122,6 +131,9 @@ class WsiDataModule(LightningDataModule):
                 bag_size=self.patches_per_slide_eval,
                 train=self.eval_on_train,
                 transform=self.eval_transforms,
+                datasets_base_dir_path=(
+                    GIPDEEP10_DATA_ROOT if self.openslide else None
+                ),
             )
         elif stage == "predict":
             self.predict_dataset = SerialPatchDataset(
@@ -130,6 +142,9 @@ class WsiDataModule(LightningDataModule):
                 val_fold=self.val_fold,
                 train=self.eval_on_train,
                 transform=self.eval_transforms,
+                datasets_base_dir_path=(
+                    GIPDEEP10_DATA_ROOT if self.openslide else None
+                ),
             )
 
     def train_dataloader(self):

@@ -43,14 +43,16 @@ class WSIDataset(ABC, Dataset, SeedableObject):
         super().__init__(**kw)
         self._target = BioMarker[target]
         if not slides_manager:
-            if not datasets_base_dir_path:
+            if datasets_base_dir_path:
+                assert (
+                    len(datasets_base_dir_path) > 0
+                ), "Problem with datasets_base_dir_path path"
+                print(f"Overriding datasets_base_dir_path: {datasets_base_dir_path}")
+            else:
                 if socket.gethostname() == "gipdeep10":
                     datasets_base_dir_path = constants.data_root_gipdeep10
                 else:
                     datasets_base_dir_path = constants.data_root_netapp
-            assert (
-                len(datasets_base_dir_path) > 0
-            ), "Problem with datasets_base_dir_path path"
             if not metadata_file_path:
                 metadata_file_path = constants.main_metadata_csv
             datasets = constants.get_dataset_ids(dataset)
@@ -191,7 +193,7 @@ class SerialPatchDataset(WSIDataset):
         **kw: object,
     ):
         super().__init__(
-            instances_per_slide=1, # will not be used
+            instances_per_slide=1,  # will not be used
             slides_manager=slides_manager,
             target=target,
             tile_size=tile_size,

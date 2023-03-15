@@ -1,21 +1,14 @@
 import math
+import os
+import pickle
 from abc import ABC, abstractmethod
 from enum import Enum, auto
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, cast
-import os
-import pickle
 
 import cv2
 import h5py
 import numpy as np
-import pandas
-import torch
-from matplotlib import pyplot as plt
-from PIL import Image
-
-from wsi_core import constants, utils
-from wsi_core.base import SeedableObject
 
 # openslide
 # OPENSLIDE_PATH = r'C:\openslide-win64-20220811\bin'
@@ -25,6 +18,13 @@ from wsi_core.base import SeedableObject
 #         import openslide
 # else:
 import openslide
+import pandas
+import torch
+from matplotlib import pyplot as plt
+from PIL import Image
+
+from wsi_core import constants, utils
+from wsi_core.base import SeedableObject
 
 
 class BioMarker(Enum):
@@ -84,7 +84,9 @@ class SlideContext:
         else:
             self.read_region_around_pixel = self._read_region_around_pixel_openslide
             self._slide = openslide.open_slide(self._image_file_path)
-            self._level, self._level_downsample = self._get_best_level_for_downsample(slide=self._slide)
+            self._level, self._level_downsample = self._get_best_level_for_downsample(
+                slide=self._slide
+            )
             self._selected_level_tile_size = self._tile_size * self._level_downsample
 
     @property
@@ -97,7 +99,7 @@ class SlideContext:
 
     @property
     def desired_magnification(self) -> int:
-        return round((self._desired_mpp ** -1.0) * 10)
+        return round((self._desired_mpp**-1.0) * 10)
 
     @property
     def image_file_name(self) -> str:
@@ -193,11 +195,16 @@ class SlideContext:
     #     return self._read_region_around_pixel_h5(pixel=pixel)
 
     def _read_region_around_pixel_openslide(self, pixel: np.ndarray) -> Image:
-        slide = openslide.open_slide(self._image_file_path)
-        level, level_downsample = self._get_best_level_for_downsample(slide=slide)
-        selected_level_tile_size = self._tile_size * level_downsample
+        # slide = openslide.open_slide(self._image_file_path)
+        # level, level_downsample = self._get_best_level_for_downsample(slide=slide)
+        # selected_level_tile_size = self._tile_size * level_downsample
+        slide = self._slide
+        level, _ = self._level, self._level_downsample
+        selected_level_tile_size = self._selected_level_tile_size
         top_left_pixel = (pixel - selected_level_tile_size / 2).astype(int).flatten()
-        region = slide.read_region(top_left_pixel, level, (selected_level_tile_size, selected_level_tile_size)).convert('RGB')
+        region = slide.read_region(
+            top_left_pixel, level, (selected_level_tile_size, selected_level_tile_size)
+        ).convert("RGB")
         if selected_level_tile_size != self.tile_size:
             region = region.resize((self.tile_size, self.tile_size))
         return region
@@ -321,8 +328,10 @@ class SlideContext:
                     break
                 elif downsample < self._downsample_from_orig:
                     level = i
-                    level_downsample = int(self._downsample_from_orig / slide.level_downsamples[level])
-    
+                    level_downsample = int(
+                        self._downsample_from_orig / slide.level_downsamples[level]
+                    )
+
         # A tile of size (tile_size, tile_size) in an image downsampled by 'level_downsample', will cover the same image portion of a tile of size (adjusted_tile_size, adjusted_tile_size) in the original image
         return level, level_downsample
 
@@ -422,7 +431,11 @@ class TilesManager(ABC, SlideElement):
     def __init__(self, slide_context: SlideContext, pixels: Optional[np.array]):
         super().__init__(slide_context=slide_context)
 
-        self._load_pixels = self._load_pixels_h5 if slide_context._is_h5 else self._load_pixels_openslide
+        self._load_pixels = (
+            self._load_pixels_h5
+            if slide_context._is_h5
+            else self._load_pixels_openslide
+        )
         self._tiles_df = self._create_tiles_dataframe(pixels=pixels)
 
         # if pixels is None:
@@ -594,10 +607,16 @@ class TilesManager(ABC, SlideElement):
             pixels[:, 0], pixels[:, 1] = pixels[:, 1], pixels[:, 0].copy()
 
         return pixels
-    
+
     def _load_pixels_openslide(self) -> np.ndarray:
-        grid_file_path = os.path.normpath(os.path.join(self._slide_context.dataset_path, f'Grids_{self._slide_context.desired_magnification}', f'{self._slide_context.image_file_name_stem}--tlsz{self._slide_context.tile_size}.data'))
-        with open(grid_file_path, 'rb') as file_handle:
+        grid_file_path = os.path.normpath(
+            os.path.join(
+                self._slide_context.dataset_path,
+                f"Grids_{self._slide_context.desired_magnification}",
+                f"{self._slide_context.image_file_name_stem}--tlsz{self._slide_context.tile_size}.data",
+            )
+        )
+        with open(grid_file_path, "rb") as file_handle:
             pixels = np.array(pickle.load(file_handle))
 
         return pixels
