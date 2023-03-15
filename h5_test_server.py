@@ -74,7 +74,7 @@ if __name__ == "__main__":
         print(f"batch {batch_ndx} time is {(time.time_ns() - start_time) / (10 ** 9)}")
         start_time = time.time_ns()
         if batch_ndx == 0:
-            batch = batch.detach()
+            batch = batch.detach()[:5]
             fig, axs = plt.subplots(ncols=len(batch), squeeze=False)
             for i, img in enumerate(batch):
                 img = img.detach()

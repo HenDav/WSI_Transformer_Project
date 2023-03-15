@@ -845,14 +845,3 @@ class MetadataGenerator(OutputObject, MetadataBase):
 #     def post_process(self):
 #         pass
 
-
-# =================================================
-# MetadataGeneratorArgumentsParser Class
-# =================================================
-# class MetadataGeneratorArgumentsParser(Tap):
-#     datasets_base_dir_path: Path
-#     tile_size: int
-#     desired_magnification: int
-#     metadata_enhancement_dir_path: Path
-#     output_dir_path: Path
-#     dataset_ids: List[str]
