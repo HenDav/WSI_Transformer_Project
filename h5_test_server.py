@@ -19,7 +19,7 @@ from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.sampler import SequentialSampler, SubsetRandomSampler
 from torchvision import transforms
 
-from datasets.datasets import SlideStridedDataset
+from datasets.datasets import SerialPatchDataset
 from models import preact_resnet
 
 # gipmed
@@ -31,9 +31,9 @@ from wsi_core.wsi import BioMarker
 
 
 if __name__ == "__main__":
-    wsi_dataset = SlideStridedDataset(
+    wsi_dataset = SerialPatchDataset(
         metadata_file_path="/home/dahen/WSI/metadata.csv",
-        bag_size=32,
+        datasets_base_dir_path="/mnt/gipmed_new/Data",
         transform=F.to_tensor,
     )
 
@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
     data_loader = DataLoader(
         wsi_dataset,
-        batch_size=None,
+        batch_size=30,
         pin_memory=True,
         # drop_last=True,
         # persistent_workers=True,
@@ -56,15 +56,15 @@ if __name__ == "__main__":
 
     start_time = time.time_ns()
     for batch_ndx, item in enumerate(data_loader):
-        bag = item["bag"]
+        batch = item["patch"]
         labels = item["label"]
 
-        bag = bag.to(device)
+        batch = batch.to(device)
         labels = labels.to(device)
 
         optimizer.zero_grad()
 
-        outputs = model(bag)[0]
+        outputs = model(batch)[0]
 
         loss = loss_fn(outputs, labels)
         loss.backward()
@@ -74,9 +74,9 @@ if __name__ == "__main__":
         print(f"batch {batch_ndx} time is {(time.time_ns() - start_time) / (10 ** 9)}")
         start_time = time.time_ns()
         if batch_ndx == 0:
-            bag = bag.detach()
-            fig, axs = plt.subplots(ncols=len(bag), squeeze=False)
-            for i, img in enumerate(bag):
+            batch = batch.detach()
+            fig, axs = plt.subplots(ncols=len(batch), squeeze=False)
+            for i, img in enumerate(batch):
                 img = img.detach()
                 img = F.to_pil_image(img)
                 axs[0, i].imshow(np.asarray(img))

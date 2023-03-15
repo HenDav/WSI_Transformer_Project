@@ -10,7 +10,7 @@ from typing import Callable, Dict, List, Union
 
 import numpy
 import pandas
-from tap import Tap
+# from tap import Tap
 
 from wsi_core import constants, utils
 from wsi_core.base import OutputObject
@@ -849,10 +849,10 @@ class MetadataGenerator(OutputObject, MetadataBase):
 # =================================================
 # MetadataGeneratorArgumentsParser Class
 # =================================================
-class MetadataGeneratorArgumentsParser(Tap):
-    datasets_base_dir_path: Path
-    tile_size: int
-    desired_magnification: int
-    metadata_enhancement_dir_path: Path
-    output_dir_path: Path
-    dataset_ids: List[str]
+# class MetadataGeneratorArgumentsParser(Tap):
+#     datasets_base_dir_path: Path
+#     tile_size: int
+#     desired_magnification: int
+#     metadata_enhancement_dir_path: Path
+#     output_dir_path: Path
+#     dataset_ids: List[str]

@@ -7,7 +7,7 @@ from typing import List, Type, TypeVar, cast
 
 import numpy
 import torch
-from tap import Tap
+# from tap import Tap
 
 T = TypeVar("T")
 
@@ -178,10 +178,10 @@ def save_object_dict(obj: object, file_path: str):
             text_file.write(f"{key}: {value}\n")
 
 
-def argument_parser_type_cast(instance_type: Type[T], arguments_parser_name: str) -> T:
-    argument_parser_class = globals()[arguments_parser_name]
-    argument_parser = cast(Tap, argument_parser_class())
-    return cast(instance_type, argument_parser.parse_args())
+# def argument_parser_type_cast(instance_type: Type[T], arguments_parser_name: str) -> T:
+#     argument_parser_class = globals()[arguments_parser_name]
+#     argument_parser = cast(Tap, argument_parser_class())
+#     return cast(instance_type, argument_parser.parse_args())
 
 
 def round_to_nearest_power_of_two(mpp: float) -> float:
