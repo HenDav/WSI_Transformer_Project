@@ -5,7 +5,7 @@ from pytorch_lightning.callbacks import LearningRateMonitor
 from pytorch_lightning.cli import ArgsType, LightningCLI
 from pytorch_lightning.loggers.wandb import WandbLogger
 
-from datasets.datamodules import LegacyWsiDataModule, WsiDataModule
+from datasets.datamodules import WsiDataModule  # , LegacyWsiDataModule
 from utils.features_writer import FeaturesWriter  # noqa: F401
 from wsi_classifier import WsiClassifier
 
