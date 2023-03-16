@@ -272,11 +272,11 @@ class WsiClassifier(LightningModule):
             weight_decay=1e-4,
         )
 
-        lr_scheduler = torch.optim.lr_scheduler.StepLR(
-            optimizer, step_size=50, gamma=0.1
-        )
+        # lr_scheduler = torch.optim.lr_scheduler.StepLR(
+        #     optimizer, step_size=50, gamma=0.1
+        # )
 
-        return [optimizer], [lr_scheduler]
+        return [optimizer]  # , [lr_scheduler]
 
     def _init_model(self, model, num_classes, ckpt_path, imagenet_pretrained, finetune):
         if model == "preact_resnet50":

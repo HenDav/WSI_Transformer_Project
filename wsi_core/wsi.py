@@ -201,7 +201,7 @@ class SlideContext:
         slide = self._slide
         level, _ = self._level, self._level_downsample
         selected_level_tile_size = self._selected_level_tile_size
-        top_left_pixel = (pixel - self.zero_level_half_tile_size).astype(int).flatten()
+        top_left_pixel = (pixel - self.zero_level_half_tile_size).astype(int)
         top_left_pixel[0], top_left_pixel[1] = top_left_pixel[1], top_left_pixel[0]
         region = slide.read_region(
             top_left_pixel, level, (selected_level_tile_size, selected_level_tile_size)
@@ -218,7 +218,6 @@ class SlideContext:
     # TODO enable larger sample & sample at other mpp.
     def _read_region_around_pixel_h5(self, pixel: np.ndarray) -> Image:
         pixel = pixel // self._downsample_from_orig
-        pixel = pixel.flatten()
         with h5py.File(f"{self._image_file_path}.h5", "r") as file:
             tile_size = self._tile_size
             x_offset = np.array([tile_size, 0])
@@ -354,6 +353,7 @@ class Patch(SlideElement):
 
     def __init__(self, slide_context: SlideContext, center_pixel: np.ndarray):
         super().__init__(slide_context=slide_context)
+        center_pixel = center_pixel.flatten()
         self._center_pixel = center_pixel
         self._image = None
 
@@ -383,6 +383,7 @@ class Tile(Patch):
     # __slots__ = ['_location', '_top_left_pixel', '_center_pixel']
 
     def __init__(self, slide_context: SlideContext, location: np.ndarray):
+        location = location.flatten()
         self._location = location.astype(np.int64)
         self._top_left_pixel = slide_context.locations_to_pixels(locations=location)
         self._center_pixel = (

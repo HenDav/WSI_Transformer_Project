@@ -12,7 +12,12 @@ class FeaturesWriter(BasePredictionWriter):
         super().__init__(write_interval="batch")
 
         self._slide_num = 0
-        self.output_dir = Path(output_dir).mkdir(parents=True, exist_ok=True)
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        if any(self.output_dir.iterdir()):
+            print(
+                "WARNING: features output directory is not empty, features from slides with existing files will be appended"
+            )
         print(f"Using FeaturesWriter, saving features to {self.output_dir}")
 
     def write_on_batch_end(
@@ -31,45 +36,40 @@ class FeaturesWriter(BasePredictionWriter):
         features = prediction.detach().cpu().numpy()
 
         # handle the case when the batch contains patches from more than one slide
-        # assume it can contain at most two slides
-        # check if the slide name changes in the batch
         slide_names_np = np.array(slide_names)
         slide_switch_indices = (
             np.where(slide_names_np[:-1] != slide_names_np[1:])[0] + 1
         )
-        slide_switch_index = len(slide_names)
-        if len(slide_switch_indices) == 1:
-            slide_switch_index = slide_switch_indices[0]
+        slide_switch_indices = np.insert(slide_switch_indices, 0, 0)
+        slide_switch_indices = np.append(slide_switch_indices, [len(slide_names_np)])
 
-        asset_dict = {
-            "coords": coords[:slide_switch_index],
-            "features": features[:slide_switch_index],
-        }
-        attr_dict = {"name": slide_names[0], "label": labels[0]}
-        self._save_hdf5(asset_dict, attr_dict=attr_dict)
-
-        if len(slide_switch_indices) == 1:
+        for i in range(len(slide_switch_indices) - 1):
             asset_dict = {
-                "coords": coords[slide_switch_index:],
-                "features": features[slide_switch_index:],
+                "coords": coords[slide_switch_indices[i] : slide_switch_indices[i + 1]],
+                "features": features[
+                    slide_switch_indices[i] : slide_switch_indices[i + 1]
+                ],
             }
             attr_dict = {
-                "name": slide_names[slide_switch_index],
-                "label": labels[slide_switch_index],
+                "name": slide_names[slide_switch_indices[i]],
+                "label": labels[slide_switch_indices[i]],
             }
-            self._save_hdf5(asset_dict, attr_dict=attr_dict)
+            self._save_hdf5(slide_names[slide_switch_indices[i]], asset_dict, attr_dict)
 
-    def _save_hdf5(self, asset_dict, attr_dict=None):
-        file_name = (
-            attr_dict["name"] if attr_dict is not None else str(self._slide_num)
-        ) + "_features.h5"
+    def _save_hdf5(self, slide_name, asset_dict, attr_dict=None):
+        file_name = slide_name + "_features.h5"
         path = self.output_dir / file_name
 
         mode = "a" if path.exists() else "w"
         if mode == "w":  # new file
+            print(f"Saving slide features in h5 file: {path}")
             self._slide_num += 1
 
         file = h5py.File(path, mode)
+        if attr_dict is not None:
+            metadata = file.require_group("metadata")
+            for key, val in attr_dict.items():
+                metadata.attrs[key] = val
         for key, val in asset_dict.items():
             data_shape = val.shape
             if key not in file:
@@ -84,10 +84,6 @@ class FeaturesWriter(BasePredictionWriter):
                     dtype=data_type,
                 )
                 dset[:] = val
-                if attr_dict is not None:
-                    if key in attr_dict.keys():
-                        for attr_key, attr_val in attr_dict[key].items():
-                            dset.attrs[attr_key] = attr_val
             else:
                 dset = file[key]
                 dset.resize(len(dset) + data_shape[0], axis=0)

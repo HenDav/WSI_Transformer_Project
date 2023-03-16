@@ -7,6 +7,7 @@ from typing import List, Type, TypeVar, cast
 
 import numpy
 import torch
+
 # from tap import Tap
 
 T = TypeVar("T")
@@ -186,4 +187,4 @@ def save_object_dict(obj: object, file_path: str):
 
 def round_to_nearest_power_of_two(mpp: float) -> float:
     log_mpp = math.log(mpp, 2.0)
-    return 2.0 ** round(log_mpp)
+    return 2 ** round(log_mpp)

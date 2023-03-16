@@ -217,7 +217,7 @@ class SerialPatchDataset(WSIDataset):
         self.patch_extractor = SerialPatchExtractor(slide=self._slide)
 
     def __getitem__(self, item: int):
-        if self._n_slide_patches >= (self._slide.tiles_count - 1):
+        if self._n_slide_patches == self._slide.tiles_count:
             self._n_slides += 1
             self._slide = self._slides_manager.get_slide(self._n_slides - 1)
             self.patch_extractor = SerialPatchExtractor(slide=self._slide)
