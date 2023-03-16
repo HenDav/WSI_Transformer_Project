@@ -43,7 +43,7 @@ class WsiDataModule(LightningDataModule):
         patches_per_slide_train: int = 10,
         patches_per_slide_eval: int = 10,
         img_size: int = 256,
-        batch_size: int = 128,
+        batch_size: int = 256,
         num_workers: int = 8,
         normalization: Literal[
             "standard", "imagenet", "wsi_ron", "tcga", "cat", "none"
@@ -156,6 +156,7 @@ class WsiDataModule(LightningDataModule):
             num_workers=self.num_workers,
             pin_memory=True,
             drop_last=True,
+            persistent_workers=True,
         )
 
     def val_dataloader(self):
@@ -165,6 +166,7 @@ class WsiDataModule(LightningDataModule):
             shuffle=False,
             num_workers=self.num_workers,
             pin_memory=True,
+            persistent_workers=True,
         )
 
     def test_dataloader(self):

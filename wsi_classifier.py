@@ -84,6 +84,7 @@ class WsiClassifier(LightningModule):
             prog_bar=False,
             logger=True,
             batch_size=self.hparams.batch_size,
+            sync_dist=True,
         )
         self.log(
             "train/patch_acc",
@@ -92,6 +93,7 @@ class WsiClassifier(LightningModule):
             prog_bar=False,
             logger=True,
             batch_size=self.hparams.batch_size,
+            sync_dist=True,
         )
 
         return {"loss": loss, "patch_preds": preds, "patch_scores": scores, "y": y}
@@ -133,6 +135,7 @@ class WsiClassifier(LightningModule):
             prog_bar=True,
             logger=True,
             batch_size=self.hparams.batch_size,
+            sync_dist=True,
         )
         self.log(
             "val/patch_acc",
@@ -141,6 +144,7 @@ class WsiClassifier(LightningModule):
             prog_bar=False,
             logger=True,
             batch_size=self.hparams.batch_size,
+            sync_dist=True,
         )
 
         return {
@@ -202,21 +206,9 @@ class WsiClassifier(LightningModule):
             logger=True,
         )
 
-        # self.log(
-        #         "val/patch_auc",
-        #         auroc(patch_scores, patch_labels, task="binary"),
-        #         prog_bar=True,
-        #         logger=True,
-        #         )
-        # self.log(
-        #         "val/slide_auc",
-        #         auroc(slide_scores, slide_labels, task="binary"),
-        #         prog_bar=True,
-        #         logger=True,
-        #         )
-
-        if isinstance(self.logger, WandbLogger):
-            wandb.log(
+        # TODO: gather all outputs to rank 0 and compute/log metrics there, this currently only logs for slides on rank 0
+        if isinstance(self.logger, WandbLogger) and self.trainer.is_global_zero:
+            self.logger.experiment.log(
                 {"val/slide_roc": wandb.plot.roc_curve(slide_labels, slide_scores)},
             )
 
@@ -237,7 +229,7 @@ class WsiClassifier(LightningModule):
 
             # this also logs the table
             table = wandb.Table(data=df)
-            wandb.log(
+            self.logger.experiment.log(
                 {
                     "val/slide_scores": wandb.plot.histogram(
                         table, "score", title="Val Slide Scores Histogram"
@@ -250,7 +242,7 @@ class WsiClassifier(LightningModule):
                 preds=slide_preds.numpy(),
                 class_names=class_names,
             )
-            wandb.log({"val/conf_mat": cm})
+            self.logger.experiment.log({"val/conf_mat": cm})
 
     def test_step(self, batch, batch_idx):
         # TODO: patch/slide level testing
