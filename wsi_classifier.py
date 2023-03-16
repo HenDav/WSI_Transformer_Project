@@ -71,6 +71,8 @@ class WsiClassifier(LightningModule):
     def training_step(self, batch, batch_idx):
         x = batch["patch"]
         y = batch["label"]
+        # x = batch["Data"]
+        # y = batch["Target"].squeeze(1)
         loss, preds, scores = self.shared_step(x, y)
 
         self.train_acc(preds, y)
@@ -79,7 +81,7 @@ class WsiClassifier(LightningModule):
             loss,
             on_step=True,
             on_epoch=True,
-            prog_bar=True,
+            prog_bar=False,
             logger=True,
             batch_size=self.hparams.batch_size,
         )
@@ -87,7 +89,7 @@ class WsiClassifier(LightningModule):
             "train/patch_acc",
             self.train_acc,
             on_epoch=True,
-            prog_bar=True,
+            prog_bar=False,
             logger=True,
             batch_size=self.hparams.batch_size,
         )
@@ -136,7 +138,7 @@ class WsiClassifier(LightningModule):
             "val/patch_acc",
             self.val_acc,
             on_epoch=True,
-            prog_bar=True,
+            prog_bar=False,
             logger=True,
             batch_size=self.hparams.batch_size,
         )
@@ -173,7 +175,7 @@ class WsiClassifier(LightningModule):
                 task="multiclass",
                 num_classes=self.num_classes,
             ),
-            prog_bar=True,
+            prog_bar=False,
             logger=True,
         )
 
@@ -318,7 +320,7 @@ class WsiClassifier(LightningModule):
                     f"Incompatible keys when loading backbone from checkpoint: {incompatible_keys}"
                 )
 
-        if not finetune:
+        if (imagenet_pretrained or ckpt_path is not None) and not finetune:
             for child in list(backbone.children()):
                 for param in child.parameters():
                     param.requires_grad = False

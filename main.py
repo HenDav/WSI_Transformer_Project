@@ -5,7 +5,7 @@ from pytorch_lightning.callbacks import LearningRateMonitor
 from pytorch_lightning.cli import ArgsType, LightningCLI
 from pytorch_lightning.loggers.wandb import WandbLogger
 
-from datasets.datamodules import WsiDataModule
+from datasets.datamodules import LegacyWsiDataModule, WsiDataModule
 from utils.features_writer import FeaturesWriter  # noqa: F401
 from wsi_classifier import WsiClassifier
 
@@ -44,6 +44,7 @@ def cli_main(args: ArgsType = None):
     cli = WsiLightningCLI(  # noqa: F841
         WsiClassifier,
         WsiDataModule,
+        # LegacyWsiDataModule,
         trainer_defaults=trainer_defaults,
         seed_everything_default=True,
         parser_kwargs={"fit": {"default_config_files": ["default_config_fit.yaml"]}},
