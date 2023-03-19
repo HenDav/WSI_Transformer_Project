@@ -38,11 +38,12 @@ class WsiDataModule(LightningDataModule):
     def __init__(
         self,
         dataset: str = "CAT",  # TODO: dataset enum/choices
-        target: Literal["ER", "PR", "HER2", "KI67"] = "ER",  # TODO: target enum/choices
+        target: str = "ER",  # TODO: target enum/choices
         val_fold: Optional[int] = 1,
         eval_on_train: bool = False,
         patches_per_slide_train: int = 10,
         patches_per_slide_eval: int = 10,
+        min_tiles_eval: int = 100,
         img_size: int = 256,
         batch_size: int = 256,
         num_workers: int = 8,
@@ -62,6 +63,7 @@ class WsiDataModule(LightningDataModule):
             eval_on_train: whether to evaluate on the training set for test/predict
             patches_per_slide_train: number of patches per slide in each training epoch
             patches_per_slide_eval: number of patches per slide in evaluation
+            min_tiles_test: minimum number of tiles per slide
             img_size: square image dimension at entry to the model
             batch_size: batch size for training and feature extraction
             num_workers: number of dataloader workers
@@ -80,6 +82,7 @@ class WsiDataModule(LightningDataModule):
         self.eval_on_train = eval_on_train
         self.patches_per_slide_train = patches_per_slide_train
         self.patches_per_slide_eval = patches_per_slide_eval
+        self.min_tiles_eval = min_tiles_eval
         self.img_size = img_size
         self.batch_size = batch_size
         self.num_workers = num_workers
@@ -117,7 +120,7 @@ class WsiDataModule(LightningDataModule):
                 target=self.target,
                 val_fold=self.val_fold,
                 bag_size=self.patches_per_slide_eval,
-                min_tiles=self.patches_per_slide_eval,
+                min_tiles=self.min_tiles_eval,
                 train=False,
                 transform=self.eval_transforms,
                 datasets_base_dir_path=(
@@ -131,6 +134,7 @@ class WsiDataModule(LightningDataModule):
                 target=self.target,
                 val_fold=self.val_fold,
                 bag_size=self.patches_per_slide_eval,
+                min_tiles=self.min_tiles_eval,
                 train=self.eval_on_train,
                 transform=self.eval_transforms,
                 datasets_base_dir_path=(
@@ -142,6 +146,7 @@ class WsiDataModule(LightningDataModule):
                 dataset=self.dataset,
                 target=self.target,
                 val_fold=self.val_fold,
+                min_tiles=self.min_tiles_eval,
                 train=self.eval_on_train,
                 transform=self.eval_transforms,
                 datasets_base_dir_path=(

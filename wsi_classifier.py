@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Literal, Optional
 
 import pandas as pd
@@ -245,12 +246,112 @@ class WsiClassifier(LightningModule):
             self.logger.experiment.log({"val/conf_mat": cm})
 
     def test_step(self, batch, batch_idx):
-        # TODO: patch/slide level testing
-        raise NotImplementedError()
+        x = batch["bag"]
+        y = batch["label"]
+        slide_name = batch["slide_name"]
+        # patch_coords = batch["center_pixel"]
+        _, patch_preds, patch_scores = self.shared_step(x, y)
+        slide_label = y[0]
+        slide_score = patch_scores.mean(dim=0)  # of shape [num_classes]
+        slide_pred = slide_score.argmax()
+
+        return {
+            "patch_preds": patch_preds,
+            "patch_scores": patch_scores,
+            "patch_labels": y,
+            "slide_score": slide_score,
+            "slide_pred": slide_pred,
+            "slide_name": slide_name,
+            "slide_label": slide_label,
+        }
 
     def test_epoch_end(self, outputs):
-        # TODO: patch/slide level testing
-        raise NotImplementedError()
+        patch_scores = (
+            torch.cat([x["patch_scores"] for x in outputs], dim=0).detach().cpu()
+        )
+        patch_labels = torch.cat([x["patch_labels"] for x in outputs], dim=0).cpu()
+        slide_scores = torch.stack([x["slide_score"] for x in outputs]).detach().cpu()
+        slide_preds = torch.stack([x["slide_pred"] for x in outputs]).detach().cpu()
+        slide_names = [x["slide_name"] for x in outputs]
+        slide_labels = torch.stack([x["slide_label"] for x in outputs]).cpu()
+
+        self.log(
+            "test/slide_acc",
+            accuracy(
+                slide_preds,
+                slide_labels,
+                task="multiclass",
+                num_classes=self.num_classes,
+            ),
+            logger=True,
+        )
+
+        self.log(
+            "test/patch_auc",
+            auroc(
+                patch_scores,
+                patch_labels,
+                task="multiclass",
+                num_classes=self.num_classes,
+            ),
+            logger=True,
+        )
+        self.log(
+            "test/slide_auc",
+            auroc(
+                slide_scores,
+                slide_labels,
+                task="multiclass",
+                num_classes=self.num_classes,
+            ),
+            logger=True,
+        )
+
+        # from this point on, we only support binary classification for now
+        if self.num_classes > 2:
+            return
+
+        positive_slide_scores = slide_scores[:, 1]
+        class_names = ["Negative", "Positive"]
+
+        df = pd.DataFrame(
+            data={
+                "slide_name": slide_names,
+                "score": positive_slide_scores,
+                "label": slide_labels,
+            }
+        )
+
+        if not isinstance(self.logger, WandbLogger):
+            df.to_csv(Path(self.logger.log_dir) / "slide_scores.csv")
+            return
+
+        self.logger.experiment.log(
+            {
+                "test/slide_roc": wandb.plot.roc_curve(
+                    slide_labels.unsqueeze(1), slide_scores, labels=class_names
+                )
+            },
+        )
+
+        # this also logs the table
+        table = wandb.Table(data=df)
+        self.logger.experiment.log(
+            {
+                "test/slide_scores": wandb.plot.histogram(
+                    table, "score", title="Test Slide Scores Histogram"
+                )
+            }
+        )
+
+        cm = wandb.plot.confusion_matrix(
+            y_true=slide_labels.numpy(),
+            preds=slide_preds.numpy(),
+            class_names=class_names,
+        )
+        self.logger.experiment.log({"test/conf_mat": cm})
+
+        df.to_csv(Path(self.logger.experiment.dir) / "slide_scores.csv")
 
     def predict_step(self, batch, batch_idx):
         x = batch["patch"]

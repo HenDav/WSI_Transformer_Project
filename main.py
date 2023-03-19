@@ -13,21 +13,34 @@ from wsi_classifier import WsiClassifier
 class WsiLightningCLI(LightningCLI):
     def add_arguments_to_parser(self, parser):
         parser.link_arguments("data.batch_size", "model.batch_size")
-
-    def before_fit(self):
-        # allow specifying wandb checkpoint paths in the form of "wandb:USER/PROJECT/MODEL-RUN_ID:VERSION"
+        # allow specifying wandb checkpoint paths in the form of "USER/PROJECT/MODEL-RUN_ID:VERSION"
         # reference can be retrieved in artifacts panel
         # "VERSION" can be a version (ex: "v2") or an alias ("latest or "best_k")
+        # the file is downloaded to "./artifacts/model-RUN_ID:VERSION/model.ckpt"
+        parser.add_argument("--wandb_ckpt_path", type=str)
 
-        ckpt_path = vars(self.config).get("ckpt_path")
+    def before_fit(self):
+        wandb_ckpt_path = vars(self.config["fit"]).get("wandb_ckpt_path")
+        if wandb_ckpt_path is not None:
+            artifact_path = self.download_wandb_ckpt(wandb_ckpt_path)
+            self.config["ckpt_path"] = artifact_path
 
-        if ckpt_path is not None and ckpt_path.startswith("wandb:"):
-            wandb_reference = ckpt_path.split(":")[1]
-            # download wandb checkpoint and update ckpt_path in args
-            artifact_dir = WandbLogger.download_artifact(
-                wandb_reference, artifact_type="model"
-            )
-            self.config["ckpt_path"] = Path(artifact_dir) / "model.ckpt"
+    def before_test(self):
+        wandb_ckpt_path = vars(self.config["test"]).get("wandb_ckpt_path")
+        if wandb_ckpt_path is not None:
+            self.download_wandb_ckpt(wandb_ckpt_path)
+
+    def before_predict(self):
+        wandb_ckpt_path = vars(self.config["predict"]).get("wandb_ckpt_path")
+        if wandb_ckpt_path is not None:
+            self.download_wandb_ckpt(wandb_ckpt_path)
+
+    @staticmethod
+    def download_wandb_ckpt(ckpt_path):
+        artifact_dir = WandbLogger.download_artifact(ckpt_path, artifact_type="model")
+        artifact_path = str(Path(artifact_dir) / "model.ckpt")
+        print(f"Downloaded checkpoint from wandb: {artifact_path}")
+        return artifact_path
 
 
 def cli_main(args: ArgsType = None):
@@ -35,7 +48,7 @@ def cli_main(args: ArgsType = None):
     trainer_defaults = {
         "accelerator": "gpu" if torch.cuda.is_available() else "cpu",
         "devices": "auto",
-        "max_epochs": 100,
+        "max_epochs": 1000,
         "callbacks": [lr_monitor],
     }
 
@@ -47,7 +60,13 @@ def cli_main(args: ArgsType = None):
         # LegacyWsiDataModule,
         trainer_defaults=trainer_defaults,
         seed_everything_default=True,
-        parser_kwargs={"fit": {"default_config_files": ["default_config_fit.yaml"]}},
+        parser_kwargs={
+            "fit": {"default_config_files": ["configs/default_config_fit.yaml"]},
+            "test": {"default_config_files": ["configs/default_config_test.yaml"]},
+            "predict": {
+                "default_config_files": ["configs/default_config_predict.yaml"]
+            },
+        },
         save_config_kwargs={"overwrite": True},
         args=args,
     )
