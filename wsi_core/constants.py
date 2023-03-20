@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
 from typing import Dict, List
+from itertools import takewhile
+import re
 
 # General parameters
 test_fold_id = "test"
@@ -256,3 +258,7 @@ def get_dataset_ids(dataset_id: str) -> List[str]:
             )
 
     return sorted(list(dataset_ids))
+
+
+def get_dataset_id_suffix(dataset_id: str) -> int:
+    return int(re.findall('\d+', dataset_id)[0])

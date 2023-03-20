@@ -13,7 +13,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/generate_metadata.py" />
-    <option name="PARAMETERS" value="--datasets-base-dir-path D:/Pathology --tile-size 256 --desired-magnification 10 --metadata-enhancement-dir-path D:/enhancement --output-dir-path $PROJECT_DIR$/../../metadata --dataset-ids CARMEL1 HAEMEK1" />
+    <option name="PARAMETERS" value="--datasets-base-dir-path D:/Pathology --tile-size 256 --desired-magnification 10 --metadata-enhancement-dir-path D:/enhancement --output-dir-path $PROJECT_DIR$/../../metadata --dataset-ids CARMEL1 CARMEL2 CARMEL3 CARMEL4 CARMEL5 CARMEL6 CARMEL7 CARMEL8 CARMEL9 CARMEL10 CARMEL11 TCGA ABCTB HAEMEK1 SHEBA3" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="true" />
     <option name="MODULE_MODE" value="false" />

@@ -544,7 +544,7 @@ class MetadataGenerator(OutputObject, MetadataBase):
         )
         return df
 
-    def _enhance_metadata_carmel(self, df):
+    def _enhance_metadata_carmel_1_8(self, df):
         df = MetadataGenerator._add_slide_barcode_prefix(df=df)
         df = MetadataGenerator._add_NA_onco_data(df=df)
 
@@ -600,6 +600,13 @@ class MetadataGenerator(OutputObject, MetadataBase):
         #     h = 5
         return df
 
+    def _enhance_metadata_carmel_9_11(self, df):
+        df = MetadataGenerator._add_slide_barcode_prefix(df=df)
+        df = MetadataGenerator._add_NA_grade(df=df)
+        df = MetadataGenerator._add_NA_tumor_type(df=df)
+        df = MetadataGenerator._add_NA_onco_data(df=df)
+        return df
+
     def _enhance_metadata_abctb(self, df):
         df = MetadataGenerator._add_slide_barcode_prefix(df=df)
         df = MetadataGenerator._add_NA_ki_67_status(df=df)
@@ -645,7 +652,10 @@ class MetadataGenerator(OutputObject, MetadataBase):
         if dataset_id == "TCGA":
             return self._enhance_metadata_tcga(df=df)
         elif dataset_id.startswith("CARMEL"):
-            return self._enhance_metadata_carmel(df=df)
+            if constants.get_dataset_id_suffix(dataset_id=dataset_id) < 9:
+                return self._enhance_metadata_carmel_1_8(df=df)
+            else:
+                return self._enhance_metadata_carmel_9_11(df=df)
         elif dataset_id == "ABCTB":
             return self._enhance_metadata_abctb(df=df)
         elif dataset_id.startswith("SHEBA"):
@@ -909,6 +919,16 @@ class MetadataGenerator(OutputObject, MetadataBase):
             return "NA"
 
     @staticmethod
+    def _add_NA_tumor_type(
+        df: pandas.DataFrame
+    ) -> pandas.DataFrame:
+        df[constants.tumor_type_column_name] = df.apply(
+            lambda row: 'NA', axis=1
+        )
+
+        return df
+
+    @staticmethod
     def _add_NA_grade(
         df: pandas.DataFrame
     ) -> pandas.DataFrame:
@@ -1029,6 +1049,7 @@ class MetadataGenerator(OutputObject, MetadataBase):
 
     @staticmethod
     def _standardize_metadata(df: pandas.DataFrame) -> pandas.DataFrame:
+        df = df.dropna()
         pandas.options.mode.chained_assignment = None
         df = df[~df[constants.fold_column_name].isin(constants.invalid_values)]
         folds = list(df[constants.fold_column_name].unique())
@@ -1039,5 +1060,5 @@ class MetadataGenerator(OutputObject, MetadataBase):
         ] = max_val
         df[constants.fold_column_name] = df[constants.fold_column_name].astype(int)
         df = df.replace(constants.invalid_values, constants.invalid_value)
-        df = df.dropna()
+        # df = df.dropna()
         return df
