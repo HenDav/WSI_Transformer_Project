@@ -10,19 +10,9 @@ from typing import Callable, Dict, List, Union
 
 import numpy
 import pandas
-# from tap import Tap
 
 from wsi_core import constants, utils
 from wsi_core.base import OutputObject
-
-# openslide
-# OPENSLIDE_PATH = r'C:\openslide-win64-20220811\bin'
-# if hasattr(os, 'add_dll_directory'):
-#     # Python >= 3.8 on Windows
-#     with os.add_dll_directory(OPENSLIDE_PATH):
-#         pass
-# else:
-#     pass
 
 
 # =================================================
@@ -52,21 +42,6 @@ class MetadataBase(ABC):
     @abstractmethod
     def _load_metadata(self) -> pandas.DataFrame:
         pass
-
-
-# =================================================
-# MetadataReader Class
-# =================================================
-# class MetadataReader:
-#     def __init__(
-#             self,
-#             metadata_file_path: Path,
-#             **kw: object):
-#         self._metadata_file_path = metadata_file_path
-#         super(MetadataReader, self).__init__(**kw)
-#
-#     def _load_metadata(self) -> pandas.DataFrame:
-#         return pandas.read_csv(filepath_or_buffer=self._metadata_file_path)
 
 
 # =================================================
@@ -106,42 +81,6 @@ class MetadataGenerator(OutputObject, MetadataBase):
         for dataset_id_prefix in constants.metadata_base_dataset_ids:
             column_names[dataset_id_prefix] = {}
             column_names[dataset_id_prefix][
-                constants.file_column_name_shared
-            ] = constants.file_column_name
-            column_names[dataset_id_prefix][
-                constants.patient_barcode_column_name_shared
-            ] = constants.patient_barcode_column_name
-            column_names[dataset_id_prefix][
-                constants.dataset_id_column_name_shared
-            ] = constants.dataset_id_column_name
-            column_names[dataset_id_prefix][
-                constants.mpp_column_name_shared
-            ] = constants.mpp_column_name
-            column_names[dataset_id_prefix][
-                constants.scan_date_column_name_shared
-            ] = constants.scan_date_column_name
-            column_names[dataset_id_prefix][
-                constants.width_column_name_shared
-            ] = constants.width_column_name
-            column_names[dataset_id_prefix][
-                constants.height_column_name_shared
-            ] = constants.height_column_name
-            column_names[dataset_id_prefix][
-                constants.magnification_column_name_shared
-            ] = constants.magnification_column_name
-            column_names[dataset_id_prefix][
-                constants.er_status_column_name_shared
-            ] = constants.er_status_column_name
-            column_names[dataset_id_prefix][
-                constants.pr_status_column_name_shared
-            ] = constants.pr_status_column_name
-            column_names[dataset_id_prefix][
-                constants.her2_status_column_name_shared
-            ] = constants.her2_status_column_name
-            column_names[dataset_id_prefix][
-                constants.fold_column_name_shared
-            ] = constants.fold_column_name
-            column_names[dataset_id_prefix][
                 self._get_total_tiles_column_name()
             ] = constants.total_tiles_column_name
             column_names[dataset_id_prefix][
@@ -153,7 +92,195 @@ class MetadataGenerator(OutputObject, MetadataBase):
                 )
             ] = constants.tile_usage_column_name
 
+            if dataset_id_prefix.startswith(constants.dataset_id_abctb):
+                column_names[dataset_id_prefix][
+                    constants.file_column_name_abctb
+                ] = constants.file_column_name
+                column_names[dataset_id_prefix][
+                    constants.patient_barcode_column_name_abctb
+                ] = constants.patient_barcode_column_name
+                column_names[dataset_id_prefix][
+                    constants.dataset_id_column_name_abctb
+                ] = constants.dataset_id_column_name
+                column_names[dataset_id_prefix][
+                    constants.mpp_column_name_abctb
+                ] = constants.mpp_column_name
+                column_names[dataset_id_prefix][
+                    constants.scan_date_column_name_abctb
+                ] = constants.scan_date_column_name
+                column_names[dataset_id_prefix][
+                    constants.width_column_name_abctb
+                ] = constants.width_column_name
+                column_names[dataset_id_prefix][
+                    constants.height_column_name_abctb
+                ] = constants.height_column_name
+                column_names[dataset_id_prefix][
+                    constants.magnification_column_name_abctb
+                ] = constants.magnification_column_name
+                column_names[dataset_id_prefix][
+                    constants.er_status_column_name_abctb
+                ] = constants.er_status_column_name
+                column_names[dataset_id_prefix][
+                    constants.pr_status_column_name_abctb
+                ] = constants.pr_status_column_name
+                column_names[dataset_id_prefix][
+                    constants.her2_status_column_name_abctb
+                ] = constants.her2_status_column_name
+                column_names[dataset_id_prefix][
+                    constants.fold_column_name_abctb
+                ] = constants.fold_column_name
+
+            if dataset_id_prefix.startswith(constants.dataset_id_tcga):
+                column_names[dataset_id_prefix][
+                    constants.file_column_name_tcga
+                ] = constants.file_column_name
+                column_names[dataset_id_prefix][
+                    constants.patient_barcode_column_name_tcga
+                ] = constants.patient_barcode_column_name
+                column_names[dataset_id_prefix][
+                    constants.dataset_id_column_name_tcga
+                ] = constants.dataset_id_column_name
+                column_names[dataset_id_prefix][
+                    constants.mpp_column_name_tcga
+                ] = constants.mpp_column_name
+                column_names[dataset_id_prefix][
+                    constants.scan_date_column_name_tcga
+                ] = constants.scan_date_column_name
+                column_names[dataset_id_prefix][
+                    constants.width_column_name_tcga
+                ] = constants.width_column_name
+                column_names[dataset_id_prefix][
+                    constants.height_column_name_tcga
+                ] = constants.height_column_name
+                column_names[dataset_id_prefix][
+                    constants.magnification_column_name_tcga
+                ] = constants.magnification_column_name
+                column_names[dataset_id_prefix][
+                    constants.er_status_column_name_tcga
+                ] = constants.er_status_column_name
+                column_names[dataset_id_prefix][
+                    constants.pr_status_column_name_tcga
+                ] = constants.pr_status_column_name
+                column_names[dataset_id_prefix][
+                    constants.her2_status_column_name_tcga
+                ] = constants.her2_status_column_name
+                column_names[dataset_id_prefix][
+                    constants.fold_column_name_tcga
+                ] = constants.fold_column_name
+
+            if dataset_id_prefix.startswith(constants.dataset_id_haemek):
+                column_names[dataset_id_prefix][
+                    constants.file_column_name_haemek
+                ] = constants.file_column_name
+                column_names[dataset_id_prefix][
+                    constants.patient_barcode_column_name_haemek
+                ] = constants.patient_barcode_column_name
+                column_names[dataset_id_prefix][
+                    constants.dataset_id_column_name_haemek
+                ] = constants.dataset_id_column_name
+                column_names[dataset_id_prefix][
+                    constants.mpp_column_name_haemek
+                ] = constants.mpp_column_name
+                column_names[dataset_id_prefix][
+                    constants.scan_date_column_name_haemek
+                ] = constants.scan_date_column_name
+                column_names[dataset_id_prefix][
+                    constants.width_column_name_haemek
+                ] = constants.width_column_name
+                column_names[dataset_id_prefix][
+                    constants.height_column_name_haemek
+                ] = constants.height_column_name
+                column_names[dataset_id_prefix][
+                    constants.magnification_column_name_haemek
+                ] = constants.magnification_column_name
+                column_names[dataset_id_prefix][
+                    constants.er_status_column_name_haemek
+                ] = constants.er_status_column_name
+                column_names[dataset_id_prefix][
+                    constants.pr_status_column_name_haemek
+                ] = constants.pr_status_column_name
+                column_names[dataset_id_prefix][
+                    constants.ki_67_status_column_name_haemek
+                ] = constants.ki_67_status_column_name
+                column_names[dataset_id_prefix][
+                    constants.her2_status_column_name_haemek
+                ] = constants.her2_status_column_name
+                column_names[dataset_id_prefix][
+                    constants.fold_column_name_haemek
+                ] = constants.fold_column_name
+                column_names[dataset_id_prefix][
+                    constants.tumor_type_column_name_haemek
+                ] = constants.tumor_type_column_name
+
+            if dataset_id_prefix.startswith(constants.dataset_id_carmel):
+                column_names[dataset_id_prefix][
+                    constants.file_column_name_carmel
+                ] = constants.file_column_name
+                column_names[dataset_id_prefix][
+                    constants.patient_barcode_column_name_carmel
+                ] = constants.patient_barcode_column_name
+                column_names[dataset_id_prefix][
+                    constants.dataset_id_column_name_carmel
+                ] = constants.dataset_id_column_name
+                column_names[dataset_id_prefix][
+                    constants.mpp_column_name_carmel
+                ] = constants.mpp_column_name
+                column_names[dataset_id_prefix][
+                    constants.scan_date_column_name_carmel
+                ] = constants.scan_date_column_name
+                column_names[dataset_id_prefix][
+                    constants.width_column_name_carmel
+                ] = constants.width_column_name
+                column_names[dataset_id_prefix][
+                    constants.height_column_name_carmel
+                ] = constants.height_column_name
+                column_names[dataset_id_prefix][
+                    constants.magnification_column_name_carmel
+                ] = constants.magnification_column_name
+                column_names[dataset_id_prefix][
+                    constants.er_status_column_name_carmel
+                ] = constants.er_status_column_name
+                column_names[dataset_id_prefix][
+                    constants.pr_status_column_name_carmel
+                ] = constants.pr_status_column_name
+                column_names[dataset_id_prefix][
+                    constants.ki_67_status_column_name_carmel
+                ] = constants.ki_67_status_column_name
+                column_names[dataset_id_prefix][
+                    constants.her2_status_column_name_carmel
+                ] = constants.her2_status_column_name
+                column_names[dataset_id_prefix][
+                    constants.fold_column_name_carmel
+                ] = constants.fold_column_name
+
             if dataset_id_prefix.startswith(constants.dataset_id_sheba):
+                column_names[dataset_id_prefix][
+                    constants.file_column_name_sheba
+                ] = constants.file_column_name
+                column_names[dataset_id_prefix][
+                    constants.patient_barcode_column_name_sheba
+                ] = constants.patient_barcode_column_name
+                column_names[dataset_id_prefix][
+                    constants.dataset_id_column_name_sheba
+                ] = constants.dataset_id_column_name
+                column_names[dataset_id_prefix][
+                    constants.mpp_column_name_sheba
+                ] = constants.mpp_column_name
+                column_names[dataset_id_prefix][
+                    constants.scan_date_column_name_sheba
+                ] = constants.scan_date_column_name
+                column_names[dataset_id_prefix][
+                    constants.width_column_name_sheba
+                ] = constants.width_column_name
+                column_names[dataset_id_prefix][
+                    constants.height_column_name_sheba
+                ] = constants.height_column_name
+                column_names[dataset_id_prefix][
+                    constants.magnification_column_name_sheba
+                ] = constants.magnification_column_name
+                column_names[dataset_id_prefix][
+                    constants.fold_column_name_sheba
+                ] = constants.fold_column_name
                 column_names[dataset_id_prefix][
                     constants.er_status_column_name_sheba
                 ] = constants.er_status_column_name
@@ -169,6 +296,24 @@ class MetadataGenerator(OutputObject, MetadataBase):
                 column_names[dataset_id_prefix][
                     constants.tumor_type_column_name_sheba
                 ] = constants.tumor_type_column_name
+                column_names[dataset_id_prefix][
+                    constants.onco_ki_67_column_name_sheba
+                ] = constants.onco_ki_67_column_name
+                column_names[dataset_id_prefix][
+                    constants.onco_score_11_column_name_sheba
+                ] = constants.onco_score_11_column_name
+                column_names[dataset_id_prefix][
+                    constants.onco_score_18_column_name_sheba
+                ] = constants.onco_score_18_column_name
+                column_names[dataset_id_prefix][
+                    constants.onco_score_26_column_name_sheba
+                ] = constants.onco_score_26_column_name
+                column_names[dataset_id_prefix][
+                    constants.onco_score_31_column_name_sheba
+                ] = constants.onco_score_31_column_name
+                column_names[dataset_id_prefix][
+                    constants.onco_score_all_column_name_sheba
+                ] = constants.onco_score_all_column_name
 
         return column_names
 
@@ -313,6 +458,8 @@ class MetadataGenerator(OutputObject, MetadataBase):
 
     def _enhance_metadata_tcga(self, df: pandas.DataFrame):
         df = MetadataGenerator._add_slide_barcode_prefix(df=df)
+        df = MetadataGenerator._add_NA_ki_67_status(df=df)
+        df = MetadataGenerator._add_NA_onco_data(df=df)
 
         brca_tcga_pan_can_atlas_2018_clinical_data_df = pandas.read_csv(
             filepath_or_buffer=os.path.normpath(
@@ -399,6 +546,7 @@ class MetadataGenerator(OutputObject, MetadataBase):
 
     def _enhance_metadata_carmel(self, df):
         df = MetadataGenerator._add_slide_barcode_prefix(df=df)
+        df = MetadataGenerator._add_NA_onco_data(df=df)
 
         carmel_annotations_Batch11_26_10_21_df = pandas.read_excel(
             io=os.path.normpath(
@@ -454,6 +602,8 @@ class MetadataGenerator(OutputObject, MetadataBase):
 
     def _enhance_metadata_abctb(self, df):
         df = MetadataGenerator._add_slide_barcode_prefix(df=df)
+        df = MetadataGenerator._add_NA_ki_67_status(df=df)
+        df = MetadataGenerator._add_NA_onco_data(df=df)
 
         abctb_path_data_df = pandas.read_excel(
             io=os.path.normpath(
@@ -482,6 +632,15 @@ class MetadataGenerator(OutputObject, MetadataBase):
         )
         return df
 
+    def _enhance_metadata_sheba(self, df):
+        df = MetadataGenerator._add_NA_ki_67_status(df=df)
+        return df
+
+    def _enhance_metadata_haemek(self, df):
+        df = MetadataGenerator._add_NA_onco_data(df=df)
+        df = MetadataGenerator._add_NA_grade(df=df)
+        return df
+
     def _enhance_metadata(self, df, dataset_id):
         if dataset_id == "TCGA":
             return self._enhance_metadata_tcga(df=df)
@@ -489,7 +648,10 @@ class MetadataGenerator(OutputObject, MetadataBase):
             return self._enhance_metadata_carmel(df=df)
         elif dataset_id == "ABCTB":
             return self._enhance_metadata_abctb(df=df)
-
+        elif dataset_id.startswith("SHEBA"):
+            return self._enhance_metadata_sheba(df=df)
+        elif dataset_id.startswith("HAEMEK"):
+            return self._enhance_metadata_haemek(df=df)
         return df
 
     def _rename_metadata(self, df, dataset_id_prefix):
@@ -541,7 +703,12 @@ class MetadataGenerator(OutputObject, MetadataBase):
         for i in range(2, 7):
             path_suffixes[
                 f"{constants.dataset_id_sheba}{i}"
-            ] = f"Breast/{constants.dataset_id_sheba.capitalize()}/{batches}/Batch_{i}/{constants.dataset_id_sheba}{i}"
+            ] = f"Breast/{constants.dataset_id_sheba.capitalize()}/Batch_{i}/{constants.dataset_id_sheba}{i}"
+
+        for i in range(1, 4):
+            path_suffixes[
+                f"{constants.dataset_id_haemek}{i}"
+            ] = f"Breast/{constants.dataset_id_haemek.capitalize()}/Batch_{i}/{constants.dataset_id_haemek.capitalize}{i}"
 
         return path_suffixes
 
@@ -742,6 +909,56 @@ class MetadataGenerator(OutputObject, MetadataBase):
             return "NA"
 
     @staticmethod
+    def _add_NA_grade(
+        df: pandas.DataFrame
+    ) -> pandas.DataFrame:
+        df[constants.grade_column_name] = df.apply(
+            lambda row: 'NA', axis=1
+        )
+
+        return df
+
+    @staticmethod
+    def _add_NA_ki_67_status(
+        df: pandas.DataFrame
+    ) -> pandas.DataFrame:
+        df[constants.ki_67_status_column_name] = df.apply(
+            lambda row: 'NA', axis=1
+        )
+
+        return df
+
+    @staticmethod
+    def _add_NA_onco_data(
+        df: pandas.DataFrame
+    ) -> pandas.DataFrame:
+        df[constants.onco_ki_67_column_name] = df.apply(
+            lambda row: 'NA', axis=1
+        )
+
+        df[constants.onco_score_11_column_name] = df.apply(
+            lambda row: 'NA', axis=1
+        )
+
+        df[constants.onco_score_18_column_name] = df.apply(
+            lambda row: 'NA', axis=1
+        )
+
+        df[constants.onco_score_26_column_name] = df.apply(
+            lambda row: 'NA', axis=1
+        )
+
+        df[constants.onco_score_31_column_name] = df.apply(
+            lambda row: 'NA', axis=1
+        )
+
+        df[constants.onco_score_all_column_name] = df.apply(
+            lambda row: 'NA', axis=1
+        )
+
+        return df
+
+    @staticmethod
     def _extract_annotations(
         df: pandas.DataFrame,
         patient_barcode_column_name: str,
@@ -798,6 +1015,13 @@ class MetadataGenerator(OutputObject, MetadataBase):
                 constants.her2_status_column_name,
                 constants.grade_column_name,
                 constants.tumor_type_column_name,
+                constants.ki_67_status_column_name,
+                constants.onco_ki_67_column_name,
+                constants.onco_score_11_column_name,
+                constants.onco_score_18_column_name,
+                constants.onco_score_26_column_name,
+                constants.onco_score_31_column_name,
+                constants.onco_score_all_column_name,
                 constants.fold_column_name,
             ]
         ]
@@ -817,31 +1041,3 @@ class MetadataGenerator(OutputObject, MetadataBase):
         df = df.replace(constants.invalid_values, constants.invalid_value)
         df = df.dropna()
         return df
-
-
-# =================================================
-# SlidesManagerTask Class
-# =================================================
-# class SlidesManagerTask(ParallelProcessorTask):
-#     def __init__(self, row_index: int, dataset_paths: Dict[str, Path], desired_mpp: int, tile_size: int):
-#         super().__init__()
-#         self._row_index = row_index
-#         self._dataset_paths = dataset_paths
-#         self._desired_mpp = desired_mpp
-#         self._tile_size = tile_size
-#         self._slide = None
-
-#     @property
-#     def slide(self) -> Union[None, Slide]:
-#         return self._slide
-
-#     def pre_process(self):
-#         pass
-
-#     def process(self, namespace: multiprocessing.managers.Namespace):
-#         slide_context = SlideContext(row_index=self._row_index, metadata=namespace.metadata, dataset_paths=self._dataset_paths, desired_mpp=self._desired_mpp, tile_size=self._tile_size)
-#         self._slide = Slide(slide_context=slide_context)
-
-#     def post_process(self):
-#         pass
-

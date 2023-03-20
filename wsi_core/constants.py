@@ -13,7 +13,7 @@ data_root_gipdeep10 = "/data/unsynced_data/h5"
 data_root_netapp = ""
 
 # Invalid values
-invalid_values = ["Missing Data", "Not performed", "[Not Evaluated]", "[Not Available]"]
+invalid_values = ["Missing Data", "Not performed", "[Not Evaluated]", "[Not Available]", "Was not stained"]
 invalid_value = "NA"
 invalid_fold_column_names = [
     "test fold idx breast",
@@ -31,6 +31,7 @@ dataset_id_abctb = "ABCTB"
 dataset_id_sheba = "SHEBA"
 dataset_id_tcga = "TCGA"
 dataset_id_carmel = "CARMEL"
+dataset_id_haemek = "HAEMEK"
 number_of_carmel_train_batches = 8
 dataset_containment_dict = {
     dataset_id_cat: (dataset_id_ta, dataset_id_carmel),
@@ -53,6 +54,7 @@ metadata_base_dataset_ids = (
     dataset_id_sheba,
     dataset_id_carmel,
     dataset_id_tcga,
+    dataset_id_haemek
 )
 
 # Grid data
@@ -60,40 +62,108 @@ bad_segmentation_column_name = "bad segmentation"
 grids_data_prefix = "slides_data_"
 grid_data_file_name = "Grid_data.xlsx"
 
+# Haemek
+file_column_name_haemek = "file"
+patient_barcode_column_name_haemek = "patient barcode"
+dataset_id_column_name_haemek = "id"
+mpp_column_name_haemek = "MPP"
+scan_date_column_name_haemek = "Scan Date"
+width_column_name_haemek = "Width"
+height_column_name_haemek = "Height"
+magnification_column_name_haemek = "Manipulated Objective Power"
+er_status_column_name_haemek = "ER status"
+pr_status_column_name_haemek = "PR status"
+her2_status_column_name_haemek = "Her2 status"
+ki_67_status_column_name_haemek = "Ki67 status"
+fold_column_name_haemek = "test fold idx"
+tumor_type_column_name_haemek = "TumorType"
+
 # Carmel
+file_column_name_carmel = "file"
+patient_barcode_column_name_carmel = "patient barcode"
+dataset_id_column_name_carmel = "id"
+mpp_column_name_carmel = "MPP"
+scan_date_column_name_carmel = "Scan Date"
+width_column_name_carmel = "Width"
+height_column_name_carmel = "Height"
+magnification_column_name_carmel = "Manipulated Objective Power"
+er_status_column_name_carmel = "ER status"
+pr_status_column_name_carmel = "PR status"
+her2_status_column_name_carmel = "Her2 status"
+ki_67_status_column_name_carmel = "Ki67 status"
+fold_column_name_carmel = "test fold idx"
 slide_barcode_column_name_carmel = "slide barcode"
 slide_barcode_column_name_enhancement_carmel = "TissueID"
 patient_barcode_column_name_enhancement_carmel = "PatientIndex"
 block_id_column_name_enhancement_carmel = "BlockID"
 
 # TCGA
+file_column_name_tcga = "file"
+patient_barcode_column_name_tcga = "patient barcode"
+dataset_id_column_name_tcga = "dataset name"
+mpp_column_name_tcga = "MPP"
+scan_date_column_name_tcga = "Scan Date"
+width_column_name_tcga = "Width"
+height_column_name_tcga = "Height"
+magnification_column_name_tcga = "Manipulated Objective Power"
+er_status_column_name_tcga = "ER status"
+pr_status_column_name_tcga = "PR status"
+her2_status_column_name_tcga = "Her2 status"
+fold_column_name_tcga = "test fold idx"
 patient_barcode_column_name_enhancement_tcga = "Sample CLID"
 slide_barcode_prefix_column_name_enhancement_tcga = "Sample CLID"
 
 # ABCTB
+file_column_name_abctb = "file"
+patient_barcode_column_name_abctb = "patient barcode"
+dataset_id_column_name_abctb = "dataset name"
+mpp_column_name_abctb = "MPP"
+scan_date_column_name_abctb = "Scan Date"
+width_column_name_abctb = "Width"
+height_column_name_abctb = "Height"
+magnification_column_name_abctb = "Manipulated Objective Power"
+er_status_column_name_abctb = "ER status"
+pr_status_column_name_abctb = "PR status"
+her2_status_column_name_abctb = "Her2 status"
+fold_column_name_abctb = "test fold idx"
 file_column_name_enhancement_abctb = "Image File"
 patient_barcode_column_name_enhancement_abctb = "Identifier"
 
 # SHEBA
+file_column_name_sheba = "file"
+patient_barcode_column_name_sheba = "patient barcode"
+dataset_id_column_name_sheba = "dataset name"
+mpp_column_name_sheba = "MPP"
+scan_date_column_name_sheba = "Scan Date"
+width_column_name_sheba = "Width"
+height_column_name_sheba = "Height"
+magnification_column_name_sheba = "Manipulated Objective Power"
+fold_column_name_sheba = "test fold idx"
 er_status_column_name_sheba = "ER "
 pr_status_column_name_sheba = "PR "
 her2_status_column_name_sheba = "HER-2 IHC "
 grade_column_name_sheba = "Grade"
 tumor_type_column_name_sheba = "Histology"
+onco_ki_67_column_name_sheba = "Proliferation (Ki-67) Oncotype"
+onco_score_11_column_name_sheba = "onco_score_11 status"
+onco_score_18_column_name_sheba = "onco_score_18 status"
+onco_score_26_column_name_sheba = "onco_score_26 status"
+onco_score_31_column_name_sheba = "onco_score_31 status"
+onco_score_all_column_name_sheba = "onco_score_all status"
 
 # Shared
-file_column_name_shared = "file"
-patient_barcode_column_name_shared = "patient barcode"
-dataset_id_column_name_shared = "dataset name"
-mpp_column_name_shared = "MPP"
-scan_date_column_name_shared = "Scan Date"
-width_column_name_shared = "Width"
-height_column_name_shared = "Height"
-magnification_column_name_shared = "Manipulated Objective Power"
-er_status_column_name_shared = "ER status"
-pr_status_column_name_shared = "PR status"
-her2_status_column_name_shared = "Her2 status"
-fold_column_name_shared = "test fold idx"
+# file_column_name_shared = "file"
+# patient_barcode_column_name_shared = "patient barcode"
+# dataset_id_column_name_shared = "dataset name"
+# mpp_column_name_shared = "MPP"
+# scan_date_column_name_shared = "Scan Date"
+# width_column_name_shared = "Width"
+# height_column_name_shared = "Height"
+# magnification_column_name_shared = "Manipulated Objective Power"
+# er_status_column_name_shared = "ER status"
+# pr_status_column_name_shared = "PR status"
+# her2_status_column_name_shared = "Her2 status"
+# fold_column_name_shared = "test fold idx"
 
 # Curated
 file_column_name = "file"
@@ -115,6 +185,13 @@ slide_barcode_prefix_column_name = "slide_barcode_prefix"
 legitimate_tiles_column_name = "legitimate_tiles"
 total_tiles_column_name = "total_tiles"
 tile_usage_column_name = "tile_usage"
+ki_67_status_column_name = "ki_67_status"
+onco_ki_67_column_name = "onco_ki_67"
+onco_score_11_column_name = "onco_score_11"
+onco_score_18_column_name = "onco_score_18"
+onco_score_26_column_name = "onco_score_26"
+onco_score_31_column_name = "onco_score_31"
+onco_score_all_column_name = "onco_score_all"
 
 
 def get_path_suffixes() -> Dict[str, Path]:
@@ -135,6 +212,11 @@ def get_path_suffixes() -> Dict[str, Path]:
     for i in range(2, 7):
         path_suffixes[f"{dataset_id_sheba}{i}"] = Path(
             f"Breast/{dataset_id_sheba.capitalize()}/Batch_{i}/{dataset_id_sheba}{i}"
+        )
+
+    for i in range(1, 4):
+        path_suffixes[f"{dataset_id_haemek}{i}"] = Path(
+            f"Breast/{dataset_id_haemek.capitalize()}/Batch_{i}/{dataset_id_haemek}{i}"
         )
 
     return path_suffixes
