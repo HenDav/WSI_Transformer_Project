@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Tuple
 
 import pandas
 from tqdm import tqdm
@@ -41,6 +41,7 @@ class SlidesManager(SeedableObject, MetadataBase):
         SeedableObject.__init__(self)
         self._df = self._df.iloc[row_predicate(self._df, **predicate_args)]
         self._current_slides = self._create_slides()
+        self._tiles_df = self._create_tiles_df()
 
         # self.start()
         # self.join()
@@ -48,6 +49,11 @@ class SlidesManager(SeedableObject, MetadataBase):
     def __len__(self) -> int:
         return len(self._df)
 
+    def _create_tiles_df(self) -> pandas.DataFrame:
+        tiles_dfs = [slide._tiles_df.assign(slide_idx=idx) for idx, slide in enumerate(self._current_slides)]
+        tiles_df = pandas.concat(tiles_dfs)
+        return tiles_df
+    
     def _create_slides(self) -> List[Slide]:
         slides = []
         total = self._df.shape[0]
@@ -120,8 +126,15 @@ class SlidesManager(SeedableObject, MetadataBase):
         self._current_slides = self._get_slides()
         # self._slides_with_interior = self._get_slides_with_interior_tiles()
 
-    def get_slide(self, index: int) -> Slide:
-        return self._current_slides[index]
+    def get_slide(self, slide_idx: int) -> Slide:
+        return self._current_slides[slide_idx]
+    
+    def get_tile(self, tile_idx: int) -> Tuple[Slide, int]:
+        row = self._tiles_df.iloc[[tile_idx]]
+        slide_idx = row["slide_idx"].item()
+        slide = self._current_slides[slide_idx]
+        location = row[[slide.location_x, slide.location_y]].to_numpy()
+        return Tile(slide_context=slide.slide_context, location=location)
 
     def get_random_slide(self) -> Slide:
         index = self._rng.integers(low=0, high=self._df.shape[0])

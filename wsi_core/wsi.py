@@ -779,12 +779,13 @@ class Slide(TilesManager):
 
 
 class PatchExtractor(ABC):
-    def __init__(self, slide: Slide, max_attempts: int = 10):
+    def __init__(self, slide: Slide, max_attempts: int = 10, slide_context: SlideContext = None):
         self._slide = slide
         self._max_attempts = max_attempts
+        self.slide_context = self._slide.self._slide if not slide_context else slide_context
 
     @abstractmethod
-    def _extract_center_pixel(self) -> Optional[np.ndarray]:
+    def _extract_center_pixel(self) -> np.ndarray:
         pass
 
     def extract_patch(
@@ -798,7 +799,7 @@ class PatchExtractor(ABC):
                 continue
 
             patch = Patch(
-                slide_context=self._slide.slide_context, center_pixel=center_pixel
+                slide_context=self.slide_context, center_pixel=center_pixel
             )
 
             patch_validation_failed = False
@@ -819,7 +820,7 @@ class RandomPatchExtractor(PatchExtractor):
     def __init__(self, slide: Slide):
         super().__init__(slide=slide)
 
-    def _extract_center_pixel(self) -> Optional[np.ndarray]:
+    def _extract_center_pixel(self) -> np.ndarray:
         tile = self._slide.get_random_interior_tile()
         pixel = tile.get_random_pixel()
         return pixel
@@ -832,7 +833,7 @@ class StridedPatchExtractor(PatchExtractor):
         self._patches_so_far = 0
         self._stride = max(self._slide.interior_tiles_count // self._num_patches, 1)
 
-    def _extract_center_pixel(self) -> Optional[np.ndarray]:
+    def _extract_center_pixel(self) -> np.ndarray:
         if self._patches_so_far >= self._num_patches:
             raise Exception
         self._patches_so_far = self._patches_so_far + 1
@@ -843,9 +844,13 @@ class StridedPatchExtractor(PatchExtractor):
         return pixel
 
 
-class SerialPatchExtractor(StridedPatchExtractor):
-    def __init__(self, slide: Slide):
-        super().__init__(slide=slide, num_patches=slide.tiles_count)
+class SinglePatchExtractor(PatchExtractor):
+    def __init__(self, tile: Tile):
+        super().__init__(slide=None, slide_context=tile.slide_context)
+        self._tile = tile
+        
+    def _extract_center_pixel(self) -> np.ndarray:
+        return self._tile.center_pixel
 
 
 class GridPatchExtractor(PatchExtractor):
@@ -871,7 +876,7 @@ class GridPatchExtractor(PatchExtractor):
                     + tile._slide_context.zero_level_tile_size_y_offset * i
                 )
 
-    def _extract_center_pixel(self) -> Optional[np.ndarray]:
+    def _extract_center_pixel(self) -> np.ndarray:
         if self._patches_so_far >= self._num_patches:
             raise Exception
         self._patches_so_far += 1
@@ -889,7 +894,7 @@ class ProximatePatchExtractor(PatchExtractor):
             mm=inner_radius_mm
         )
 
-    def _extract_center_pixel(self) -> Optional[np.ndarray]:
+    def _extract_center_pixel(self) -> np.ndarray:
         pixel = self._reference_patch.center_pixel
         angle = 2 * np.pi * np.random.uniform(size=1)[0]
         direction = np.array([np.cos(angle), np.sin(angle)])

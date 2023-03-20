@@ -16,9 +16,10 @@ from wsi_core.wsi import (
     BioMarker,
     GridPatchExtractor,
     RandomPatchExtractor,
-    SerialPatchExtractor,
+    SinglePatchExtractor,
     Slide,
     StridedPatchExtractor,
+    Patch
 )
 
 
@@ -211,28 +212,25 @@ class SerialPatchDataset(WSIDataset):
         self._dataset_size = self._slides_manager.tiles_count
         self._transform = transform
         self._train = train
-        self._n_slides = 1  # slides touched so far
-        self._slide = self._slides_manager.get_slide(self._n_slides - 1)
+        self._n_slides = 0
         self._n_slide_patches = 0
-        self.patch_extractor = SerialPatchExtractor(slide=self._slide)
 
     def __getitem__(self, item: int):
-        if self._n_slide_patches == self._slide.tiles_count:
-            self._n_slides += 1
-            self._slide = self._slides_manager.get_slide(self._n_slides - 1)
-            self.patch_extractor = SerialPatchExtractor(slide=self._slide)
-            self._n_slide_patches = 0
-        self._n_slide_patches += 1
-        slide_name = self._slide.slide_context.image_file_name_stem
-        patch, center_pixel = self.patch_extractor.extract_patch(patch_validators=[])
-        label = self._slide.slide_context.get_biomarker_value(bio_marker=self._target)
+        self._tile = self._slides_manager.get_tile(item)
+        center_pixel = self._tile.center_pixel
+        patch = Patch(
+            slide_context=self._tile.slide_context, center_pixel=center_pixel
+        )
+        slide_name = self._tile.slide_context.image_file_name_stem
+        label = self._tile.slide_context.get_biomarker_value(bio_marker=self._target)
         if label == "Positive":
             label = 1
         elif label == "Negative":
             label = 0
+        patch = self._transform(patch.image)
 
         return {
-            "patch": self._transform(patch.image),
+            "patch": patch,
             "label": label,
             "slide_name": slide_name,
             "center_pixel": center_pixel,

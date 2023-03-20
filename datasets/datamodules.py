@@ -189,7 +189,7 @@ class WsiDataModule(LightningDataModule):
             self.predict_dataset,
             batch_size=self.batch_size,
             shuffle=False,
-            num_workers=0,
+            num_workers=self.num_workers,
             pin_memory=True,
         )
 
