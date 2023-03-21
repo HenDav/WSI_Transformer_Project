@@ -8,10 +8,11 @@ from pytorch_lightning.callbacks import BasePredictionWriter
 class FeaturesWriter(BasePredictionWriter):
     """Callback to save extracted features from the model in h5 format"""
 
-    def __init__(self, output_dir="./features"):
+    def __init__(self, output_dir="./features", half_precision=False):
         super().__init__(write_interval="batch")
 
         self._slide_num = 0
+        self.half_precision = half_precision
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         if any(self.output_dir.iterdir()):
@@ -32,8 +33,11 @@ class FeaturesWriter(BasePredictionWriter):
     ):
         labels = batch["label"].cpu().numpy()
         slide_names = batch["slide_name"]
-        coords = batch["center_pixel"].cpu().numpy()
+        coords = batch["center_pixel"].cpu().numpy().astype("int32")
         features = prediction.detach().cpu().numpy()
+
+        if self.half_precision:
+            features = features.astype("float16")
 
         # handle the case when the batch contains patches from more than one slide
         slide_names_np = np.array(slide_names)
