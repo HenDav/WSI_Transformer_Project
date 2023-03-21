@@ -184,7 +184,9 @@ SHEBA_dsets = [
     r'FEATURES: Exp_50200-onco_score_26-TestFold_2',
     r'FEATURES: Exp_50202-onco_score_26-TestFold_3',
     r'FEATURES: Exp_50203-onco_score_26-TestFold_4',
-    r'FEATURES: Exp_50204-onco_score_26-TestFold_5'
+    r'FEATURES: Exp_50204-onco_score_26-TestFold_5',
+    r'FEATURES: Exp_50209-onco_score_26-TestFold_-1',
+    r'FEATURES: Exp_50212-onco_score_31-TestFold_-1'
 ]
 
 if run_data_output['Dataset Name'] in CAT_dsets:
@@ -236,7 +238,7 @@ if args.TA_test_set:
         dset = 'CARMEL->TA 6'
 
 if args.SHEBA_test_set:
-    if args.experiment in [50199, 50201, 50205, 50206, 50208]:
+    if args.experiment in [50199, 50201, 50205, 50206, 50208, 50211, 50213]:
         dset = 'SHEBA->SHEBA 6'
     
 if args.hic_test_set:
