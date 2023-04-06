@@ -50,7 +50,11 @@ class SlidesManager(SeedableObject, MetadataBase):
         return len(self._df)
 
     def _create_tiles_df(self) -> pandas.DataFrame:
+<<<<<<< Updated upstream
         tiles_dfs = [slide._tiles_df.assign(slide_idx=idx).drop(columns=[TilesManager.tile_index, TilesManager.location_x, TilesManager.location_y, TilesManager.is_interior]) for idx, slide in enumerate(self._current_slides)]
+=======
+        tiles_dfs = [slide._tiles_df.assign(slide_idx=idx) for idx, slide in enumerate(self._current_slides)]
+>>>>>>> Stashed changes
         tiles_df = pandas.concat(tiles_dfs)
         return tiles_df
     
@@ -133,9 +137,14 @@ class SlidesManager(SeedableObject, MetadataBase):
         row = self._tiles_df.iloc[[tile_idx]]
         slide_idx = row["slide_idx"].item()
         slide = self._current_slides[slide_idx]
+<<<<<<< Updated upstream
         top_left_pixel = row[[TilesManager.pixel_x, TilesManager.pixel_y]].to_numpy()
         tile = Tile(slide.slide_context, top_left_pixel)
         return tile
+=======
+        location = row[[slide.location_x, slide.location_y]].to_numpy()
+        return Tile(slide_context=slide.slide_context, location=location)
+>>>>>>> Stashed changes
 
     def get_random_slide(self) -> Slide:
         index = self._rng.integers(low=0, high=self._df.shape[0])
