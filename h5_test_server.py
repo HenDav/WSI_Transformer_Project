@@ -32,8 +32,7 @@ from wsi_core.wsi import BioMarker
 
 if __name__ == "__main__":
     wsi_dataset = SerialPatchDataset(
-        metadata_file_path="/home/dahen/WSI/metadata.csv",
-        datasets_base_dir_path="/mnt/gipmed_new/Data",
+        # datasets_base_dir_path="/mnt/gipmed_new/Data",
         transform=F.to_tensor,
     )
 
@@ -49,32 +48,34 @@ if __name__ == "__main__":
         num_workers=0,
     )
 
-    device = torch.device("cuda")
-    model = preact_resnet.PreActResNet50_Ron().to(device)
-    loss_fn = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+    # device = torch.device("cuda")
+    # model = preact_resnet.PreActResNet50_Ron().to(device)
+    # loss_fn = torch.nn.CrossEntropyLoss()
+    # optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 
     start_time = time.time_ns()
     for batch_ndx, item in enumerate(data_loader):
         batch = item["patch"]
         labels = item["label"]
+        center_pixels = item["center_pixel"]
+        print(center_pixels)
 
-        batch = batch.to(device)
-        labels = labels.to(device)
+#         batch = batch.to(device)
+#         labels = labels.to(device)
 
-        optimizer.zero_grad()
+#         optimizer.zero_grad()
 
-        outputs = model(batch)[0]
+#         outputs = model(batch)[0]
 
-        loss = loss_fn(outputs, labels)
-        loss.backward()
+#         loss = loss_fn(outputs, labels)
+#         loss.backward()
 
-        optimizer.step()
+#         optimizer.step()
 
-        print(f"batch {batch_ndx} time is {(time.time_ns() - start_time) / (10 ** 9)}")
-        start_time = time.time_ns()
+        # print(f"batch {batch_ndx} time is {(time.time_ns() - start_time) / (10 ** 9)}")
+        # start_time = time.time_ns()
         if batch_ndx == 0:
-            batch = batch.detach()[:5]
+            batch = batch.detach()
             fig, axs = plt.subplots(ncols=len(batch), squeeze=False)
             for i, img in enumerate(batch):
                 img = img.detach()

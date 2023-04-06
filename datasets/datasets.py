@@ -1,6 +1,7 @@
 import socket
 from abc import ABC, abstractmethod
 from typing import List, Optional
+from datetime import datetime
 
 import pandas
 import torch
@@ -105,18 +106,26 @@ class WSIDataset(ABC, Dataset, SeedableObject):
         target_indices = df.index[
             df[BIOMARKER_TO_COLUMN[target]].isin(("Positive", "Negative"))
         ]  # TODO: review this and check possible column values
+        
+        
+        particular_slide_index = df.index[
+            df["file"].str.contains("TCGA-OL-A66I-01Z-00-DX1.8CE9DCAB-98D3-4163-94AC-1557D86C1E25")
+        ]
 
         matching_indices = dataset_indices.intersection(fold_indices)
         print(
             f"Found {len(matching_indices)} slides in datasets {datasets} and folds {folds}"
         )
+        
         filtered_target = matching_indices.intersection(target_indices)
         filtered_min_tiles = filtered_target.intersection(min_tiles_indices)
         print(
             f"Filtering {len(matching_indices) - len(filtered_target)} slides without target {target.name}, {len(filtered_target) - len(filtered_min_tiles)} that have less than {min_tiles} tiles"
         )
+        
+        filtered_debug_slide = filtered_min_tiles.intersection(particular_slide_index)
 
-        return filtered_min_tiles
+        return filtered_debug_slide
 
 
 class RandomPatchDataset(WSIDataset):
@@ -227,10 +236,11 @@ class SerialPatchDataset(WSIDataset):
             label = 1
         elif label == "Negative":
             label = 0
-        patch = self._transform(patch.image)
-
+        
+        patch_img = patch.image
+        patch_img = self._transform(patch_img)
         return {
-            "patch": patch,
+            "patch": patch_img,
             "label": label,
             "slide_name": slide_name,
             "center_pixel": center_pixel,

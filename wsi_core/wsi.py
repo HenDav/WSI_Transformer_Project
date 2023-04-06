@@ -186,7 +186,7 @@ class SlideContext:
         return pixels
 
     def pixels_to_locations(self, pixels: np.ndarray) -> np.ndarray:
-        return (pixels / self._zero_level_tile_size).astype(np.int64)
+        return pixels // self._zero_level_tile_size
 
     def locations_to_pixels(self, locations: np.ndarray) -> np.ndarray:
         return (locations * self._zero_level_tile_size).astype(np.int64)
@@ -382,12 +382,11 @@ class Patch(SlideElement):
 class Tile(Patch):
     # __slots__ = ['_location', '_top_left_pixel', '_center_pixel']
 
-    def __init__(self, slide_context: SlideContext, location: np.ndarray):
-        location = location.flatten()
-        self._location = location.astype(np.int64)
-        self._top_left_pixel = slide_context.locations_to_pixels(locations=location)
+    def __init__(self, slide_context: SlideContext, top_left_pixel: np.ndarray):
+        top_left_pixel = top_left_pixel.flatten()
+        self._top_left_pixel = top_left_pixel.astype(np.int64)
         self._center_pixel = (
-            self._top_left_pixel + slide_context.zero_level_half_tile_size
+            top_left_pixel + slide_context.zero_level_half_tile_size
         )
         super().__init__(slide_context=slide_context, center_pixel=self._center_pixel)
 
@@ -485,14 +484,14 @@ class TilesManager(ABC, SlideElement):
 
     def get_tile(self, tile_index: int) -> Tile:
         row = self._tiles_df.iloc[[tile_index]]
-        location = row[[TilesManager.location_x, TilesManager.location_y]].to_numpy()
-        return Tile(slide_context=self._slide_context, location=location)
+        top_left_pixel = row[[TilesManager.pixel_x, TilesManager.pixel_x]].to_numpy()
+        return Tile(slide_context=self._slide_context, top_left_pixel=top_left_pixel)
 
     def get_interior_tile(self, tile_index: int) -> Tile:
         interior_tile_rows = self._get_interior_tile_rows()
         row = interior_tile_rows.iloc[[tile_index]]
-        location = row[[TilesManager.location_x, TilesManager.location_y]].to_numpy()
-        return Tile(slide_context=self._slide_context, location=location)
+        top_left_pixel = row[[TilesManager.pixel_x, TilesManager.pixel_x]].to_numpy()
+        return Tile(slide_context=self._slide_context, top_left_pixel=top_left_pixel)
 
     def get_random_tile(self) -> Tile:
         tile_index = self._rng.integers(low=0, high=self.tiles_count)
