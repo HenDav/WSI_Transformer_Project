@@ -1714,11 +1714,18 @@ def get_RegModel_Features_location_dict(
                 }
             },
             'SHEBA': {
-                'Fold none': {
+                'Fold None': {
                     'onco_score_26': {
                         'DataSet Name': r'FEATURES: Exp_50209-onco_score_26-TestFold_-1',
                         'TrainSet Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50209-onco_score_26-TestFold_-1/Inference/SHEBA_fold12345_onco_features/',
+                        'TestSet Location': None,
                         'REG Model Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50209-onco_score_26-TestFold_-1/Model_CheckPoints/model_data_Epoch_1000.pt'
+                    },
+                    'onco_score_31': {
+                        'DataSet Name': r'FEATURES: Exp_50212-onco_score_31-TestFold_-1',
+                        'TrainSet Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50212-onco_score_31-TestFold_-1/Inference/SHEBA_fold12345_onco_features/',
+                        'TestSet Location': None,
+                        'REG Model Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50212-onco_score_31-TestFold_-1/Model_CheckPoints/model_data_Epoch_1000.pt'
                     }
                 },
                 'Fold 1': {
@@ -1763,11 +1770,16 @@ def get_RegModel_Features_location_dict(
                 }
             },
             'SHEBA->SHEBA 6': {
-                'Fold none': {
+                'Fold None': {
                     'onco_score_26': {
                         'DataSet Name': r'FEATURES: Exp_50209-onco_score_26-TestFold_-1',
                         'TestSet Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50209-onco_score_26-TestFold_-1/Inference/SHEBA_fold6_onco_features/',
                         'REG Model Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50209-onco_score_26-TestFold_-1/Model_CheckPoints/model_data_Epoch_1000.pt'
+                    },
+                    'onco_score_31': {
+                        'DataSet Name': r'FEATURES: Exp_50212-onco_score_31-TestFold_-1',
+                        'TestSet Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50212-onco_score_31-TestFold_-1/Inference/SHEBA_fold6_onco_features/',
+                        'REG Model Location': r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50212-onco_score_31-TestFold_-1/Model_CheckPoints/model_data_Epoch_1000.pt'
                     }
                 },
                 'Fold 1': {
