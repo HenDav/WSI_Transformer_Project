@@ -385,9 +385,7 @@ class Tile(Patch):
     def __init__(self, slide_context: SlideContext, top_left_pixel: np.ndarray):
         top_left_pixel = top_left_pixel.flatten()
         self._top_left_pixel = top_left_pixel.astype(np.int64)
-        self._center_pixel = (
-            top_left_pixel + slide_context.zero_level_half_tile_size
-        )
+        self._center_pixel = top_left_pixel + slide_context.zero_level_half_tile_size
         super().__init__(slide_context=slide_context, center_pixel=self._center_pixel)
 
     def __hash__(self):
@@ -778,10 +776,12 @@ class Slide(TilesManager):
 
 
 class PatchExtractor(ABC):
-    def __init__(self, slide: Slide, max_attempts: int = 10, slide_context: SlideContext = None):
+    def __init__(
+        self, slide: Slide, max_attempts: int = 10, slide_context: SlideContext = None
+    ):
         self._slide = slide
         self._max_attempts = max_attempts
-        self.slide_context = self._slide.self._slide if not slide_context else slide_context
+        self.slide_context = self._slide if not slide_context else slide_context
 
     @abstractmethod
     def _extract_center_pixel(self) -> np.ndarray:
@@ -797,9 +797,7 @@ class PatchExtractor(ABC):
                 attempts = attempts + 1
                 continue
 
-            patch = Patch(
-                slide_context=self.slide_context, center_pixel=center_pixel
-            )
+            patch = Patch(slide_context=self.slide_context, center_pixel=center_pixel)
 
             patch_validation_failed = False
             for patch_validator in patch_validators:
@@ -847,7 +845,7 @@ class SinglePatchExtractor(PatchExtractor):
     def __init__(self, tile: Tile):
         super().__init__(slide=None, slide_context=tile.slide_context)
         self._tile = tile
-        
+
     def _extract_center_pixel(self) -> np.ndarray:
         return self._tile.center_pixel
 

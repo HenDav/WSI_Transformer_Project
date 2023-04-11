@@ -1,0 +1,43 @@
+# pytorch_lightning==1.9.4
+seed_everything: true
+ckpt_path: null
+wandb_ckpt_path: null
+trainer:
+  logger:
+    class_path: pytorch_lightning.loggers.WandbLogger
+    init_args:
+      name: null
+      project: WSI
+      entity: gipmed
+      mode: online
+  devices: 1
+  accelerator: gpu
+model:
+  variant: vit
+  pos_encode: sincos
+  bag_size: 64
+  feature_dim: 512
+  num_classes: 2
+  dim: 1024
+  depth: 6
+  heads: 16
+  mlp_dim: 2048
+  dim_head: 64
+  dropout: 0.1
+  emb_dropout: 0.1
+  lr: 0.001
+  feature_extractor_ckpt: null
+  feature_extractor_backbone: null
+data:
+  features_dir: features/1v68rmq3/cat
+  grid_side_length: 8
+  test_features_dir: null
+  dataset: CAT
+  target: ER
+  val_fold: 1
+  test_grids_per_slide: 1
+  min_tiles_train: 100
+  min_tiles_eval: 100
+  metadata_file_path: null
+  batch_size: 128
+  num_workers: 8

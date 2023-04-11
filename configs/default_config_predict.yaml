@@ -18,8 +18,8 @@ model:
 data:
   dataset: CAT
   target: ER
-  val_fold: 1
-  eval_on_train: false
+  val_fold: null
+  eval_on_train: true
   min_tiles_eval: 100
   img_size: 256
   batch_size: 256
