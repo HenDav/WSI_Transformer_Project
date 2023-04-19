@@ -1,29 +1,23 @@
-# python peripherals
 import logging
-from typing import List, TypeVar, Generic, cast, Type
-import os
-import multiprocessing
-from pathlib import Path
 import math
+import multiprocessing
+import os
+from pathlib import Path
+from typing import List, Type, TypeVar, cast
 
-# torch
+import numpy
 import torch
 
-# numpy
-import numpy
+# from tap import Tap
 
-# tap
-from tap import Tap
-
-
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 #################################
 #           Logging             #
 #################################
 def create_log_file_path(file_name: str, results_dir_path: str) -> str:
-    return os.path.normpath(os.path.join(results_dir_path, f'{file_name}.log'))
+    return os.path.normpath(os.path.join(results_dir_path, f"{file_name}.log"))
 
 
 class NewLineFormatter(logging.Formatter):
@@ -35,15 +29,15 @@ class NewLineFormatter(logging.Formatter):
 
         if record.message != "":
             parts = msg.split(record.message)
-            msg = msg.replace('\n', '\n' + parts[0])
+            msg = msg.replace("\n", "\n" + parts[0])
 
         return msg
 
 
 # https://stackoverflow.com/questions/22934616/multi-line-logging-in-python
 def create_logger(log_file_path: Path, name: str, level: int) -> logging.Logger:
-    fmt = '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
-    datefmt = '%m-%d %H:%M'
+    fmt = "%(asctime)s %(name)-12s %(levelname)-8s %(message)s"
+    datefmt = "%m-%d %H:%M"
     formatter = NewLineFormatter(fmt=fmt, datefmt=datefmt)
     handler = logging.FileHandler(filename=str(log_file_path))
     handler.setFormatter(fmt=formatter)
@@ -63,7 +57,7 @@ def create_logger(log_file_path: Path, name: str, level: int) -> logging.Logger:
 ###########################################
 #           Directory Listing             #
 ###########################################
-def list_subdirectories(base_dir: str = '.') -> List[str]:
+def list_subdirectories(base_dir: str = ".") -> List[str]:
     result = []
     for current_sub_dir in os.listdir(base_dir):
         full_sub_dir_path = os.path.join(base_dir, current_sub_dir)
@@ -73,7 +67,7 @@ def list_subdirectories(base_dir: str = '.') -> List[str]:
     return result
 
 
-def get_latest_subdirectory(base_dir: str = '.') -> str:
+def get_latest_subdirectory(base_dir: str = ".") -> str:
     subdirectories = list_subdirectories(base_dir=base_dir)
     return os.path.normpath(max(subdirectories, key=os.path.getmtime))
 
@@ -90,41 +84,57 @@ def generate_title_text(text: str) -> str:
         space_len = space_len + 1
 
     half_space_len = space_len // 2
-    title = '#' * decoration_len + '\n'
-    title = title + f"{'#'}{' ' * half_space_len}{text.upper()}{' ' * half_space_len}{'#'}" + '\n'
-    title = title + '#' * decoration_len
+    title = "#" * decoration_len + "\n"
+    title = (
+        title
+        + f"{'#'}{' ' * half_space_len}{text.upper()}{' ' * half_space_len}{'#'}"
+        + "\n"
+    )
+    title = title + "#" * decoration_len
     return title
 
 
 def generate_bullet_text(text: str, indentation: int) -> str:
-    tab = '\t'
+    tab = "\t"
     return f"{tab * indentation} - {text}"
 
 
-def generate_captioned_bullet_text(text: str, value: object, indentation: int, padding: int, newline: bool = False) -> str:
-    tab = '\t'
-    nl = '\n'
-    text = text + ':'
+def generate_captioned_bullet_text(
+    text: str, value: object, indentation: int, padding: int, newline: bool = False
+) -> str:
+    tab = "\t"
+    nl = "\n"
+    text = text + ":"
     value_str = str(value)
 
     if newline:
         inner_indentation = indentation + 1
         white_space = tab * inner_indentation
-        value_str = value_str.replace('\n', f'\n{white_space}')
-        value_str = f'{white_space}' + value_str
+        value_str = value_str.replace("\n", f"\n{white_space}")
+        value_str = f"{white_space}" + value_str
 
     return f'{tab * indentation} - {text:{" "}{"<"}{padding}}{nl if newline else ""}{value_str}'
 
 
 def generate_serialized_object_text(text: str, obj: object) -> str:
-    return generate_title_text(text=text) + '\n' + f'{obj}'
+    return generate_title_text(text=text) + "\n" + f"{obj}"
 
 
-def generate_batch_loss_text(epoch_index: int, batch_index: int, batch_loss: float, average_batch_loss: float, index_padding: int, loss_padding: int, batch_count: int, batch_duration: float, indentation: int):
-    tab = '\t'
+def generate_batch_loss_text(
+    epoch_index: int,
+    batch_index: int,
+    batch_loss: float,
+    average_batch_loss: float,
+    index_padding: int,
+    loss_padding: int,
+    batch_count: int,
+    batch_duration: float,
+    indentation: int,
+):
+    tab = "\t"
     fill = " "
     align = "<"
-    return f'{tab*indentation} - [Epoch {epoch_index:{fill}{align}{index_padding}} | Batch {batch_index:{fill}{align}{index_padding}} / {batch_count}]: Batch Loss = {batch_loss:{fill}{align}{loss_padding}}, Avg. Batch Loss = {average_batch_loss:{fill}{align}{loss_padding}}, Batch Duration: {batch_duration} sec.'
+    return f"{tab*indentation} - [Epoch {epoch_index:{fill}{align}{index_padding}} | Batch {batch_index:{fill}{align}{index_padding}} / {batch_count}]: Batch Loss = {batch_loss:{fill}{align}{loss_padding}}, Avg. Batch Loss = {average_batch_loss:{fill}{align}{loss_padding}}, Batch Duration: {batch_duration} sec."
 
 
 #######################################
@@ -133,11 +143,12 @@ def generate_batch_loss_text(epoch_index: int, batch_index: int, batch_loss: flo
 def calculate_batches_per_epoch(dataset_size: int, batch_size: int) -> int:
     return int(numpy.ceil(dataset_size / batch_size))
 
+
 def get_device():
     if torch.cuda.is_available():
-        device = torch.device('cuda')
+        device = torch.device("cuda")
     else:
-        device = torch.device('cpu')
+        device = torch.device("cpu")
 
     return device
 
@@ -158,17 +169,22 @@ def magnification_to_mpp(magnification: int) -> float:
 
 
 def save_object_dict(obj: object, file_path: str):
-    object_dict = {key: value for key, value in obj.__dict__.items() if isinstance(value, str) or isinstance(value, int) or isinstance(value, float)}
+    object_dict = {
+        key: value
+        for key, value in obj.__dict__.items()
+        if isinstance(value, str) or isinstance(value, int) or isinstance(value, float)
+    }
     with open(file_path, "w") as text_file:
         for key, value in object_dict.items():
-            text_file.write(f'{key}: {value}\n')
+            text_file.write(f"{key}: {value}\n")
 
 
-def argument_parser_type_cast(instance_type: Type[T], arguments_parser_name: str) -> T:
-    argument_parser_class = globals()[arguments_parser_name]
-    argument_parser = cast(Tap, argument_parser_class())
-    return cast(instance_type, argument_parser.parse_args())
+# def argument_parser_type_cast(instance_type: Type[T], arguments_parser_name: str) -> T:
+#     argument_parser_class = globals()[arguments_parser_name]
+#     argument_parser = cast(Tap, argument_parser_class())
+#     return cast(instance_type, argument_parser.parse_args())
+
 
 def round_to_nearest_power_of_two(mpp: float) -> float:
     log_mpp = math.log(mpp, 2.0)
-    return 2.0 ** round(log_mpp)
+    return 2 ** round(log_mpp)

@@ -1,91 +1,85 @@
-from pathlib import Path
-from datetime import datetime
 import time
-import numpy as np
+from datetime import datetime
+from pathlib import Path
 
-# gipmed
-# from nn.experiments import Experiment, ExperimentArgumentsParser
-from wsi_core import constants
-from datasets.datasets import PatchSupervisedDataset
-from models import preact_resnet
-from wsi_core.wsi import BioMarker
-
-# torch
-import torch
-from torch.utils.data import DataLoader
-from torch.utils.data.sampler import SubsetRandomSampler, SequentialSampler
-from torchvision import transforms
-from torch.utils.data import Dataset
-import torchvision.transforms.functional as F
+import matplotlib.lines
 
 # matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
-import matplotlib.lines
-# plt.rcParams["savefig.bbox"] = 'tight'
+import numpy as np
 
 # pandas
 import pandas
 
-if __name__ == '__main__':
+# torch
+import torch
+import torchvision.transforms.functional as F
+from torch.utils.data import DataLoader, Dataset
+from torch.utils.data.sampler import SequentialSampler, SubsetRandomSampler
+from torchvision import transforms
 
-    def my_collate(batch):
-        patches = [item[0] for item in batch]
-        patches = torch.from_numpy(np.stack(patches))
-        labels = torch.as_tensor([item[1] for item in batch])
-        return patches, labels
+from datasets.datasets import SerialPatchDataset
+from models import preact_resnet
 
-    wsi_dataset = PatchSupervisedDataset()
+# gipmed
+# from nn.experiments import Experiment, ExperimentArgumentsParser
+from wsi_core import constants
+from wsi_core.wsi import BioMarker
 
-    wsi_dataset_size = len(wsi_dataset)
-    wsi_dataset_size_indices = list(range(wsi_dataset_size))
+# plt.rcParams["savefig.bbox"] = 'tight'
 
-    sampler = SubsetRandomSampler(wsi_dataset_size_indices)
 
-    batch_size = 128
+if __name__ == "__main__":
+    wsi_dataset = SerialPatchDataset(
+        # datasets_base_dir_path="/mnt/gipmed_new/Data",
+        transform=F.to_tensor,
+    )
+
     fontsize = 20
     figsize = (60, 20)
 
     data_loader = DataLoader(
         wsi_dataset,
-        batch_size=batch_size,
-        sampler=sampler,
+        batch_size=30,
         pin_memory=True,
         # drop_last=True,
-        collate_fn=my_collate,
         # persistent_workers=True,
-        num_workers=8)
-    
-    device = torch.device('cuda')
-    model = preact_resnet.PreActResNet50_Ron().to(device)
-    loss_fn = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
-    
+        num_workers=0,
+    )
+
+    # device = torch.device("cuda")
+    # model = preact_resnet.PreActResNet50_Ron().to(device)
+    # loss_fn = torch.nn.CrossEntropyLoss()
+    # optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+
     start_time = time.time_ns()
-    for batch_ndx, batch_data in enumerate(data_loader):
-        patches, labels = batch_data
-        patches = patches.to(device)
-        labels = labels.to(device)
+    for batch_ndx, item in enumerate(data_loader):
+        batch = item["patch"]
+        labels = item["label"]
+        center_pixels = item["center_pixel"]
+        print(center_pixels)
 
-        optimizer.zero_grad()
+#         batch = batch.to(device)
+#         labels = labels.to(device)
 
-        outputs = model(patches)[0][:, 0:(batch_size+1)]
+#         optimizer.zero_grad()
 
-        loss = loss_fn(outputs, labels)
-        loss.backward()
+#         outputs = model(batch)[0]
 
-        optimizer.step()
-        
-        print(f"batch {batch_ndx} time is {(time.time_ns() - start_time) / (10 ** 9)}")
-        start_time = time.time_ns()
+#         loss = loss_fn(outputs, labels)
+#         loss.backward()
+
+#         optimizer.step()
+
+        # print(f"batch {batch_ndx} time is {(time.time_ns() - start_time) / (10 ** 9)}")
+        # start_time = time.time_ns()
         if batch_ndx == 0:
-            patches = patches.detach()[:5]
-            fig, axs = plt.subplots(ncols=len(patches), squeeze=False)
-            for i, img in enumerate(patches):
+            batch = batch.detach()
+            fig, axs = plt.subplots(ncols=len(batch), squeeze=False)
+            for i, img in enumerate(batch):
                 img = img.detach()
                 img = F.to_pil_image(img)
                 axs[0, i].imshow(np.asarray(img))
                 axs[0, i].set(xticklabels=[], yticklabels=[], xticks=[], yticks=[])
-            plt.savefig('batch.png')
-            
-
+            plt.savefig("batch.png")

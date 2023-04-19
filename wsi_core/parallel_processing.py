@@ -1,20 +1,17 @@
-# python peripherals
 import multiprocessing.managers
 import os
-from multiprocessing import Process, Queue, Manager
-from multiprocessing.managers import Namespace
 import queue
-from pathlib import Path
 import time
-from abc import ABC, abstractmethod
-from typing import List, Union, Generic, TypeVar, Optional, Dict, cast
 import traceback
+from abc import ABC, abstractmethod
 from enum import Enum, auto
+from multiprocessing import Manager, Process, Queue
+from multiprocessing.managers import Namespace
+from pathlib import Path
+from typing import Dict, Generic, List, Optional, TypeVar, Union, cast
 
-# numpy
 import numpy
 
-# gipmed
 from wsi_core.base import OutputObject
 
 
@@ -47,40 +44,46 @@ class ParallelProcessorBase(ABC):
     def start(self):
         num_workers_digits = len(str(self._num_workers))
 
-        print('Running Pre-Start')
+        print("Running Pre-Start")
         self._pre_start()
 
         self._add_shared_objects(namespace=self._namespace)
         args = [self._namespace] + self._get_args()
 
-        self._workers = [Process(target=self._worker_func, args=tuple([worker_id] + args)) for worker_id in range(self._num_workers)]
+        self._workers = [
+            Process(target=self._worker_func, args=tuple([worker_id] + args))
+            for worker_id in range(self._num_workers)
+        ]
 
-        print('')
+        print("")
         for i, worker in enumerate(self._workers):
             worker.start()
-            print(f'\rWorker Started {i+1:{" "}{"<"}{num_workers_digits}} / {self._num_workers:{" "}{">"}{num_workers_digits}}', end='')
-        print('')
+            print(
+                f'\rWorker Started {i+1:{" "}{"<"}{num_workers_digits}} / {self._num_workers:{" "}{">"}{num_workers_digits}}',
+                end="",
+            )
+        print("")
 
         self._is_processing = True
 
-        print('Running Post-Start')
+        print("Running Post-Start")
         self._post_start()
 
     def join(self):
-        print('Running Pre-Join')
+        print("Running Pre-Join")
         self._pre_join()
 
-        print('Joining processes')
+        print("Joining processes")
         for worker in self._workers:
             worker.join()
 
         self._is_processing = False
 
-        print('Running Post-Join')
+        print("Running Post-Join")
         self._post_join()
 
     def _generate_exempt_from_pickle(self) -> List[str]:
-        return ['_workers', '_manager', '_namespace']
+        return ["_workers", "_manager", "_namespace"]
 
     def _add_shared_objects(self, namespace: Namespace):
         pass
@@ -130,8 +133,12 @@ class ParallelProcessorTask(ABC):
 # TaskParallelProcessor Class
 # =================================================
 class TaskParallelProcessor(ParallelProcessorBase, OutputObject):
-    def __init__(self, name: str, output_dir_path: Path, num_workers: int, **kw: object):
-        super().__init__(name=name, output_dir_path=output_dir_path, num_workers=num_workers, **kw)
+    def __init__(
+        self, name: str, output_dir_path: Path, num_workers: int, **kw: object
+    ):
+        super().__init__(
+            name=name, output_dir_path=output_dir_path, num_workers=num_workers, **kw
+        )
         self._tasks_queue = Queue()
         self._completed_tasks_queue = Queue()
         self._tasks = self._generate_tasks()
@@ -146,10 +153,10 @@ class TaskParallelProcessor(ParallelProcessorBase, OutputObject):
 
     def _generate_exempt_from_pickle(self) -> List[str]:
         exempt_from_pickle = super()._generate_exempt_from_pickle()
-        exempt_from_pickle.append('_tasks')
-        exempt_from_pickle.append('_completed_tasks')
-        exempt_from_pickle.append('_tasks_queue')
-        exempt_from_pickle.append('_completed_tasks_queue')
+        exempt_from_pickle.append("_tasks")
+        exempt_from_pickle.append("_completed_tasks")
+        exempt_from_pickle.append("_tasks_queue")
+        exempt_from_pickle.append("_completed_tasks_queue")
         return exempt_from_pickle
 
     def _pre_start(self):
@@ -166,16 +173,18 @@ class TaskParallelProcessor(ParallelProcessorBase, OutputObject):
         while True:
             remaining_tasks_count = self._tasks_queue.qsize()
             if last_remaining_tasks_count > remaining_tasks_count:
-
-                print(f'\rRemaining Tasks {remaining_tasks_count:{" "}{"<"}{total_tasks_count_digits}} / {total_tasks_count:{" "}{">"}{total_tasks_count_digits}}', end='')
+                print(
+                    f'\rRemaining Tasks {remaining_tasks_count:{" "}{"<"}{total_tasks_count_digits}} / {total_tasks_count:{" "}{">"}{total_tasks_count_digits}}',
+                    end="",
+                )
                 last_remaining_tasks_count = remaining_tasks_count
 
             if remaining_tasks_count == 0:
                 break
 
-        print('')
+        print("")
 
-        print('Draining Queue')
+        print("Draining Queue")
         sentinels_count = 0
         while True:
             completed_task = self._completed_tasks_queue.get()
@@ -197,7 +206,13 @@ class TaskParallelProcessor(ParallelProcessorBase, OutputObject):
     def _generate_tasks(self) -> List[ParallelProcessorTask]:
         pass
 
-    def _worker_func(self, worker_id: int, namespace: Namespace, tasks_queue: Queue, completed_tasks_queue: Queue):
+    def _worker_func(
+        self,
+        worker_id: int,
+        namespace: Namespace,
+        tasks_queue: Queue,
+        completed_tasks_queue: Queue,
+    ):
         while True:
             task = cast(typ=ParallelProcessorTask, val=tasks_queue.get())
             if task is None:
@@ -227,8 +242,18 @@ class GetItemPolicy(Enum):
 # OnlineParallelProcessor Class
 # =================================================
 class OnlineParallelProcessor(ParallelProcessorBase, OutputObject):
-    def __init__(self, name: str, output_dir_path: Path, num_workers: int, items_queue_maxsize: int, items_buffer_size: int, **kw: object):
-        super().__init__(name=name, output_dir_path=output_dir_path, num_workers=num_workers, **kw)
+    def __init__(
+        self,
+        name: str,
+        output_dir_path: Path,
+        num_workers: int,
+        items_queue_maxsize: int,
+        items_buffer_size: int,
+        **kw: object,
+    ):
+        super().__init__(
+            name=name, output_dir_path=output_dir_path, num_workers=num_workers, **kw
+        )
         self._items_queue_maxsize = items_queue_maxsize
         self._items_buffer_size = items_buffer_size
         self._items_buffer = []
@@ -269,8 +294,24 @@ class OnlineParallelProcessor(ParallelProcessorBase, OutputObject):
 # InfiniteOnlineParallelProcessor Class
 # =================================================
 class InfiniteOnlineParallelProcessor(OnlineParallelProcessor):
-    def __init__(self, name: str, output_dir_path: Path, num_workers: int, items_queue_maxsize: int, items_buffer_size: int, get_item_policy: GetItemPolicy, **kw: object):
-        super().__init__(name=name, output_dir_path=output_dir_path, num_workers=num_workers, items_queue_maxsize=items_queue_maxsize, items_buffer_size=items_buffer_size, **kw)
+    def __init__(
+        self,
+        name: str,
+        output_dir_path: Path,
+        num_workers: int,
+        items_queue_maxsize: int,
+        items_buffer_size: int,
+        get_item_policy: GetItemPolicy,
+        **kw: object,
+    ):
+        super().__init__(
+            name=name,
+            output_dir_path=output_dir_path,
+            num_workers=num_workers,
+            items_queue_maxsize=items_queue_maxsize,
+            items_buffer_size=items_buffer_size,
+            **kw,
+        )
         self._get_item_policy = get_item_policy
 
     def __getitem__(self, index: int) -> object:
@@ -301,8 +342,8 @@ class InfiniteOnlineParallelProcessor(OnlineParallelProcessor):
     def _post_start(self):
         while len(self._items_buffer) < self._items_buffer_size:
             self._items_buffer.append(self._items_queue.get())
-            print(f'\rBuffer Populated with {len(self._items_buffer)} Items', end='')
-        print('')
+            print(f"\rBuffer Populated with {len(self._items_buffer)} Items", end="")
+        print("")
 
     def _pre_join(self):
         pass
@@ -319,8 +360,22 @@ class InfiniteOnlineParallelProcessor(OnlineParallelProcessor):
 # FiniteOnlineParallelProcessor Class
 # =================================================
 class FiniteOnlineParallelProcessor(OnlineParallelProcessor):
-    def __init__(self, name: str, output_dir_path: Path, num_workers: int, items_queue_maxsize: int, items_count: int, **kw: object):
-        super().__init__(name=name, output_dir_path=output_dir_path, num_workers=num_workers, items_queue_maxsize=items_queue_maxsize, **kw)
+    def __init__(
+        self,
+        name: str,
+        output_dir_path: Path,
+        num_workers: int,
+        items_queue_maxsize: int,
+        items_count: int,
+        **kw: object,
+    ):
+        super().__init__(
+            name=name,
+            output_dir_path=output_dir_path,
+            num_workers=num_workers,
+            items_queue_maxsize=items_queue_maxsize,
+            **kw,
+        )
         self._items_count = items_count
 
         for item_id in range(items_count):

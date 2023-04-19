@@ -2,11 +2,15 @@ runs/
 checkpoints/
 lightning_logs/
 wandb/
+artifacts/
 results/
 scripts/
 tmp/
+docs/
+data/
 slurm*
 *.idea*
+config.yaml
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

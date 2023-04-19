@@ -1,28 +1,29 @@
-import numpy as np
-import os
-import pandas as pd
-import pickle
-from random import sample, choices, seed
-import torch
-from torchvision import transforms
-import time
-from torch.utils.data import Dataset
-from typing import List
-from .utils import _get_tiles, _choose_data, chunks, map_original_grid_list_to_equiv_grid_list
-from .transformations import define_transformations
-from .utils import assert_dataset_target
-from .utils import get_label
-from .utils_MIL import dataset_properties_to_location
-from .utils import balance_dataset
-from .Dataset_Maker.dataset_utils import get_datasets_dir_dict
-from .utils import get_optimal_slide_level, cohort_to_int
-import openslide
-from tqdm import tqdm
-import sys
-from PIL import Image
-from glob import glob
 import logging
+import os
+import pickle
+import sys
+import time
+from glob import glob
+from random import choices, sample, seed
+from typing import List
+
 import cv2
+import numpy as np
+import openslide
+import pandas as pd
+import torch
+from Dataset_Maker.dataset_utils import get_datasets_dir_dict
+from PIL import Image
+from torch.utils.data import Dataset
+from torchvision import transforms
+from tqdm import tqdm
+from transformations import define_transformations
+from utils_MIL import dataset_properties_to_location
+
+from utils import (_choose_data, _get_tiles, assert_dataset_target,
+                   balance_dataset, chunks, cohort_to_int, get_label,
+                   get_optimal_slide_level,
+                   map_original_grid_list_to_equiv_grid_list)
 
 
 class WSI_Master_Dataset(Dataset):
@@ -1206,11 +1207,9 @@ class Features_MILdataset(Dataset):
         #         raise Exception("Need to write which dictionaries to use in this receptor case")
 
         if sys.platform == 'linux':
-            if dataset == 'TCGA_ABCTB':
-                if target in ['ER', 'ER_Features'] or (
-                        target
-                        in ['PR', 'PR_Features', 'Her2', 'Her2_Features']
-                ):  # target in ['PR', 'PR_Features', 'Her2', 'Her2_Features'] and test_fold == 1):
+            if dataset in ['TCGA_ABCTB']:
+                if target in ['ER', 'ER_Features', 'PR', 'PR_Features', 'Her2', 'Her2_Features']:  
+                    # target in ['PR', 'PR_Features', 'Her2', 'Her2_Features'] and test_fold == 1):
                     grid_location_dict = {
                         'TCGA':
                         r'/mnt/gipmed_new/Data/Breast/TCGA/Grids_10/Grid_data.xlsx',
@@ -1270,7 +1269,7 @@ class Features_MILdataset(Dataset):
                     for i in range(1, 9)
                 })
 
-            elif dataset in ['HAEMEK', 'HAEMEK_finetuned', 'HAEMEK_transfer']:
+            elif dataset in ['HAEMEK']:
                 grid_location_dict = {
                     'HAEMEK':
                     r'/mnt/gipmed_new/Data/Breast/Haemek/Batch_1/HAEMEK1/Grids_10/Grid_data.xlsx'
@@ -1280,6 +1279,19 @@ class Features_MILdataset(Dataset):
                     pd.read_excel(
                         '/mnt/gipmed_new/Data/Breast/Haemek/Batch_1/HAEMEK1/slides_data_HAEMEK1.xlsx'
                     )
+                }
+            
+            elif dataset in ['SHEBA']:
+                grid_location_dict = {
+                    f'SHEBA{i}':
+                    fr'/mnt/gipmed_new/Data/Breast/Sheba/Batch_{i}/SHEBA{i}/Grids_10/Grid_data.xlsx'
+                    for i in range(2, 7)
+                }
+                slide_data_DF_dict = {
+                    f'SHEBA{i}': pd.read_excel(
+                        fr'/mnt/gipmed_new/Data/Breast/Sheba/Batch_{i}/SHEBA{i}/slides_data_SHEBA{i}.xlsx'
+                    )
+                    for i in range(2, 7)
                 }
 
             elif dataset == 'CARMEL':
@@ -1308,6 +1320,30 @@ class Features_MILdataset(Dataset):
                     for i in range(9, 12)
                 }
 
+            elif dataset == "HIC":
+                grid_location_dict = {
+                    'HEROHE':
+                    r'/mnt/gipmed_new/Data/Breast/HEROHE/Grids_10/Grid_data.xlsx',
+                    'Ipatimup':
+                    r'/mnt/gipmed_new/Data/Breast/Ipatimup/Grids_10/Grid_data.xlsx',
+                    'Covilha':
+                    r'/mnt/gipmed_new/Data/Breast/Covilha/Grids_10/Grid_data.xlsx'
+                }
+                slide_data_DF_dict = {
+                    'HEROHE':
+                    pd.read_excel(
+                        r'/mnt/gipmed_new/Data/Breast/HEROHE/slides_data_HEROHE.xlsx'
+                    ),
+                    'Ipatimup':
+                    pd.read_excel(
+                        r'/mnt/gipmed_new/Data/Breast/Ipatimup/slides_data_Ipatimup.xlsx'
+                    ),
+                    'Covilha':
+                    pd.read_excel(
+                        r'/mnt/gipmed_new/Data/Breast/Covilha/slides_data_Covilha.xlsx'
+                    ),
+                }
+
             else:
                 raise Exception(
                     "Need to write which dictionaries to use in this receptor case"
@@ -1326,7 +1362,7 @@ class Features_MILdataset(Dataset):
         if type(data_files) is dict:
             data_files_2 = data_files['is_Tumor']
             data_files = data_files['Receptor']
-
+            
         for file_idx, file in enumerate(tqdm(data_files)):
             with open(file, 'rb') as filehandle:
                 inference_data = pickle.load(filehandle)

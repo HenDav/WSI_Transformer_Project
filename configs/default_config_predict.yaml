@@ -1,0 +1,28 @@
+# pytorch_lightning==1.9.4
+seed_everything: true
+ckpt_path: null
+wandb_ckpt_path: null
+trainer:
+  callbacks:
+  - class_path: utils.features_writer.FeaturesWriter
+    init_args:
+      output_dir: ./features
+      half_precision: false
+  devices: 1
+  accelerator: gpu
+model:
+  model: resnet50
+  num_classes: 2
+  ckpt_path: null
+  imagenet_pretrained: false
+data:
+  dataset: CAT
+  target: ER
+  val_fold: null
+  eval_on_train: true
+  min_tiles_eval: 100
+  img_size: 256
+  batch_size: 256
+  num_workers: 8
+  normalization: cat
+return_predictions: null
