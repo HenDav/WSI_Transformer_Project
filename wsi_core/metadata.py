@@ -432,8 +432,10 @@ class MetadataGenerator(OutputObject, MetadataBase):
                 columns={"index": constants.file_column_name}, inplace=True
             )
 
+            print(f'ROWS COUNT - initial: {current_df.shape[0]}')
             current_df = self._prevalidate_metadata(df=current_df)
 
+            print(f'ROWS COUNT - after _prevalidate_metadata: {current_df.shape[0]}')
             current_df = self._rename_metadata(
                 df=current_df,
                 dataset_id_prefix=MetadataGenerator._get_dataset_id_prefix(
@@ -441,14 +443,19 @@ class MetadataGenerator(OutputObject, MetadataBase):
                 ),
             )
 
+            print(f'ROWS COUNT - after _rename_metadata: {current_df.shape[0]}')
             current_df = self._enhance_metadata(df=current_df, dataset_id=dataset_id)
 
+            print(f'ROWS COUNT - after _enhance_metadata: {current_df.shape[0]}')
             current_df = MetadataGenerator._select_metadata(df=current_df)
 
+            print(f'ROWS COUNT - after _select_metadata: {current_df.shape[0]}')
             current_df = MetadataGenerator._standardize_metadata(df=current_df)
 
+            print(f'ROWS COUNT - after _standardize_metadata: {current_df.shape[0]}')
             current_df = self._postvalidate_metadata(df=current_df)
 
+            print(f'ROWS COUNT - after _postvalidate_metadata: {current_df.shape[0]}')
             if df is None:
                 df = current_df
             else:
@@ -534,14 +541,19 @@ class MetadataGenerator(OutputObject, MetadataBase):
         )
 
         enhanced_metadata = pandas.concat([annotations_tcga])
-        df = pandas.merge(
-            left=df,
-            right=enhanced_metadata,
-            on=[
-                constants.patient_barcode_column_name,
-                constants.slide_barcode_prefix_column_name,
-            ],
-        )
+        # df = pandas.merge(
+        #     left=df,
+        #     right=enhanced_metadata,
+        #     on=[
+        #         constants.patient_barcode_column_name,
+        #         constants.slide_barcode_prefix_column_name,
+        #     ],
+        # )
+
+        merged_df = pandas.merge(df, enhanced_metadata, on=[constants.patient_barcode_column_name, constants.slide_barcode_prefix_column_name], how='outer', indicator=True)
+        df = merged_df.loc[merged_df['_merge'] != 'right_only']
+        df = df.fillna('NA')
+
         return df
 
     def _enhance_metadata_carmel_1_8(self, df):
@@ -586,16 +598,22 @@ class MetadataGenerator(OutputObject, MetadataBase):
 
         enhanced_metadata = pandas.concat([annotations1_carmel, annotations2_carmel])
         # try:
-        print(df.patient_barcode)
-        print(enhanced_metadata.patient_barcode)
-        df = pandas.merge(
-            left=df,
-            right=enhanced_metadata,
-            on=[
-                constants.patient_barcode_column_name,
-                constants.slide_barcode_prefix_column_name,
-            ],
-        )
+        # print(df.patient_barcode)
+        # print(enhanced_metadata.patient_barcode)
+
+        # Merge the two dataframes using the 'outer' merge method
+        merged_df = pandas.merge(df, enhanced_metadata, on=[constants.patient_barcode_column_name, constants.slide_barcode_prefix_column_name], how='outer', indicator=True)
+        df = merged_df.loc[merged_df['_merge'] != 'right_only']
+        df = df.fillna('NA')
+
+        # df = pandas.merge(
+        #     left=df,
+        #     right=enhanced_metadata,
+        #     on=[
+        #         constants.patient_barcode_column_name,
+        #         constants.slide_barcode_prefix_column_name,
+        #     ],
+        # )
         # except Exception:
         #     h = 5
         return df
@@ -650,18 +668,20 @@ class MetadataGenerator(OutputObject, MetadataBase):
 
     def _enhance_metadata(self, df, dataset_id):
         if dataset_id == "TCGA":
-            return self._enhance_metadata_tcga(df=df)
+            df = self._enhance_metadata_tcga(df=df)
         elif dataset_id.startswith("CARMEL"):
             if constants.get_dataset_id_suffix(dataset_id=dataset_id) < 9:
-                return self._enhance_metadata_carmel_1_8(df=df)
+                df = self._enhance_metadata_carmel_1_8(df=df)
             else:
-                return self._enhance_metadata_carmel_9_11(df=df)
+                df = self._enhance_metadata_carmel_9_11(df=df)
         elif dataset_id == "ABCTB":
-            return self._enhance_metadata_abctb(df=df)
+            df = self._enhance_metadata_abctb(df=df)
         elif dataset_id.startswith("SHEBA"):
-            return self._enhance_metadata_sheba(df=df)
+            df = self._enhance_metadata_sheba(df=df)
         elif dataset_id.startswith("HAEMEK"):
-            return self._enhance_metadata_haemek(df=df)
+            df = self._enhance_metadata_haemek(df=df)
+
+        df = self._add_tiles_count(df=df)
         return df
 
     def _rename_metadata(self, df, dataset_id_prefix):
@@ -903,6 +923,16 @@ class MetadataGenerator(OutputObject, MetadataBase):
     ###########
     ### ALL ###
     ###########
+    def _get_tiles_count(self, row: pandas.Series) -> int:
+        dataset_id = row[constants.dataset_id_column_name]
+        dataset_path = self._dataset_paths[dataset_id]
+        image_file_name_stem = Path(row[constants.file_column_name]).stem
+        if utils.check_segmentation_data_exists(dataset_path=dataset_path, desired_magnification=self._metadata_at_magnification, image_file_name_stem=image_file_name_stem, tile_size=self._tile_size) is False:
+            return 0
+        else:
+            segmentation_data = utils.load_segmentation_data(dataset_path=dataset_path, desired_magnification=self._metadata_at_magnification, image_file_name_stem=image_file_name_stem, tile_size=self._tile_size)
+            return segmentation_data.shape[0]
+
     @staticmethod
     def _calculate_slide_barcode_prefix(row: pandas.Series) -> str:
         try:
@@ -917,6 +947,12 @@ class MetadataGenerator(OutputObject, MetadataBase):
                 return row[constants.patient_barcode_column_name]
         except Exception:
             return "NA"
+
+    def _add_tiles_count(self, df: pandas.DataFrame) -> pandas.DataFrame:
+        df[constants.tiles_count_column_name] = df.apply(
+            lambda row: self._get_tiles_count(row=row), axis=1
+        )
+        return df
 
     @staticmethod
     def _add_NA_tumor_type(
@@ -1026,6 +1062,7 @@ class MetadataGenerator(OutputObject, MetadataBase):
                 constants.dataset_id_column_name,
                 constants.mpp_column_name,
                 constants.total_tiles_column_name,
+                constants.tiles_count_column_name,
                 constants.legitimate_tiles_column_name,
                 constants.width_column_name,
                 constants.height_column_name,
@@ -1051,7 +1088,13 @@ class MetadataGenerator(OutputObject, MetadataBase):
     def _standardize_metadata(df: pandas.DataFrame) -> pandas.DataFrame:
         df = df.dropna()
         pandas.options.mode.chained_assignment = None
-        df = df[~df[constants.fold_column_name].isin(constants.invalid_values)]
+        # df = df[~df[constants.fold_column_name].isin(constants.invalid_values)]
+
+        print(f'BEFORE invalid values removal: {df.shape[0]}')
+
+        df = df[~df[[constants.fold_column_name, constants.patient_barcode_column_name, constants.file_column_name]].isin(constants.invalid_values).any(axis=1)]
+        print(f'AFTER invalid values removal: {df.shape[0]}')
+
         folds = list(df[constants.fold_column_name].unique())
         numeric_folds = [utils.to_int(fold) for fold in folds]
         max_val = numpy.max(numeric_folds) + 1

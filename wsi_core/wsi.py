@@ -608,17 +608,22 @@ class TilesManager(ABC, SlideElement):
         return pixels
 
     def _load_pixels_openslide(self) -> np.ndarray:
-        grid_file_path = os.path.normpath(
-            os.path.join(
-                self._slide_context.dataset_path,
-                f"Grids_{self._slide_context.desired_magnification}",
-                f"{self._slide_context.image_file_name_stem}--tlsz{self._slide_context.tile_size}.data",
-            )
-        )
-        with open(grid_file_path, "rb") as file_handle:
-            pixels = np.array(pickle.load(file_handle))
-
-        return pixels
+        return utils.load_segmentation_data(
+            dataset_path=self._slide_context.dataset_path,
+            desired_magnification=self._slide_context.desired_magnification,
+            image_file_name_stem=self._slide_context.image_file_name_stem,
+            tile_size=self._slide_context.tile_size)
+        # grid_file_path = os.path.normpath(
+        #     os.path.join(
+        #         self._slide_context.dataset_path,
+        #         f"Grids_{self._slide_context.desired_magnification}",
+        #         f"{self._slide_context.image_file_name_stem}--tlsz{self._slide_context.tile_size}.data",
+        #     )
+        # )
+        # with open(grid_file_path, "rb") as file_handle:
+        #     pixels = np.array(pickle.load(file_handle))
+        #
+        # return pixels
 
     # def _create_tiles_list(self) -> List[Tile]:
     #     tiles = []

@@ -4,6 +4,7 @@ import multiprocessing
 import os
 from pathlib import Path
 from typing import List, Type, TypeVar, cast
+import pickle
 
 import numpy
 import torch
@@ -188,3 +189,35 @@ def save_object_dict(obj: object, file_path: str):
 def round_to_nearest_power_of_two(mpp: float) -> float:
     log_mpp = math.log(mpp, 2.0)
     return 2 ** round(log_mpp)
+
+
+def build_segmentation_data_path(dataset_path: Path, desired_magnification: int, image_file_name_stem: str, tile_size: int) -> Path:
+    return Path(os.path.normpath(
+        os.path.join(
+            dataset_path,
+            f"Grids_{desired_magnification}",
+            f"{image_file_name_stem}--tlsz{tile_size}.data",
+        )
+    ))
+
+
+def check_segmentation_data_exists(dataset_path: Path, desired_magnification: int, image_file_name_stem: str, tile_size: int) -> bool:
+    segmentation_data_path = build_segmentation_data_path(
+        dataset_path=dataset_path,
+        desired_magnification=desired_magnification,
+        image_file_name_stem=image_file_name_stem,
+        tile_size=tile_size)
+
+    return os.path.isfile(str(segmentation_data_path))
+
+
+def load_segmentation_data(dataset_path: Path, desired_magnification: int, image_file_name_stem: str, tile_size: int) -> numpy.ndarray:
+    segmentation_data_path = build_segmentation_data_path(dataset_path=dataset_path,
+                                                          desired_magnification=desired_magnification,
+                                                          image_file_name_stem=image_file_name_stem,
+                                                          tile_size=tile_size)
+
+    with open(str(segmentation_data_path), "rb") as file_handle:
+        pixels = numpy.array(pickle.load(file_handle))
+
+    return pixels
