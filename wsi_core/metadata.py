@@ -419,8 +419,14 @@ class MetadataGenerator(OutputObject, MetadataBase):
                 ),
                 constants.grid_data_file_name,
             )
+
             slide_df = pandas.read_excel(io=slide_metadata_file)
+            slide_df = slide_df.filter(regex='^(?!Unnamed).*')
+            # slide_df[constants.patient_barcode_column_name] = slide_df[constants.patient_barcode_column_name].astype(int)
+
             grid_df = pandas.read_excel(io=grid_metadata_file)
+            grid_df = grid_df.filter(regex='^(?!Unnamed).*')
+
             current_df = pandas.DataFrame(
                 {
                     **slide_df.set_index(keys=constants.file_column_name).to_dict(),
@@ -432,10 +438,7 @@ class MetadataGenerator(OutputObject, MetadataBase):
                 columns={"index": constants.file_column_name}, inplace=True
             )
 
-            print(f'ROWS COUNT - initial: {current_df.shape[0]}')
-            current_df = self._prevalidate_metadata(df=current_df)
-
-            print(f'ROWS COUNT - after _prevalidate_metadata: {current_df.shape[0]}')
+            print(f'ROWS COUNT - after read_excel: {current_df.shape[0]}')
             current_df = self._rename_metadata(
                 df=current_df,
                 dataset_id_prefix=MetadataGenerator._get_dataset_id_prefix(
@@ -444,6 +447,9 @@ class MetadataGenerator(OutputObject, MetadataBase):
             )
 
             print(f'ROWS COUNT - after _rename_metadata: {current_df.shape[0]}')
+            current_df = self._prevalidate_metadata(df=current_df)
+
+            print(f'ROWS COUNT - after _prevalidate_metadata: {current_df.shape[0]}')
             current_df = self._enhance_metadata(df=current_df, dataset_id=dataset_id)
 
             print(f'ROWS COUNT - after _enhance_metadata: {current_df.shape[0]}')
@@ -550,10 +556,10 @@ class MetadataGenerator(OutputObject, MetadataBase):
         #     ],
         # )
 
+        df[constants.patient_barcode_column_name] = df[constants.patient_barcode_column_name].astype(str)
+        enhanced_metadata[constants.patient_barcode_column_name] = enhanced_metadata[constants.patient_barcode_column_name].astype(str)
         merged_df = pandas.merge(df, enhanced_metadata, on=[constants.patient_barcode_column_name, constants.slide_barcode_prefix_column_name], how='outer', indicator=True)
         df = merged_df.loc[merged_df['_merge'] != 'right_only']
-        df = df.fillna('NA')
-
         return df
 
     def _enhance_metadata_carmel_1_8(self, df):
@@ -602,9 +608,10 @@ class MetadataGenerator(OutputObject, MetadataBase):
         # print(enhanced_metadata.patient_barcode)
 
         # Merge the two dataframes using the 'outer' merge method
+        df[constants.patient_barcode_column_name] = df[constants.patient_barcode_column_name].astype(int)
+        enhanced_metadata[constants.patient_barcode_column_name] = enhanced_metadata[constants.patient_barcode_column_name].astype(int)
         merged_df = pandas.merge(df, enhanced_metadata, on=[constants.patient_barcode_column_name, constants.slide_barcode_prefix_column_name], how='outer', indicator=True)
         df = merged_df.loc[merged_df['_merge'] != 'right_only']
-        df = df.fillna('NA')
 
         # df = pandas.merge(
         #     left=df,
@@ -647,14 +654,20 @@ class MetadataGenerator(OutputObject, MetadataBase):
         )
 
         enhanced_metadata = pandas.concat([annotations_abctb])
-        df = pandas.merge(
-            left=df,
-            right=enhanced_metadata,
-            on=[
-                constants.patient_barcode_column_name,
-                constants.slide_barcode_prefix_column_name,
-            ],
-        )
+
+        df[constants.patient_barcode_column_name] = df[constants.patient_barcode_column_name].astype(str)
+        enhanced_metadata[constants.patient_barcode_column_name] = enhanced_metadata[constants.patient_barcode_column_name].astype(str)
+        merged_df = pandas.merge(df, enhanced_metadata, on=[constants.patient_barcode_column_name, constants.slide_barcode_prefix_column_name], how='outer', indicator=True)
+        df = merged_df.loc[merged_df['_merge'] != 'right_only']
+
+        # df = pandas.merge(
+        #     left=df,
+        #     right=enhanced_metadata,
+        #     on=[
+        #         constants.patient_barcode_column_name,
+        #         constants.slide_barcode_prefix_column_name,
+        #     ],
+        # )
         return df
 
     def _enhance_metadata_sheba(self, df):
@@ -690,6 +703,16 @@ class MetadataGenerator(OutputObject, MetadataBase):
         return df
 
     def _prevalidate_metadata(self, df):
+        df = df.dropna(subset=[
+            constants.patient_barcode_column_name,
+            constants.file_column_name,
+            constants.fold_column_name,
+            constants.mpp_column_name,
+            constants.total_tiles_column_name,
+            constants.width_column_name,
+            constants.height_column_name,
+            constants.dataset_id_column_name])
+
         if constants.bad_segmentation_column_name in df.columns:
             indices_of_slides_with_bad_seg = set(
                 df.index[df[constants.bad_segmentation_column_name] == 1]
@@ -701,11 +724,12 @@ class MetadataGenerator(OutputObject, MetadataBase):
         valid_slide_indices = numpy.array(
             list(all_indices - indices_of_slides_with_bad_seg)
         )
+
         return df.iloc[valid_slide_indices]
 
     def _postvalidate_metadata(self, df):
         indices_of_slides_without_grid = set(
-            df.index[df[constants.total_tiles_column_name] == -1]
+            df.index[df[constants.tiles_count_column_name] == 0]
         )
 
         all_indices = set(numpy.array(range(df.shape[0])))
@@ -758,7 +782,7 @@ class MetadataGenerator(OutputObject, MetadataBase):
     ### TCGA ###
     ############
     @staticmethod
-    def _calculate_grade_tcga(row: pandas.Series) -> Union[str, int]:
+    def _calculate_grade_tcga(row: pandas.Series) -> Union[str, int, pandas.NAType]:
         try:
             column_names = [
                 "Epithelial tubule formation",
@@ -769,7 +793,7 @@ class MetadataGenerator(OutputObject, MetadataBase):
             for column_name in column_names:
                 column_score = re.findall(r"\d+", str(row[column_name]))
                 if len(column_score) == 0:
-                    return "NA"
+                    return pandas.NA
                 grade_score = grade_score + int(column_score[0])
 
             if 3 <= grade_score <= 5:
@@ -779,10 +803,10 @@ class MetadataGenerator(OutputObject, MetadataBase):
             else:
                 return 3
         except Exception:
-            return "NA"
+            return pandas.NA
 
     @staticmethod
-    def _calculate_tumor_type_tcga(row: pandas.Series) -> str:
+    def _calculate_tumor_type_tcga(row: pandas.Series) -> Union[str, pandas.NAType]:
         try:
             column_name = "2016 Histology Annotations"
             tumor_type = row[column_name]
@@ -794,32 +818,32 @@ class MetadataGenerator(OutputObject, MetadataBase):
             else:
                 return "OTHER"
         except Exception:
-            return "NA"
+            return pandas.NA
 
     @staticmethod
-    def _calculate_slide_barcode_prefix_tcga(row: pandas.Series) -> str:
+    def _calculate_slide_barcode_prefix_tcga(row: pandas.Series) -> Union[str, pandas.NAType]:
         try:
             return row[constants.patient_barcode_column_name_enhancement_tcga]
         except Exception:
-            return "NA"
+            return pandas.NA
 
     #############
     ### ABCTB ###
     #############
     @staticmethod
-    def _calculate_grade_abctb(row: pandas.Series) -> Union[str, int]:
+    def _calculate_grade_abctb(row: pandas.Series) -> Union[str, int, pandas.NAtype]:
         try:
             column_name = "Histopathological Grade"
             column_score = re.findall(r"\d+", str(row[column_name]))
             if len(column_score) == 0:
-                return "NA"
+                return pandas.NA
 
             return int(column_score[0])
         except Exception:
-            return "NA"
+            return pandas.NA
 
     @staticmethod
-    def _calculate_tumor_type_abctb(row: pandas.Series) -> str:
+    def _calculate_tumor_type_abctb(row: pandas.Series) -> Union[str, pandas.NAType]:
         try:
             column_name = "Primary Histologic Diagnosis"
             tumor_type = row[column_name]
@@ -831,32 +855,32 @@ class MetadataGenerator(OutputObject, MetadataBase):
             else:
                 return "OTHER"
         except Exception:
-            return "NA"
+            return pandas.NA
 
     @staticmethod
-    def _calculate_slide_barcode_prefix_abctb(row: pandas.Series) -> str:
+    def _calculate_slide_barcode_prefix_abctb(row: pandas.Series) -> Union[str, pandas.NAType]:
         try:
             return row[constants.file_column_name_enhancement_abctb]
         except Exception:
-            return "NA"
+            return pandas.NA
 
     ##############
     ### CARMEL ###
     ##############
     @staticmethod
-    def _calculate_grade_carmel(row: pandas.Series) -> Union[str, int]:
+    def _calculate_grade_carmel(row: pandas.Series) -> Union[str, int, pandas.NAType]:
         try:
             column_name = "Grade"
             column_score = re.findall(r"\d+(?:\.\d+)?", str(row[column_name]))
             if len(column_score) == 0:
-                return "NA"
+                return pandas.NA
 
             return int(float(column_score[0]))
         except Exception:
-            return "NA"
+            return pandas.NA
 
     @staticmethod
-    def _calculate_tumor_type_carmel(row: pandas.Series) -> str:
+    def _calculate_tumor_type_carmel(row: pandas.Series) -> Union[str, pandas.NAType]:
         try:
             column_name = "TumorType"
             tumor_type = row[column_name]
@@ -868,10 +892,10 @@ class MetadataGenerator(OutputObject, MetadataBase):
             else:
                 return "OTHER"
         except Exception:
-            return "NA"
+            return pandas.NA
 
     @staticmethod
-    def _calculate_slide_barcode_prefix_carmel(row: pandas.Series) -> str:
+    def _calculate_slide_barcode_prefix_carmel(row: pandas.Series) -> Union[str, pandas.NAType]:
         try:
             slide_barcode = row[constants.slide_barcode_column_name_enhancement_carmel]
             block_id = row[constants.block_id_column_name_enhancement_carmel]
@@ -881,25 +905,25 @@ class MetadataGenerator(OutputObject, MetadataBase):
             slide_barcode = f"{slide_barcode.replace('/', '_')}_{int(block_id)}"
             return slide_barcode
         except Exception:
-            return "NA"
+            return pandas.NA
 
     #############
     ### SHEBA ###
     #############
     @staticmethod
-    def _calculate_grade_sheba(row: pandas.Series) -> Union[str, int]:
+    def _calculate_grade_sheba(row: pandas.Series) -> Union[str, int, pandas.NAType]:
         try:
             column_name = "Grade"
             column_score = re.findall(r"\d+(?:\.\d+)?", str(row[column_name]))
             if len(column_score) == 0:
-                return "NA"
+                return pandas.NA
 
             return int(float(column_score[0]))
         except Exception:
-            return "NA"
+            return pandas.NA
 
     @staticmethod
-    def _calculate_tumor_type_sheba(row: pandas.Series) -> str:
+    def _calculate_tumor_type_sheba(row: pandas.Series) -> Union[str, pandas.NAType]:
         try:
             column_name = "Histology"
             tumor_type = row[column_name]
@@ -911,14 +935,14 @@ class MetadataGenerator(OutputObject, MetadataBase):
             else:
                 return "OTHER"
         except Exception:
-            return "NA"
+            return pandas.NA
 
     @staticmethod
-    def _calculate_slide_barcode_prefix_sheba(row: pandas.Series) -> str:
+    def _calculate_slide_barcode_prefix_sheba(row: pandas.Series) -> Union[str, pandas.NAType]:
         try:
             return row[constants.patient_barcode_column_name]
         except Exception:
-            return "NA"
+            return pandas.NA
 
     ###########
     ### ALL ###
@@ -934,7 +958,7 @@ class MetadataGenerator(OutputObject, MetadataBase):
             return segmentation_data.shape[0]
 
     @staticmethod
-    def _calculate_slide_barcode_prefix(row: pandas.Series) -> str:
+    def _calculate_slide_barcode_prefix(row: pandas.Series) -> Union[str, pandas.NAType]:
         try:
             dataset_id = row[constants.dataset_id_column_name]
             if dataset_id == "TCGA":
@@ -946,7 +970,7 @@ class MetadataGenerator(OutputObject, MetadataBase):
             elif dataset_id == "SHEBA":
                 return row[constants.patient_barcode_column_name]
         except Exception:
-            return "NA"
+            return pandas.NA
 
     def _add_tiles_count(self, df: pandas.DataFrame) -> pandas.DataFrame:
         df[constants.tiles_count_column_name] = df.apply(
@@ -959,7 +983,7 @@ class MetadataGenerator(OutputObject, MetadataBase):
         df: pandas.DataFrame
     ) -> pandas.DataFrame:
         df[constants.tumor_type_column_name] = df.apply(
-            lambda row: 'NA', axis=1
+            lambda row: pandas.NA, axis=1
         )
 
         return df
@@ -969,7 +993,7 @@ class MetadataGenerator(OutputObject, MetadataBase):
         df: pandas.DataFrame
     ) -> pandas.DataFrame:
         df[constants.grade_column_name] = df.apply(
-            lambda row: 'NA', axis=1
+            lambda row: pandas.NA, axis=1
         )
 
         return df
@@ -979,7 +1003,7 @@ class MetadataGenerator(OutputObject, MetadataBase):
         df: pandas.DataFrame
     ) -> pandas.DataFrame:
         df[constants.ki_67_status_column_name] = df.apply(
-            lambda row: 'NA', axis=1
+            lambda row: pandas.NA, axis=1
         )
 
         return df
@@ -989,27 +1013,27 @@ class MetadataGenerator(OutputObject, MetadataBase):
         df: pandas.DataFrame
     ) -> pandas.DataFrame:
         df[constants.onco_ki_67_column_name] = df.apply(
-            lambda row: 'NA', axis=1
+            lambda row: pandas.NA, axis=1
         )
 
         df[constants.onco_score_11_column_name] = df.apply(
-            lambda row: 'NA', axis=1
+            lambda row: pandas.NA, axis=1
         )
 
         df[constants.onco_score_18_column_name] = df.apply(
-            lambda row: 'NA', axis=1
+            lambda row: pandas.NA, axis=1
         )
 
         df[constants.onco_score_26_column_name] = df.apply(
-            lambda row: 'NA', axis=1
+            lambda row: pandas.NA, axis=1
         )
 
         df[constants.onco_score_31_column_name] = df.apply(
-            lambda row: 'NA', axis=1
+            lambda row: pandas.NA, axis=1
         )
 
         df[constants.onco_score_all_column_name] = df.apply(
-            lambda row: 'NA', axis=1
+            lambda row: pandas.NA, axis=1
         )
 
         return df
@@ -1086,7 +1110,8 @@ class MetadataGenerator(OutputObject, MetadataBase):
 
     @staticmethod
     def _standardize_metadata(df: pandas.DataFrame) -> pandas.DataFrame:
-        df = df.dropna()
+        # df = df.dropna()
+
         pandas.options.mode.chained_assignment = None
         # df = df[~df[constants.fold_column_name].isin(constants.invalid_values)]
 
@@ -1103,5 +1128,6 @@ class MetadataGenerator(OutputObject, MetadataBase):
         ] = max_val
         df[constants.fold_column_name] = df[constants.fold_column_name].astype(int)
         df = df.replace(constants.invalid_values, constants.invalid_value)
+        # df = df.fillna(pandas.NA)
         # df = df.dropna()
         return df

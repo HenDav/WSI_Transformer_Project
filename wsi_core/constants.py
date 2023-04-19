@@ -4,6 +4,9 @@ from typing import Dict, List
 from itertools import takewhile
 import re
 
+import numpy
+import pandas
+
 # General parameters
 test_fold_id = "test"
 max_attempts = 10
@@ -15,8 +18,8 @@ data_root_gipdeep10 = "/data/unsynced_data/h5"
 data_root_netapp = ""
 
 # Invalid values
-invalid_values = ["Missing Data", "Not performed", "[Not Evaluated]", "[Not Available]", "Was not stained"]
-invalid_value = "NA"
+invalid_values = ["Missing Data", "Not performed", "[Not Evaluated]", "[Not Available]", "Was not stained", numpy.nan]
+invalid_value = pandas.NA
 invalid_fold_column_names = [
     "test fold idx breast",
     "test fold idx",
