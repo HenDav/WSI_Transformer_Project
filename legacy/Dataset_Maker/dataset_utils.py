@@ -135,6 +135,8 @@ def get_datasets_dir_dict(Dataset: str):
     TMA_HE_01_011_gipdeep_path = path_init + r'Breast/TMA/bliss_data/01-011/HE/TMA_HE_01-011'
     HAEMEK_gipdeep_path = path_init + r'Breast/Haemek'
     CARMEL_BENIGN_gipdeep_path = path_init + r'Breast/Carmel/Benign'
+    PORTUGAL_gipdeep_path = path_init + r'Breast/portugul/portugul'
+    
 
     TCGA_ran_path = r'C:\ran_data\TCGA_example_slides\TCGA_examples_131020_flat\TCGA'
     HEROHE_ran_path = r'C:\ran_data\HEROHE_examples'
@@ -161,6 +163,13 @@ def get_datasets_dir_dict(Dataset: str):
                 dir_dict['CARMEL' + str(ii)] = os.path.join(CARMEL_gipdeep_path, '1-8', 'Batch_' + str(ii), 'CARMEL' + str(ii))
         elif sys.platform == 'darwin':  # Omer
             dir_dict['CARMEL'] = CARMEL_omer_path
+            
+    elif Dataset == 'PORTUGAL':
+        if sys.platform == 'linux': # GIPdeep
+            dir_dict['portugul'] = PORTUGAL_gipdeep_path
+        else:
+            raise Exception('Unrecognized platform')
+            
 
     elif Dataset == 'CARMEL+BENIGN':
         if sys.platform == 'linux':  # GIPdeep
