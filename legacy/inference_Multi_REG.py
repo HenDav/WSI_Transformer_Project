@@ -29,6 +29,7 @@ parser.add_argument('--patch_dir', type=str, default='', help='patch locations d
 parser.add_argument('-sd', '--subdir', type=str, default='', help='output sub-dir')
 parser.add_argument('-se', '--seed', type=int, help='use for deterministic patch sampling')
 parser.add_argument('-tar', '--target', type=str, help='label: Her2/ER/PR/EGFR/PDL1')
+parser.add_argument('-baldat', '--balanced_dataset', dest='balanced_dataset', action='store_true', help='take same # of positive and negative patients from each dataset')
 args = parser.parse_args()
 
 args.folds = list(map(int, args.folds[0]))
@@ -209,6 +210,7 @@ inf_dset = datasets.Infer_Dataset(DataSet=args.dataset,
                                   dx=dx,
                                   resume_slide=slide_num,
                                   patch_dir=args.patch_dir,
+                                  balanced_dataset=args.balanced_dataset,
                                   chosen_seed=args.seed)
 
 inf_loader = DataLoader(inf_dset, batch_size=1, shuffle=False, num_workers=0, pin_memory=True)

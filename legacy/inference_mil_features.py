@@ -66,6 +66,10 @@ parser.add_argument('--SHEBA_test_set',
                     dest='SHEBA_test_set',
                     action='store_true',
                     help='run inference over SHEBA fold 6 ?')
+parser.add_argument('--PORTUGAL_test_set',
+                    dest='PORTUGAL_test_set',
+                    action='store_true',
+                    help='run inference over portugal ?')
 #parser.add_argument('-nt', '--num_tiles', type=int, default=500, help='Number of tiles to use')
 #parser.add_argument('-ds', '--dataset', type=str, default='HEROHE', help='DataSet to use')
 #parser.add_argument('-f', '--folds', type=list, default=[2], help=' folds to infer')
@@ -216,7 +220,7 @@ else:
 if args.carmel_test_set:
     if args.experiment in [30086, 30087, 30089] + list(range(30093, 30105)) + [40072]:  # [10586, 10587, 10590]:
         dset = 'TCGA_ABCTB->CARMEL'
-    elif args.experiment in [40068,40067]:
+    elif args.experiment in [40068,40067, 50218]:
         dset = 'CARMEL->CARMEL 9-11'
     else:
         dset = 'CARMEL 9-11' # Implicitly CAT->CARMEL 9-11
@@ -232,10 +236,18 @@ if args.haemek_test_set:
 if args.TA_test_set:
     if args.experiment in list(range(30065,30070)) + list(range(30071,30074)) + list(range(30075, 30082)) + [40064, 40074, 40066]:
         dset = 'CAT->TA 6'
-    elif args.experiment in [30086, 30087, 30089] + list(range(30093,30105)) + [40072]:
+    elif args.experiment in [30086, 30087, 30089] + list(range(30093,30105)) + [40072, 50225, 50226]:
         dset = 'TCGA_ABCTB->TA 6'
     elif args.experiment == 40067:
         dset = 'CARMEL->TA 6'
+        
+if args.PORTUGAL_test_set:
+    if args.experiment in list(range(30065,30070)) + list(range(30071,30074)) + list(range(30075, 30082)) + [40064, 40074, 40066]:
+        dset = 'CAT->PORTUGAL'
+    elif args.experiment in [30086, 30087, 30089] + list(range(30093,30105)) + [40072, 50225, 50226]:
+        dset = 'TCGA_ABCTB->PORTUGAL'
+    elif args.experiment == 40067:
+        dset = 'CARMEL->PORTUGAL'
 
 if args.SHEBA_test_set:
     if args.experiment in [50199, 50201, 50205, 50206, 50208, 50211, 50213]:
@@ -297,6 +309,9 @@ elif args.haemek_test_set:
 elif args.TA_test_set:
     key = 'TA_fold6'
     dset = 'TCGA_ABCTB'
+elif args.PORTUGAL_test_set:
+    key = 'PORTUGAL'
+    dset = 'PORTUGAL'
 elif args.SHEBA_test_set:
     key = 'SHEBA_fold6_onco_features'
     dset = 'SHEBA'
@@ -358,7 +373,7 @@ inf_loader = DataLoader(inf_dset,
                         pin_memory=True)
 
 #if not (args.carmel_test_set or args.haemek_test_set):
-if dset not in ['CARMEL 9-11', 'HAEMEK', 'HIC'] and not (args.TA_test_set or args.SHEBA_test_set):
+if dset not in ['CARMEL 9-11', 'HAEMEK', 'HIC'] and not (args.TA_test_set or args.SHEBA_test_set or args.PORTUGAL_test_set):
     compute_performance = True
     fig1, ax1 = plt.subplots()
     ax1.set_prop_cycle(custom_cycler)

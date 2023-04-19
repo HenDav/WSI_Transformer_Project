@@ -741,6 +741,7 @@ class Infer_Dataset(WSI_Master_Dataset):
                  desired_slide_magnification: int = 10,
                  resume_slide: int = 0,
                  patch_dir: str = '',
+                 balanced_dataset: bool = False,
                  chosen_seed: int = None):
         super(Infer_Dataset, self).__init__(
             DataSet=DataSet,
@@ -756,6 +757,7 @@ class Infer_Dataset(WSI_Master_Dataset):
             get_images=False,
             train_type='Infer',
             desired_slide_magnification=desired_slide_magnification,
+            balanced_dataset=balanced_dataset,
             patch_dir=patch_dir)
 
         self.tiles_per_iter = tiles_per_iter
@@ -1280,6 +1282,17 @@ class Features_MILdataset(Dataset):
                         '/mnt/gipmed_new/Data/Breast/Haemek/Batch_1/HAEMEK1/slides_data_HAEMEK1.xlsx'
                     )
                 }
+            elif dataset in ['PORTUGAL']:
+                grid_location_dict = {
+                    'PORTUGAL':
+                    r'/mnt/gipmed_new/Data/Breast/portugul/portugul/Grids_10/Grid_data.xlsx'
+                }
+                slide_data_DF_dict = {
+                    'PORTUGAL':
+                    pd.read_excel(
+                        '/mnt/gipmed_new/Data/Breast/portugul/portugul/slides_data_portugul.xlsx'
+                    )
+                }
             
             elif dataset in ['SHEBA']:
                 grid_location_dict = {
@@ -1358,7 +1371,7 @@ class Features_MILdataset(Dataset):
 
         grid_DF.set_index('file', inplace=True)
         slide_data_DF.set_index('file', inplace=True)
-
+        
         if type(data_files) is dict:
             data_files_2 = data_files['is_Tumor']
             data_files = data_files['Receptor']

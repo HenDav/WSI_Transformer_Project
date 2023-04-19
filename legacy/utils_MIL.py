@@ -158,6 +158,12 @@ def get_RegModel_Features_location_dict(
             },
             "CARMEL": {
                 "Fold None": {
+                    "ER100": {
+                        "DataSet Name": r"FEATURES: Exp_50214-ER100-TestFold_-1",
+                        "TrainSet Location": r"/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50214-ER100-TestFold_-1/Inference/CARMEL_fold12345_ER100_features/",
+                        "TestSet Location": None,
+                        "REG Model Location": r"/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50214-ER100-TestFold_-1/Model_CheckPoints/model_data_Last_Epoch.pt",
+                    },
                     "ER": {
                         "DataSet Name": r"FEATURES: Exp_40022-ER-TestFold_-1",
                         "TrainSet Location": r"/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40022-ER-TestFold_-1/Inference/train_w_features",
@@ -710,6 +716,15 @@ def get_RegModel_Features_location_dict(
             },
             "CARMEL->CARMEL 9-11": {
                 "Fold None": {
+                     "ER100": {
+                        "DataSet Name": r"FEATURES: Exp_50214-ER100-TestFold_-1",
+                        "TestSet Location": {
+                            "CARMEL": r"/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50214-ER100-TestFold_-1/Inference/CARMEL_fold12345_ER100_features/",
+                            "CARMEL9": r"/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50214-ER100-TestFold_-1/Inference/CARMEL9_ER100_features/",
+                            "CARMEL10": r"/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50214-ER100-TestFold_-1/Inference/CARMEL10_ER100_features/",
+                            "CARMEL11": r"/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50214-ER100-TestFold_-1/Inference/CARMEL11_ER100_features/",
+                        },
+                    },
                     "ER": {
                         "DataSet Name": r"FEATURES: Exp_40022-ER-TestFold_-1",
                         "TestSet Location": {
@@ -962,6 +977,223 @@ def get_RegModel_Features_location_dict(
                     },
                 }
             },
+            'CAT->PORTUGAL': {
+                'Fold None': {
+                    'ER': {
+                        'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40015-ER-TestFold_-1/Inference/PORTUGAL/'
+                    },
+                    'PR': {
+                        'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40046-PR-TestFold_-1/Inference/PORTUGAL'
+                    },
+                    'Her2': {
+                        'DataSet Name': r'FEATURES: Exp_40023-Ki67-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40019-Her2-TestFold_-1/Inference/PORTUGAL'
+                    }
+                },
+                'Fold 1': {
+                    'ER': {
+                        'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_355-ER-TestFold_1/Inference/PORTUGAL'
+                    },
+                    'PR': {
+                        'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TestSet Location': 
+                        r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_10-PR-TestFold_1/Inference/PORTUGAL'
+                    },
+                    'Her2': {
+                        'DataSet Name': r'FEATURES: Exp_40023-Ki67-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_392-Her2-TestFold_1/Inference/PORTUGAL'
+                    }
+                },
+                'Fold 2': {
+                    'ER': {
+                        'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_393-ER-TestFold_2/Inference/PORTUGAL'
+                    },
+                    'PR': {
+                        'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TestSet Location': 
+                        r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20063-PR-TestFold_2/Inference/PORTUGAL'
+                    },
+                    'Her2': {
+                        'DataSet Name': r'FEATURES: Exp_40023-Ki67-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_412-Her2-TestFold_2/Inference/PORTUGAL'
+                    }
+                },
+                'Fold 3': {
+                    'ER': {
+                        'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_472-ER-TestFold_3/Inference/PORTUGAL'
+                    },
+                    'PR': {
+                        'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_497-PR-TestFold_3/Inference/PORTUGAL'
+                    },
+                    'Her2': {
+                        'DataSet Name': r'FEATURES: Exp_40023-Ki67-TestFold_-1',
+                        'TestSet Location': 
+                        r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20114-Her2-TestFold_3/Inference/PORTUGAL'
+                    }
+                },
+                'Fold 4': {
+                    'ER': {
+                        'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_542-ER-TestFold_4/Inference/PORTUGAL'
+                    },
+                    'PR': {
+                        'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TestSet Location': 
+                        r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20207-PR-TestFold_4/Inference/PORTUGAL'
+                    },
+                    'Her2': {
+                        'DataSet Name': r'FEATURES: Exp_40023-Ki67-TestFold_-1',
+                        'TestSet Location': 
+                        r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20201-Her2-TestFold_4/Inference/PORTUGAL'
+                    }
+                },
+                'Fold 5': {
+                    'ER': {
+                        'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_611-ER-TestFold_5/Inference/PORTUGAL'
+                    },
+                    'PR': {
+                        'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TestSet Location': 
+                        r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20235-PR-TestFold_5/Inference/PORTUGAL'
+                    },
+                    'Her2': {
+                        'DataSet Name': r'FEATURES: Exp_40023-Ki67-TestFold_-1',
+                        'TestSet Location': 
+                        r'/mnt/gipnetapp_public/sgils/ran/runs/Exp_20228-Her2-TestFold_5/Inference/PORTUGAL'
+                    }
+                }
+            },
+            'TCGA_ABCTB->PORTUGAL': {
+                'Fold None': {
+                    'ER': {
+                        'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40021-ER-TestFold_-1/Inference/PORTUGAL'
+                    },
+                    'PR': {
+                        'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50219-PR-TestFold_-1/Inference/PORTUGAL'
+                    },
+                    'Her2': {
+                        'DataSet Name': r'FEATURES: Exp_40023-Ki67-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50220-Her2-TestFold_-1/Inference/PORTUGAL'
+                    }
+                },
+                'Fold 1': {
+                    'ER': {
+                        'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_293-ER-TestFold_1/Inference/PORTUGAL'
+                    },
+                    'PR': {
+                        'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_309-PR-TestFold_1/Inference/PORTUGAL'
+                    },
+                    'Her2': {
+                        'DataSet Name': r'FEATURES: Exp_40023-Ki67-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_308-Her2-TestFold_1/Inference/PORTUGAL'
+                    }
+                },
+                'Fold 2': {
+                    'ER': {
+                        'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_299-ER-TestFold_2/Inference/PORTUGAL'
+                    },
+                    'PR': {
+                        'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_320-PR-TestFold_2/Inference/PORTUGAL'
+                    },
+                    'Her2': {
+                        'DataSet Name': r'FEATURES: Exp_40023-Ki67-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_310-Her2-TestFold_2/Inference/PORTUGAL'
+                    }
+                },
+                'Fold 3': {
+                    'ER': {
+                        'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_301-ER-TestFold_3/Inference/PORTUGAL'
+                    },
+                    'PR': {
+                        'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_312-PR-TestFold_3/Inference/PORTUGAL'
+                    },
+                    'Her2': {
+                        'DataSet Name': r'FEATURES: Exp_40023-Ki67-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_311-Her2-TestFold_3/Inference/PORTUGAL'
+                    }
+                },
+                'Fold 4': {
+                    'ER': {
+                        'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_302-ER-TestFold_4/Inference/PORTUGAL'
+                    },
+                    'PR': {
+                        'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_313-PR-TestFold_4/Inference/PORTUGAL'
+                    },
+                    'Her2': {
+                        'DataSet Name': r'FEATURES: Exp_40023-Ki67-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_334-Her2-TestFold_4/Inference/PORTUGAL'
+                    }
+                },
+                'Fold 5': {
+                    'ER': {
+                        'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_303-ER-TestFold_5/Inference/PORTUGAL'
+                    },
+                    'PR': {
+                        'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_321-PR-TestFold_5/Inference/PORTUGAL'
+                    },
+                    'Her2': {
+                        'DataSet Name': r'FEATURES: Exp_40023-Ki67-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_348-Her2-TestFold_5/Inference/PORTUGAL'
+                    }
+                }
+            },
+            'CARMEL->PORTUGAL': {
+                'Fold None': {
+                    'ER': {
+                        'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
+                        'TestSet Location': 
+                        r'/home/dahen/WSI_ran_legacy/WSI/runs/Exp_40022-ER-TestFold_-1/Inference/PORTUGAL'
+                    }
+                }
+            },
             'CAT->TA 6': {
                 'Fold None': {
                     'ER': {
@@ -1076,12 +1308,12 @@ def get_RegModel_Features_location_dict(
                     'PR': {
                         'DataSet Name': r'FEATURES: Exp_40022-ER-TestFold_-1',
                         'TestSet Location': 
-                        r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_355-ER-TestFold_1/Inference/TA_fold6'
+                        r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50219-PR-TestFold_-1/Inference/TA_fold6'
                     },
                     'Her2': {
                         'DataSet Name': r'FEATURES: Exp_40023-Ki67-TestFold_-1',
                         'TestSet Location': 
-                        r'/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_308-Her2-TestFold_1/Inference/TA_fold6'
+                        r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50220-Her2-TestFold_-1/Inference/TA_fold6'
                     }
                 },
                 'Fold 1': {
@@ -1325,6 +1557,24 @@ def get_RegModel_Features_location_dict(
             },
             'TCGA_ABCTB': {
                 'Fold None': {
+                    'PR': {
+                        'DataSet Name':
+                        r'FEATURES: Exp_50219-PR-TestFold_-1',
+                        'TrainSet Location':
+                        r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50219-PR-TestFold_-1/Inference/TA_fold12345',
+                        'TestSet Location': None,
+                        'REG Model Location':
+                        r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50219-PR-TestFold_-1/Model_CheckPoints/model_data_Last_Epoch.pt'
+                    },
+                    'Her2': {
+                        'DataSet Name':
+                        r'FEATURES: Exp_50220-Her2-TestFold_-1',
+                        'TrainSet Location':
+                        r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50220-Her2-TestFold_-1/Inference/TA_fold12345',
+                        'TestSet Location': None,
+                        'REG Model Location':
+                        r'/home/shacharcohen/workspace/WSI/legacy/runs/Exp_50220-Her2-TestFold_-1/Model_CheckPoints/model_data_Last_Epoch.pt'
+                    },
                     'ER': {
                         'DataSet Name':
                         r'FEATURES: Exp_40021-ER-TestFold_-1',
