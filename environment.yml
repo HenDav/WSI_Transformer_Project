@@ -1,0 +1,33 @@
+name: gipmed-wsi
+channels:
+  - pytorch
+  - nvidia
+  - fastai
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pytorch
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=11.7
+  - numpy
+  - pandas
+  - scipy
+  - matplotlib
+  - jupyterlab
+  - h5py
+  - pip
+  - pip:
+      - openslide-python
+      - opencv-python
+      - bresenham
+      - lightly
+      - wandb
+      - gitpython
+      - typed-argument-parser
+      - jsonpath-ng
+      - openpyxl
+      - Pympler
+      - pytorch-lightning
+      - joblib
