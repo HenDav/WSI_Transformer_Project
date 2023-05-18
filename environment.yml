@@ -31,3 +31,8 @@ dependencies:
       - Pympler
       - pytorch-lightning
       - joblib
+      - pylibdmtx
+      - XlsxWriter
+      - xlrd
+      - pyyaml
+
