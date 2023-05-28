@@ -1,4 +1,4 @@
-name: gipmed-wsi
+name: gipmed-wsi-windows
 channels:
   - pytorch
   - nvidia

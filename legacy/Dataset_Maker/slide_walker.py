@@ -118,7 +118,7 @@ def write_label_images_to_excel(slide_list_df, label_image_name_list, data_dir, 
             worksheet.insert_image('I' + str(ii + 2), img_file, {'x_scale': 0.12, 'y_scale': 0.12})
             formula_string = '=CONCATENATE(D' + str(ii + 2) + ',"-",E' + str(ii + 2) + ',"/",F' + str(
                 ii + 2) + ',"/",G' + str(ii + 2) + ',"/",H' + str(ii + 2) + ')'
-            worksheet.write_formula('I' + str(ii + 2), formula_string)
+            worksheet.write_formula('J' + str(ii + 2), formula_string)
 
     worksheet.set_zoom(200)
     workbook.close()
