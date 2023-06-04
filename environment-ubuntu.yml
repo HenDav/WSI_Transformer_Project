@@ -37,4 +37,6 @@ dependencies:
       - XlsxWriter
       - xlrd
       - pyyaml
+      - aicsimageio
+      - pyvips
 

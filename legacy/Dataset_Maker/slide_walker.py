@@ -11,6 +11,7 @@ from tqdm import tqdm
 import xlsxwriter
 from Dataset_Maker import dataset_utils
 import numpy as np
+from pathlib import Path
 
 
 BARCODE_CONVENTION_NONE = 0
@@ -93,6 +94,8 @@ def merge_manual_barcodes_to_barcode_list(data_dir, dataset_name):
 
 def write_label_images_to_excel(slide_list_df, label_image_name_list, data_dir, dataset_name):
     img_dir = os.path.join(data_dir, 'unreadable_labels')
+    img_dir_path = Path(img_dir)
+    img_dir_path.mkdir(parents=True, exist_ok=True)
     # write images to workbook
     manual_barcodes_file = get_manual_barcode_file(data_dir, dataset_name)
     workbook = xlsxwriter.Workbook(manual_barcodes_file)

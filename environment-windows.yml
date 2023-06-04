@@ -18,6 +18,7 @@ dependencies:
   - jupyterlab
   - h5py
   - pip
+  - czifile
   - pip:
       - openslide-python
       - opencv-python
@@ -35,4 +36,3 @@ dependencies:
       - XlsxWriter
       - xlrd
       - pyyaml
-
