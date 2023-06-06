@@ -47,6 +47,7 @@ def remove_control_tissue_rows_from_segmentation(img_array, slide_name, data_dir
         matching_marked_image_file += glob.glob(os.path.join(control_dir, '*' + slide_name + '-edit-*.jpg'))
         matching_marked_file_found = len(matching_marked_image_file) == 1
         if matching_marked_file_found:
+            print('HEEEEEEEEEREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE')
             img_array = remove_control_tissue_rows_according_to_marked_file(img_array, matching_marked_image_file)
         else:
             print('no matching marked image for slide ' + slide_name)
