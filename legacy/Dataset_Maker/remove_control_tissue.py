@@ -70,6 +70,7 @@ def avoid_control_tissue_bottom(thumb, bottom_percent=0.4):
 def remove_control_tissue_according_to_dataset(img, is_IHC_slide, slide_name, dataset, data_dir):
     # Avoid control tissue on segmentation
     is_porto_pdl1_w_control_tissue = (is_IHC_slide and dataset == 'PORTO_PDL1' and slide_name[-5:] == ' pdl1')
+    print(f'!!!!!!!!!!!!!! {dataset[:4]}')
     is_her2 = dataset[:4].casefold() == 'HER2'.casefold()
     if is_porto_pdl1_w_control_tissue:
         # PORTO second batch IHC contains control tissue
