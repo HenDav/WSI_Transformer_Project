@@ -22,19 +22,19 @@ def remove_slide_artifacts_rows_from_segmentation(img_arr, remove_upper_part_rat
 
 def remove_control_tissue_rows_according_to_marked_file(img_arr, matching_marked_img_file):
     red_color1 = (231, 27, 28)
-    red_color2 = (237, 27, 36)
-    red_color3 = (227, 24, 44)
+    # red_color2 = (237, 27, 36)
+    # red_color3 = (227, 24, 44)
     matching_marked_img = Image.open(matching_marked_img_file[0])
     matching_marked_img_arr_resized = np.array(matching_marked_img.resize(img_arr.shape[-2::-1]))
     red_mask1 = np.all(matching_marked_img_arr_resized == red_color1, axis=2)
-    red_mask2 = np.all(matching_marked_img_arr_resized == red_color2, axis=2)
-    red_mask3 = np.all(matching_marked_img_arr_resized == red_color3, axis=2)
-    #print('np.sum(red_mask1):', str(np.sum(red_mask1)))  # temp
+    # red_mask2 = np.all(matching_marked_img_arr_resized == red_color2, axis=2)
+    # red_mask3 = np.all(matching_marked_img_arr_resized == red_color3, axis=2)
+    print('np.sum(red_mask1):', str(np.sum(red_mask1)))  # temp
     #print('np.sum(red_mask2):', str(np.sum(red_mask2)))  # temp
     #print('np.sum(red_mask3):', str(np.sum(red_mask3)))  # temp
-    red_mask = np.logical_or(np.logical_or(red_mask1, red_mask2), red_mask3)
-    red_rows = np.any(red_mask, axis=1)
-    #print('np.sum(red_rows):', str(np.sum(red_rows))) #temp
+    # red_mask = np.logical_or(np.logical_or(red_mask1, red_mask2), red_mask3)
+    red_rows = np.any(red_mask1, axis=1)
+    print('np.sum(red_rows):', str(np.sum(red_rows))) #temp
     img_arr[red_rows, :] = 255
     return img_arr
 
