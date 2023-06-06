@@ -119,7 +119,8 @@ def prepare_dataset_step3(data_dir, Dataset, hospital_metadata_file, fold_params
 
 if __name__ == '__main__':
     fold_params = folds_split_per_patient.fold_split_params()
-    hospital_metadata_file = hospital_metadata_reader.get_hospital_metadata_file(args.Dataset)
+    # hospital_metadata_file = hospital_metadata_reader.get_hospital_metadata_file(args.Dataset)
+    hospital_metadata_file = None
     binary_label_list = ['ER status', 'PR status', 'Her2 status', 'Ki67 status']
 
     prepare_dataset_for_training(Dataset=args.Dataset,
