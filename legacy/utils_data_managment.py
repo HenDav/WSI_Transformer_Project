@@ -493,18 +493,18 @@ def _make_grid_for_image(file, meta_data_DF, ROOT_DIR, different_SegData_path_ex
         tile_nums = len(legit_grid)
 
         # Plot grid on thumbnail
-        thumb_file_jpg = os.path.join(ROOT_DIR, database, 'SegData' + different_SegData_path_extension, 'Thumbs',
-                                  filename + '_thumb.jpg')
+        # thumb_file_jpg = os.path.join(ROOT_DIR, database, 'SegData' + different_SegData_path_extension, 'Thumbs',
+        #                           filename + '_thumb.jpg')
         thumb_file_png = os.path.join(ROOT_DIR, database, 'SegData' + different_SegData_path_extension, 'Thumbs',
                                   filename + '_thumb.png')  # for old files
 
-        grid_image_file = os.path.join(grid_images_dir, filename + '_GridImage.jpg')
+        grid_image_file = os.path.join(grid_images_dir, filename + '_GridImage.png')
 
-        if (os.path.isfile(thumb_file_jpg) or os.path.isfile(thumb_file_png)):
-            try:
-                thumb = np.array(Image.open(thumb_file_jpg))
-            except:
-                thumb = np.array(Image.open(thumb_file_png))
+        if os.path.isfile(thumb_file_png):
+            # try:
+            #     thumb = np.array(Image.open(thumb_file_jpg))
+            # except:
+            thumb = np.array(Image.open(thumb_file_png))
             slide = openslide.open_slide(os.path.join(ROOT_DIR, database, file))
             thumb_downsample = slide.dimensions[0] / thumb.shape[1]  # shape is transposed
             patch_size_thumb = adjusted_tile_size_at_level_0 / thumb_downsample
@@ -877,9 +877,9 @@ def _make_segmentation_for_image(file, DataSet, rewrite, out_path_dataset, slide
     fn, data_format = os.path.splitext(os.path.basename(file))
     data_dir = os.path.dirname(out_path_dataset)
     if not rewrite:
-        pic1 = os.path.exists(os.path.join(out_path_dataset, 'SegData', 'Thumbs', fn + '_thumb.jpg'))
+        pic1 = os.path.exists(os.path.join(out_path_dataset, 'SegData', 'Thumbs', fn + '_thumb.png'))
         pic2 = os.path.exists(os.path.join(out_path_dataset, 'SegData', 'SegMaps', fn + '_SegMap.png'))
-        pic3 = os.path.exists(os.path.join(out_path_dataset, 'SegData', 'SegImages', fn + '_SegImage.jpg'))
+        pic3 = os.path.exists(os.path.join(out_path_dataset, 'SegData', 'SegImages', fn + '_SegImage.png'))
         if pic1 and pic2 and pic3:
             return []
 

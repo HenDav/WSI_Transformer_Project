@@ -107,23 +107,23 @@ def slide_2_image(in_dir, out_dir, grid_image_path, slide_file, ind, slide_mag, 
             grid[ii].set_yticklabels([])
             grid[ii].set_xticklabels([])
         plt.tight_layout()
-        plt.savefig(os.path.join(out_dir, str(ind).zfill(4) + '_2_patches_' + fn + '.jpg'))
+        plt.savefig(os.path.join(out_dir, str(ind).zfill(4) + '_2_patches_' + fn + '.png'))
         plt.close()
     # thumb image
-    if os.path.isfile(os.path.join(in_dir, 'SegData', 'Thumbs', fn + '_thumb.jpg')):
-        copyfile(os.path.join(in_dir, 'SegData', 'Thumbs', fn + '_thumb.jpg'),
-                 os.path.join(out_dir, str(ind).zfill(4) + '_0_thumb_' + fn + '.jpg'))
-    elif os.path.isfile(os.path.join(in_dir, 'SegData', 'Thumbs', fn + '_thumb.png')):  # old format
+    if os.path.isfile(os.path.join(in_dir, 'SegData', 'Thumbs', fn + '_thumb.png')):
         copyfile(os.path.join(in_dir, 'SegData', 'Thumbs', fn + '_thumb.png'),
                  os.path.join(out_dir, str(ind).zfill(4) + '_0_thumb_' + fn + '.png'))
+    # elif os.path.isfile(os.path.join(in_dir, 'SegData', 'Thumbs', fn + '_thumb.png')):  # old format
+    #     copyfile(os.path.join(in_dir, 'SegData', 'Thumbs', fn + '_thumb.png'),
+    #              os.path.join(out_dir, str(ind).zfill(4) + '_0_thumb_' + fn + '.png'))
     else:
         print('no thumb image found for slide ' + fn)
         success_flag = False
     # grid image
     if not thumbs_only:
-        if os.path.isfile(os.path.join(grid_image_path, fn + '_GridImage.jpg')):
-            copyfile(os.path.join(grid_image_path, fn + '_GridImage.jpg'),
-                     os.path.join(out_dir, str(ind).zfill(4) + '_1_GridImage_' + fn + '.jpg'))
+        if os.path.isfile(os.path.join(grid_image_path, fn + '_GridImage.png')):
+            copyfile(os.path.join(grid_image_path, fn + '_GridImage.png'),
+                     os.path.join(out_dir, str(ind).zfill(4) + '_1_GridImage_' + fn + '.png'))
         else:
             print('no grid image found for slide ' + fn)
             success_flag = False
