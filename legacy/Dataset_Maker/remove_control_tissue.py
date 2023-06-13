@@ -42,9 +42,9 @@ def remove_control_tissue_rows_according_to_marked_file(img_arr, matching_marked
 def remove_control_tissue_rows_from_segmentation(img_array, slide_name, data_dir):
     control_dir = get_her2_control_dir(data_dir)
     if control_dir != '':
-        matching_marked_image_file = glob.glob(os.path.join(control_dir, '*' + slide_name + '.jpg'))
-        matching_marked_image_file += glob.glob(os.path.join(control_dir, '*' + slide_name + ' *.jpg'))
-        matching_marked_image_file += glob.glob(os.path.join(control_dir, '*' + slide_name + '-edit-*.jpg'))
+        matching_marked_image_file = glob.glob(os.path.join(control_dir, '*' + slide_name + '.png'))
+        matching_marked_image_file += glob.glob(os.path.join(control_dir, '*' + slide_name + ' *.png'))
+        matching_marked_image_file += glob.glob(os.path.join(control_dir, '*' + slide_name + '-edit-*.png'))
         matching_marked_file_found = len(matching_marked_image_file) == 1
         if matching_marked_file_found:
             print('HEEEEEEEEEREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE')

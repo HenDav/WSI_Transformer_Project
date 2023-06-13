@@ -35,7 +35,7 @@ else:
 def slide_2_image(slide_file, ind, mag, n_legit_tiles, desired_mag, grid_only):
     #fn = os.path.basename(slide_file)[:-5]
     fn = os.path.splitext(os.path.basename(slide_file))[0] #RanS 9.5.21
-    #seg_file = os.path.join(in_dir, 'SegData', 'SegImages', fn + '_SegImage.jpg')
+    #seg_file = os.path.join(in_dir, 'SegData', 'SegImages', fn + '_SegImage.png')
     success_flag = True
     if not grid_only:
         grid_file = os.path.join(in_dir, 'Grids_' + str(args.mag), fn + '--tlsz256' + '.data')
@@ -121,7 +121,7 @@ for _, file in enumerate(tqdm(slides)):
     fn_full = os.path.basename(file)
     fn = fn_full[:-5]
 
-    out_path = os.path.join(out_dir, fn + '.jpg')
+    out_path = os.path.join(out_dir, fn + '.png')
 
     if not os.path.isfile(out_path) or rewrite_figs:
         #mag = meta_data_DF.loc[meta_data_DF['patient barcode'] == fn, 'Manipulated Objective Power'].item()

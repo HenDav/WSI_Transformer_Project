@@ -371,8 +371,8 @@ if __name__ == "__main__":
 	coordinates_Left = []
 	# reading the image
 
-	file1 = '/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL/Immuno_ER/thumbs/19-5229_2_1_e_TOP.jpg'
-	file2 = '/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL/Immuno_ER/thumbs/19-5229_2_1_l.jpg'
+	file1 = '/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL/Immuno_ER/thumbs/19-5229_2_1_e_TOP.png'
+	file2 = '/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL/Immuno_ER/thumbs/19-5229_2_1_l.png'
 
 
 	HE_cord = [[4143, 2773], [3913, 4141], [3427, 4895], [3056, 5164], [2672, 4716], [5230, 6391], [5473, 6800], [5204, 7503], [4680, 7273], [4808, 7056], [4833, 6301], [5613, 5228], [3989, 4998], [3414, 5688], [2864, 5854], [1994, 4946], [2404, 4077], [3069, 2799], [4335, 1521], [5920, 1035], [7570, 3029], [5818, 1776], [8222, 2415], [8759, 3464], [8708, 4179], [4923, 3783], [4322, 3553], [3184, 3489], [4654, 4435], [5818, 4486], [6176, 4921], [7097, 8526], [6969, 9395], [4795, 8794], [8823, 4793], [9667, 4665], [8209, 8219], [7097, 6723], [7596, 6992], [7097, 8155], [6227, 8411], [5831, 7746], [6048, 7209], [6547, 7222]]

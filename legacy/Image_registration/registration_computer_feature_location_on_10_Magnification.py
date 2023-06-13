@@ -46,10 +46,10 @@ def plot_tiles(img_HE, img_IHC, tiles):
                       color=(255, 0, 0),
                       thickness=thickness)
 
-    cv2.imwrite('/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL/Immuno_ER/thumbs/19-5229_2_1_e_Tiles.jpg', img_HE)
+    cv2.imwrite('/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL/Immuno_ER/thumbs/19-5229_2_1_e_Tiles.png', img_HE)
 
     img_IHC = img_IHC[13000:, :, :]
-    cv2.imwrite('/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL/Immuno_ER/thumbs/19-5229_2_1_l_Tiles.jpg', img_IHC)
+    cv2.imwrite('/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL/Immuno_ER/thumbs/19-5229_2_1_l_Tiles.png', img_IHC)
 
 
 def compute_feature_points_new_location(ratio, original_location):
@@ -145,9 +145,9 @@ IHC_new_feature_location = compute_feature_points_new_location(ratio_small_to_cu
 save_small_images = False
 if save_small_images:
     real_sized_thumb = HE_slide.read_region((0, 0), 3, (11185, 25576)).convert('RGB')
-    real_sized_thumb.save('/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL/Immuno_ER/thumbs/19-5229_2_1_e.jpg')
+    real_sized_thumb.save('/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL/Immuno_ER/thumbs/19-5229_2_1_e.png')
     real_sized_thumb = IHC_slide.read_region((0, 0), 3, (11185, 25576)).convert('RGB')
-    real_sized_thumb.save('/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL/Immuno_ER/thumbs/19-5229_2_1_l.jpg')
+    real_sized_thumb.save('/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL/Immuno_ER/thumbs/19-5229_2_1_l.png')
 
 
 # Centers are ordered by: (row, col)
@@ -160,8 +160,8 @@ transforms = get_transforms(HE_new_feature_location, IHC_new_feature_location, H
 compute_transformed_tiles(tiles, transforms)
 
 
-HE_thumb = cv2.imread('/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL/Immuno_ER/thumbs/19-5229_2_1_e_TOP.jpg')
-IHC_thumb = cv2.imread('/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL/Immuno_ER/thumbs/19-5229_2_1_l.jpg')
+HE_thumb = cv2.imread('/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL/Immuno_ER/thumbs/19-5229_2_1_e_TOP.png')
+IHC_thumb = cv2.imread('/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL/Immuno_ER/thumbs/19-5229_2_1_l.png')
 plot_tiles(HE_thumb, IHC_thumb, tiles)
 
 

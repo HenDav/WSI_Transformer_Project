@@ -49,7 +49,7 @@ def create_slide_inspection_folder(in_dir, out_dir, desired_mag, grid_only=False
     for _, file in enumerate(tqdm(slides)):
         fn_full = os.path.basename(file)
         fn = os.path.splitext(fn_full)[0]
-        out_path = os.path.join(out_dir, fn + '.jpg')
+        out_path = os.path.join(out_dir, fn + '.png')
 
         need_to_process_slide = rewrite_figs or not os.path.isfile(out_path)
         if need_to_process_slide:
