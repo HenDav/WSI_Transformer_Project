@@ -26,6 +26,10 @@ def remove_control_tissue_rows_according_to_marked_file(img_arr, matching_marked
     # red_color3 = (227, 24, 44)
     matching_marked_img = Image.open(matching_marked_img_file[0])
     matching_marked_img_arr_resized = np.array(matching_marked_img.resize(img_arr.shape[-2::-1]))
+
+    if matching_marked_img_arr_resized.shape[2] == 4:
+        matching_marked_img_arr_resized = matching_marked_img_arr_resized[:, :, 0:3]
+
     red_mask1 = np.all(matching_marked_img_arr_resized == red_color1, axis=2)
     # red_mask2 = np.all(matching_marked_img_arr_resized == red_color2, axis=2)
     # red_mask3 = np.all(matching_marked_img_arr_resized == red_color3, axis=2)

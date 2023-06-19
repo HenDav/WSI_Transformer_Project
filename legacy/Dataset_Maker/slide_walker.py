@@ -1,5 +1,13 @@
 import os
-import openslide
+
+# openslide
+if hasattr(os, 'add_dll_directory'):
+    # Python >= 3.8 on Windows
+    with os.add_dll_directory("C:/openslide-win64-20230414/bin"):
+        import openslide
+else:
+    import openslide
+
 import matplotlib.pyplot as plt
 from pylibdmtx.pylibdmtx import decode as decode
 import pandas as pd

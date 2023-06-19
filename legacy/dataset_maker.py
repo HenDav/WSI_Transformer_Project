@@ -119,12 +119,13 @@ def prepare_dataset_step3(data_dir, Dataset, hospital_metadata_file, fold_params
 
 if __name__ == '__main__':
     fold_params = folds_split_per_patient.fold_split_params()
-    hospital_metadata_file = hospital_metadata_reader.get_hospital_metadata_file(args.Dataset)
+    # hospital_metadata_file = hospital_metadata_reader.get_hospital_metadata_file(args.Dataset)
     binary_label_list = ['ER status', 'PR status', 'Her2 status', 'Ki67 status']
 
     prepare_dataset_for_training(Dataset=args.Dataset,
                                  data_dir=args.data_dir,
-                                 scan_barcodes=args.scan_barcodes, get_slide_labels=args.get_slide_labels,
+                                 scan_barcodes=args.scan_barcodes,
+                                 get_slide_labels=args.get_slide_labels,
                                  step=args.step,
                                  tile_size=args.tile_size,
                                  mag=args.mag,
@@ -132,7 +133,9 @@ if __name__ == '__main__':
                                  is_w_control_tissue=args.control_tissue,
                                  fold_params=fold_params,
                                  reorder_rename_slides=args.reorder_rename_slides,
-                                 hospital_metadata_file=hospital_metadata_file,
+                                 # hospital_metadata_file=hospital_metadata_file,
+                                 hospital_metadata_file='',
                                  do_split=args.do_split,
                                  binary_label_list=binary_label_list)
+
     send_gmail.send_gmail(0, send_gmail.Mode.DATAMAKER)
