@@ -25,6 +25,7 @@ from pathlib import Path
 BARCODE_CONVENTION_NONE = 0
 BARCODE_CONVENTION_CARMEL = 1
 BARCODE_CONVENTION_HAEMEK = 2
+BARCODE_CONVENTION_FAKE = 1
 
 
 def create_slide_list(walk_dir, dataset_name):
@@ -48,10 +49,11 @@ def create_slide_list(walk_dir, dataset_name):
     dataset_utils.save_df_to_excel(slide_list_df, barcode_list_file)
 
 
-def add_barcodes_to_slide_list(data_dir, dataset_name, scan_barcodes=True):
-    barcode_convention = get_barcode_convention(data_dir)
+def add_barcodes_to_slide_list(data_dir, dataset_name, fake_step_0, scan_barcodes=True):
+    barcode_convention = get_barcode_convention(data_dir, fake_step_0)
     if barcode_convention == BARCODE_CONVENTION_NONE:
         return
+
     print('adding barcodes to slide list')
 
     start_time = time.time()
@@ -247,7 +249,10 @@ def get_manual_barcode_file(data_dir, dataset_name, extension=''):
     return manual_barcodes_file
 
 
-def get_barcode_convention(data_dir):
+def get_barcode_convention(data_dir, fake_step_0):
+    if fake_step_0 is True:
+        return BARCODE_CONVENTION_FAKE
+
     if 'Carmel' in data_dir:
         barcode_convention = BARCODE_CONVENTION_CARMEL
     elif 'Haemek' in data_dir:

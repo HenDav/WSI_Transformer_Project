@@ -18,6 +18,8 @@ parser.add_argument('--control_tissue', action='store_true', help='collect slide
 parser.add_argument('--reorder_rename_slides', action='store_true', help='rename slides according to barcodes')
 parser.add_argument('--tissue_coverage', type=float, default=0.3, help='min. tissue percentage for a valid tile')
 parser.add_argument('--do_split', action='store_true', help='split the dataset into folds')
+parser.add_argument('--fake_step_0', action='store_true', help='')
+parser.add_argument('--external_obj_power', type=int, default=10)
 
 args = parser.parse_args()
 num_workers = get_cpu()
@@ -25,12 +27,12 @@ num_workers = get_cpu()
 
 def prepare_dataset_for_training(Dataset, data_dir, scan_barcodes, get_slide_labels, step, tile_size,
                                  mag, tissue_coverage, is_w_control_tissue, fold_params, reorder_rename_slides,
-                                 hospital_metadata_file, binary_label_list, do_split):
+                                 hospital_metadata_file, binary_label_list, do_split, fake_step_0, external_obj_power):
     if step == 0:
-        prepare_dataset_step0(data_dir, Dataset, scan_barcodes, get_slide_labels)
+        prepare_dataset_step0(data_dir, Dataset, scan_barcodes, get_slide_labels, fake_step_0)
 
     elif step == 1:
-        prepare_dataset_step1(data_dir, Dataset, tile_size, tissue_coverage, mag, is_w_control_tissue, reorder_rename_slides)
+        prepare_dataset_step1(data_dir, Dataset, tile_size, tissue_coverage, mag, is_w_control_tissue, reorder_rename_slides, fake_step_0, external_obj_power)
 
     elif step == 2:
         prepare_dataset_step2(data_dir, Dataset, tile_size, tissue_coverage, mag, is_w_control_tissue)
@@ -39,14 +41,14 @@ def prepare_dataset_for_training(Dataset, data_dir, scan_barcodes, get_slide_lab
         prepare_dataset_step3(data_dir, Dataset, hospital_metadata_file, fold_params, do_split, binary_label_list)
 
 
-def prepare_dataset_step0(data_dir, Dataset, scan_barcodes, get_slide_labels):
+def prepare_dataset_step0(data_dir, Dataset, scan_barcodes, get_slide_labels, fake_step_0):
     slide_walker.create_slide_list(data_dir, Dataset)
 
     if get_slide_labels:
-        slide_walker.add_barcodes_to_slide_list(data_dir, Dataset, scan_barcodes)
+        slide_walker.add_barcodes_to_slide_list(data_dir=data_dir, dataset_name=Dataset, scan_barcodes=scan_barcodes, fake_step_0=fake_step_0)
 
 
-def prepare_dataset_step1(data_dir, Dataset, tile_size, tissue_coverage, mag, is_w_control_tissue, reorder_rename_slides):
+def prepare_dataset_step1(data_dir, Dataset, tile_size, tissue_coverage, mag, is_w_control_tissue, reorder_rename_slides, fake_step_0, external_obj_power):
     slide_walker.merge_manual_barcodes_to_barcode_list(data_dir, Dataset)
 
     if reorder_rename_slides:
@@ -56,7 +58,7 @@ def prepare_dataset_step1(data_dir, Dataset, tile_size, tissue_coverage, mag, is
 
         slide_rename.delete_empty_folders(data_dir, Dataset)
 
-    utils_data_managment.make_slides_xl_file(DataSet=Dataset, ROOT_DIR=data_dir, out_path=data_dir)
+    utils_data_managment.make_slides_xl_file(DataSet=Dataset, ROOT_DIR=data_dir, out_path=data_dir, fake_step_0=fake_step_0, external_obj_power=external_obj_power)
 
     utils_data_managment.determine_manipulated_objective_power(DataSet=Dataset, ROOT_DIR=data_dir)
 
@@ -129,6 +131,8 @@ if __name__ == '__main__':
                                  step=args.step,
                                  tile_size=args.tile_size,
                                  mag=args.mag,
+                                 external_obj_power=args.external_obj_power,
+                                 fake_step_0=args.fake_step_0,
                                  tissue_coverage=args.tissue_coverage,
                                  is_w_control_tissue=args.control_tissue,
                                  fold_params=fold_params,

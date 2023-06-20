@@ -587,7 +587,7 @@ def _legit_grid(image_file_name: str,
     return grid, non_legit_grid_tiles
 
 
-def make_slides_xl_file(DataSet: str = 'HEROHE', ROOT_DIR: str = 'All Data', out_path: str = ''):
+def make_slides_xl_file(fake_step_0: bool, external_obj_power: int = 10, DataSet: str = 'HEROHE', ROOT_DIR: str = 'All Data', out_path: str = ''):
     """
     This function goes over all directories and makes a table with slides data:
     (1) id
@@ -736,7 +736,10 @@ def make_slides_xl_file(DataSet: str = 'HEROHE', ROOT_DIR: str = 'All Data', out
         try:
             id_dict['Objective Power'] = int(float(img.properties[mag_dict[data_format]]))  # "manipulated" needs to be manual
         except:
-            id_dict['Objective Power'] = 'Missing Data'
+            if fake_step_0 is True:
+                id_dict['Objective Power'] = external_obj_power
+            else:
+                id_dict['Objective Power'] = 'Missing Data'
         try:
             id_dict['Scan Date'] = img.properties[date_dict[data_format]]
         except:
