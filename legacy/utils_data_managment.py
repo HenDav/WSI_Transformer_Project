@@ -681,8 +681,9 @@ def make_slides_xl_file(fake_step_0: bool, external_obj_power: int = 10, DataSet
     slide_files_ndpi = glob.glob(os.path.join(ROOT_DIR, DataSet, '*.ndpi'))
     slide_files_mrxs = glob.glob(os.path.join(ROOT_DIR, DataSet, '*.mrxs'))
     slide_files_tiff = glob.glob(os.path.join(ROOT_DIR, DataSet, '*.tiff'))
+    slide_files_tif = glob.glob(os.path.join(ROOT_DIR, DataSet, '*.tif'))
     slide_files_jpg = glob.glob(os.path.join(ROOT_DIR, DataSet, '*.png'))
-    slides = slide_files_svs + slide_files_ndpi + slide_files_mrxs + slide_files_tiff + slide_files_jpg
+    slides = slide_files_svs + slide_files_ndpi + slide_files_mrxs + slide_files_tiff + slide_files_tif + slide_files_jpg
     mag_dict = {'.svs': 'aperio.AppMag', '.ndpi': 'hamamatsu.SourceLens', '.mrxs': 'openslide.objective-power',
                 'tiff': 'tiff.Software'}  # dummy for TIFF
     mpp_dict = {'.svs': 'aperio.MPP', '.ndpi': 'openslide.mpp-x', '.mrxs': 'openslide.mpp-x', 'tiff': 'openslide.mpp-x'}

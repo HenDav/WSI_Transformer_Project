@@ -33,7 +33,7 @@ def create_slide_list(walk_dir, dataset_name):
 
     barcode_list_file = get_barcode_list_file(walk_dir, dataset_name)
     slide_dict = OrderedDict()
-    slide_filetypes = ['jpg', 'mrxs', 'svs', 'tiff', 'isyntax', 'ndpi']
+    slide_filetypes = ['jpg', 'mrxs', 'svs', 'tiff', 'tif', 'isyntax', 'ndpi']
     slide_ind = -1
     for root, subdirs, files in os.walk(walk_dir):
         if 'SegData' in root:
