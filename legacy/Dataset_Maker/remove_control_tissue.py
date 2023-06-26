@@ -22,6 +22,7 @@ def remove_slide_artifacts_rows_from_segmentation(img_arr, remove_upper_part_rat
 
 def remove_control_tissue_rows_according_to_marked_file(img_arr, matching_marked_img_file):
     red_color1 = (255, 0, 0)
+#    red_color1 = (250, 0, 0)
     # red_color2 = (237, 27, 36)
     # red_color3 = (227, 24, 44)
     matching_marked_img = Image.open(matching_marked_img_file[0])
