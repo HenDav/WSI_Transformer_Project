@@ -19,6 +19,7 @@ parser.add_argument('--reorder_rename_slides', action='store_true', help='rename
 parser.add_argument('--tissue_coverage', type=float, default=0.3, help='min. tissue percentage for a valid tile')
 parser.add_argument('--do_split', action='store_true', help='split the dataset into folds')
 parser.add_argument('--fake_step_0', action='store_true', help='')
+parser.add_argument('--color', type=str)
 parser.add_argument('--external_obj_power', type=int, default=10)
 
 args = parser.parse_args()
@@ -27,7 +28,7 @@ num_workers = get_cpu()
 
 def prepare_dataset_for_training(Dataset, data_dir, scan_barcodes, get_slide_labels, step, tile_size,
                                  mag, tissue_coverage, is_w_control_tissue, fold_params, reorder_rename_slides,
-                                 hospital_metadata_file, binary_label_list, do_split, fake_step_0, external_obj_power):
+                                 hospital_metadata_file, binary_label_list, do_split, fake_step_0, external_obj_power, color):
     if step == 0:
         prepare_dataset_step0(data_dir, Dataset, scan_barcodes, get_slide_labels, fake_step_0)
 
@@ -35,7 +36,7 @@ def prepare_dataset_for_training(Dataset, data_dir, scan_barcodes, get_slide_lab
         prepare_dataset_step1(data_dir, Dataset, tile_size, tissue_coverage, mag, is_w_control_tissue, reorder_rename_slides, fake_step_0, external_obj_power)
 
     elif step == 2:
-        prepare_dataset_step2(data_dir, Dataset, tile_size, tissue_coverage, mag, is_w_control_tissue)
+        prepare_dataset_step2(data_dir, Dataset, tile_size, tissue_coverage, mag, is_w_control_tissue, color)
 
     elif step == 3:
         prepare_dataset_step3(data_dir, Dataset, hospital_metadata_file, fold_params, do_split, binary_label_list)
@@ -81,13 +82,14 @@ def prepare_dataset_step1(data_dir, Dataset, tile_size, tissue_coverage, mag, is
                                                        thumbs_only=True)
 
 
-def prepare_dataset_step2(data_dir, Dataset, tile_size, tissue_coverage, mag, is_w_control_tissue):
+def prepare_dataset_step2(data_dir, Dataset, tile_size, tissue_coverage, mag, is_w_control_tissue, color):
     if is_w_control_tissue:
         utils_data_managment.make_segmentations(DataSet=Dataset,
                                                 ROOT_DIR=data_dir,
                                                 out_path=data_dir,
                                                 num_workers=num_workers,
-                                                rewrite=True)
+                                                rewrite=True,
+                                                color=color)
 
         utils_data_managment.make_grid(DataSet=Dataset,
                                        ROOT_DIR=data_dir,
@@ -140,6 +142,7 @@ if __name__ == '__main__':
                                  # hospital_metadata_file=hospital_metadata_file,
                                  hospital_metadata_file='',
                                  do_split=args.do_split,
-                                 binary_label_list=binary_label_list)
+                                 binary_label_list=binary_label_list,
+                                 color=args.color)
 
     send_gmail.send_gmail(0, send_gmail.Mode.DATAMAKER)

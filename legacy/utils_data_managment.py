@@ -805,7 +805,7 @@ def make_slides_xl_file(fake_step_0: bool, external_obj_power: int = 10, DataSet
 
 
 def make_segmentations(DataSet: str = 'TCGA', ROOT_DIR: str = 'All Data', rewrite: bool = False, magnification: int = 1,
-                       out_path: str = 'All Data', num_workers: int = 1):
+                       out_path: str = 'All Data', num_workers: int = 1, color = None):
 
     data_path = os.path.join(ROOT_DIR, DataSet)
     out_path_dataset = os.path.join(out_path, DataSet)
@@ -852,7 +852,7 @@ def make_segmentations(DataSet: str = 'TCGA', ROOT_DIR: str = 'All Data', rewrit
 
     if debug:
         for file in tqdm(slide_files):
-            error1 = _make_segmentation_for_image(file, DataSet, rewrite, out_path_dataset, slides_meta_data_DF, magnification)
+            error1 = _make_segmentation_for_image(file, DataSet, rewrite, out_path_dataset, slides_meta_data_DF, magnification, color)
             if error1 != []:
                 error_list.append(error1)
     else:
@@ -862,6 +862,7 @@ def make_segmentations(DataSet: str = 'TCGA', ROOT_DIR: str = 'All Data', rewrit
                                                            magnification=magnification,
                                                            slides_meta_data_DF=slides_meta_data_DF,
                                                            rewrite=rewrite,
+                                                           color=color,
                                                            out_path_dataset=out_path_dataset),
                                                     slide_files), total=len(slide_files)):
                 if error1 != []:
@@ -877,7 +878,7 @@ def make_segmentations(DataSet: str = 'TCGA', ROOT_DIR: str = 'All Data', rewrit
         print('Segmentation Process finished without exceptions!')
 
 
-def _make_segmentation_for_image(file, DataSet, rewrite, out_path_dataset, slides_meta_data_DF, magnification):
+def _make_segmentation_for_image(file, DataSet, rewrite, out_path_dataset, slides_meta_data_DF, magnification, color):
     fn, data_format = os.path.splitext(os.path.basename(file))
     data_dir = os.path.dirname(out_path_dataset)
     if not rewrite:
@@ -929,7 +930,7 @@ def _make_segmentation_for_image(file, DataSet, rewrite, out_path_dataset, slide
         else:
             is_IHC_slide = False
 
-        thumb = remove_from_seg.remove_control_tissue_according_to_dataset(thumb, is_IHC_slide, fn, DataSet, data_dir)
+        thumb = remove_from_seg.remove_control_tissue_according_to_dataset(thumb, is_IHC_slide, fn, DataSet, data_dir, color)
         thumb = remove_from_seg.remove_slide_artifacts_according_to_dataset(thumb, DataSet)
 
         if DataSet == 'PORTO_HE' or DataSet[:4] == 'HER2' or DataSet[:5] == 'SHEBA':
