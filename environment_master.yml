@@ -1,4 +1,4 @@
-name: conda_master
+name: gipmed-wsi
 channels:
   - pytorch
   - fastai

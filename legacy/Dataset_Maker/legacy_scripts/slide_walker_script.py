@@ -73,7 +73,7 @@ for root, subdirs, files in os.walk(walk_dir):
 
     #for each mrxs file, open the slide and get the label
     if args.is_jpg:
-        slide_files = [file for file in files if file[-4:] == '.jpg']
+        slide_files = [file for file in files if file[-4:] == '.png']
     else:
         slide_files = [file for file in files if file[-5:] == '.mrxs']
         slide_files.extend([file for file in files if file[-4:] == '.svs'])

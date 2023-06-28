@@ -119,7 +119,7 @@ for key in batches.keys():
 
         tile_number = (8 - len(str(tile_index_in_xl))) * '0' + str(tile_index_in_xl)
         tile_filename = os.path.join('Data For Gil', args.file, outputnames[file_idx])  #  os.path.join('Data For Gil', tile_number)
-        tile_filename_extension = '.png' if args.png else '.jpg'
+        tile_filename_extension = '.png' if args.png else '.png'
         image_tiles[0].save(tile_filename + tile_filename_extension)
 
 print('Done')

@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 class TestClass():
     def __init__(self):
-        self.fname = r'C:\ran_data\RAMBAM\SlideID_images9\Box_1_1.jpg'
+        self.fname = r'C:\ran_data\RAMBAM\SlideID_images9\Box_1_1.png'
         self.img = cv2.imread(self.fname)
         self.point = ()
 

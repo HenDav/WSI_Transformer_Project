@@ -8,7 +8,8 @@ UKNOWN_SLIDE_ID = '-1'
 def add_slide_rename_to_barcode_list(in_dir, Dataset):
     excel_file = slide_walker.get_barcode_list_file(in_dir, Dataset)
     barcode_list = dataset_utils.open_excel_file(excel_file)
-    barcode_list.at[barcode_list['SlideID'].isna(), 'SlideID'] = UKNOWN_SLIDE_ID
+    # barcode_list.at[barcode_list['SlideID'].isna(), 'SlideID'] = UKNOWN_SLIDE_ID
+    barcode_list['SlideID'] = barcode_list['SlideID'].fillna(UKNOWN_SLIDE_ID)
     barcode_list['slide rename'] = [barcode.replace('/', '_') for barcode in barcode_list['SlideID']]
     barcode_list = barcode_list.sort_values(by='slide rename')
     prev_id = ""

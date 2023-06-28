@@ -1,5 +1,13 @@
 import os
-import openslide
+
+# openslide
+if hasattr(os, 'add_dll_directory'):
+    # Python >= 3.8 on Windows
+    with os.add_dll_directory("C:/openslide-win64-20230414/bin"):
+        import openslide
+else:
+    import openslide
+
 import matplotlib.pyplot as plt
 from pylibdmtx.pylibdmtx import decode as decode
 import pandas as pd
@@ -11,11 +19,13 @@ from tqdm import tqdm
 import xlsxwriter
 from Dataset_Maker import dataset_utils
 import numpy as np
+from pathlib import Path
 
 
 BARCODE_CONVENTION_NONE = 0
 BARCODE_CONVENTION_CARMEL = 1
 BARCODE_CONVENTION_HAEMEK = 2
+BARCODE_CONVENTION_FAKE = 1
 
 
 def create_slide_list(walk_dir, dataset_name):
@@ -23,7 +33,7 @@ def create_slide_list(walk_dir, dataset_name):
 
     barcode_list_file = get_barcode_list_file(walk_dir, dataset_name)
     slide_dict = OrderedDict()
-    slide_filetypes = ['jpg', 'mrxs', 'svs', 'tiff', 'isyntax', 'ndpi']
+    slide_filetypes = ['jpg', 'mrxs', 'svs', 'tiff', 'tif', 'isyntax', 'ndpi']
     slide_ind = -1
     for root, subdirs, files in os.walk(walk_dir):
         if 'SegData' in root:
@@ -39,10 +49,11 @@ def create_slide_list(walk_dir, dataset_name):
     dataset_utils.save_df_to_excel(slide_list_df, barcode_list_file)
 
 
-def add_barcodes_to_slide_list(data_dir, dataset_name, scan_barcodes=True):
-    barcode_convention = get_barcode_convention(data_dir)
+def add_barcodes_to_slide_list(data_dir, dataset_name, fake_step_0, scan_barcodes=True):
+    barcode_convention = get_barcode_convention(data_dir, fake_step_0)
     if barcode_convention == BARCODE_CONVENTION_NONE:
         return
+
     print('adding barcodes to slide list')
 
     start_time = time.time()
@@ -93,6 +104,8 @@ def merge_manual_barcodes_to_barcode_list(data_dir, dataset_name):
 
 def write_label_images_to_excel(slide_list_df, label_image_name_list, data_dir, dataset_name):
     img_dir = os.path.join(data_dir, 'unreadable_labels')
+    img_dir_path = Path(img_dir)
+    img_dir_path.mkdir(parents=True, exist_ok=True)
     # write images to workbook
     manual_barcodes_file = get_manual_barcode_file(data_dir, dataset_name)
     workbook = xlsxwriter.Workbook(manual_barcodes_file)
@@ -118,7 +131,7 @@ def write_label_images_to_excel(slide_list_df, label_image_name_list, data_dir, 
             worksheet.insert_image('I' + str(ii + 2), img_file, {'x_scale': 0.12, 'y_scale': 0.12})
             formula_string = '=CONCATENATE(D' + str(ii + 2) + ',"-",E' + str(ii + 2) + ',"/",F' + str(
                 ii + 2) + ',"/",G' + str(ii + 2) + ',"/",H' + str(ii + 2) + ')'
-            worksheet.write_formula('I' + str(ii + 2), formula_string)
+            worksheet.write_formula('J' + str(ii + 2), formula_string)
 
     worksheet.set_zoom(200)
     workbook.close()
@@ -236,7 +249,10 @@ def get_manual_barcode_file(data_dir, dataset_name, extension=''):
     return manual_barcodes_file
 
 
-def get_barcode_convention(data_dir):
+def get_barcode_convention(data_dir, fake_step_0):
+    if fake_step_0 is True:
+        return BARCODE_CONVENTION_FAKE
+
     if 'Carmel' in data_dir:
         barcode_convention = BARCODE_CONVENTION_CARMEL
     elif 'Haemek' in data_dir:

@@ -1,11 +1,29 @@
+# standard library
 import os
 from pathlib import Path
 from typing import Dict, List
 from itertools import takewhile
 import re
+from enum import Enum
 
+# numpy
 import numpy
+
+# pandas
 import pandas
+
+
+class DatasetName(Enum):
+    BREAST_ABCTB = 1
+    BREAST_CARMEL = 2
+    BREAST_CARMEL_BENIGN = 3
+    BREAST_HAEMEK = 4
+    BREAST_SHEBA = 5
+    BREAST_TCGA = 6
+
+openslide_path = 'C:/openslide-win64-20230414/bin'
+
+
 
 # General parameters
 test_fold_id = "test"

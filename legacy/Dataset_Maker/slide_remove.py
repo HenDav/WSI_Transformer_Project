@@ -158,7 +158,7 @@ def get_slide_to_remove(in_dir, dataset, slide_barcode):
 
 
 def remove_segdata_images(in_dir, dataset, slide_barcode):
-    segdata_ext_list = ['_GridImage.jpg', '_thumb.jpg', '_SegMap.png', '_SegImage.jpg']
+    segdata_ext_list = ['_GridImage.png', '_thumb.png', '_SegMap.png', '_SegImage.png']
     for segdata_ext in segdata_ext_list:
         files_to_rename = glob.glob(os.path.join(in_dir, dataset, 'SegData', '*', slide_barcode + segdata_ext))
         for file in files_to_rename:
@@ -166,7 +166,7 @@ def remove_segdata_images(in_dir, dataset, slide_barcode):
 
 
 def rename_segdata_images_to_remove_suffix(in_dir, dataset, slide_barcode):
-    segdata_ext_list = ['_GridImage.jpg', '_thumb.jpg', '_SegMap.png', '_SegImage.jpg']
+    segdata_ext_list = ['_GridImage.png', '_thumb.png', '_SegMap.png', '_SegImage.png']
     for segdata_ext in segdata_ext_list:
         files_to_delete = glob.glob(os.path.join(in_dir, dataset, 'SegData', '*', slide_barcode + segdata_ext))
         string_after_suffix = segdata_ext.split('.')[-2]
