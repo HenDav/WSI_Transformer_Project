@@ -8,9 +8,11 @@ from datasets.datasets import (
     RandomPatchDataset,
     SerialPatchDataset,
     SlideStridedDataset,
+    SlideRandomDataset,
 )
 
-# from legacy.datasets import WSI_REGdataset
+from legacy.transformations import MyGaussianNoiseTransform, MyRotation
+from legacy.datasets_legacy import WSI_REGdataset
 
 NORMALIZATIONS = {
     "standard": {"mean": (0.5, 0.5, 0.5), "std": (0.5, 0.5, 0.5)},
@@ -50,7 +52,9 @@ class WsiDataModule(LightningDataModule):
         normalization: Literal[
             "standard", "imagenet", "wsi_ron", "tcga", "cat", "none"
         ] = "cat",
-        autoaug: bool = False,
+        autoaug: Literal[
+            "imagenet", "wsi_ron", None
+        ] = "imagenet",
         transforms: Optional[Tuple[Callable, Callable]] = None,
         openslide: bool = False,
         **kwargs
@@ -127,6 +131,28 @@ class WsiDataModule(LightningDataModule):
                     GIPDEEP10_DATA_ROOT if self.openslide else None
                 ),
             )
+            
+            self.train_dloader = DataLoader(
+                self.train_dataset,
+                batch_size=self.batch_size,
+                shuffle=True,
+                num_workers=self.num_workers,
+                pin_memory=True,
+                drop_last=True,
+                prefetch_factor=10,
+                persistent_workers=True,
+            )
+            
+            self.val_dloader = DataLoader(
+                self.val_dataset,
+                batch_size=None,  # each instance is a bag
+                shuffle=False,
+                num_workers=self.num_workers,
+                pin_memory=True,
+                prefetch_factor=10,
+                persistent_workers=True,
+            )
+            
         elif stage == "test":
             # TODO: allow testing on more patches per slide with batching, currently the bag size is the batch size so this is limited
             self.test_dataset = SlideStridedDataset(
@@ -141,6 +167,15 @@ class WsiDataModule(LightningDataModule):
                     GIPDEEP10_DATA_ROOT if self.openslide else None
                 ),
             )
+            test_dloader = DataLoader(
+                    self.test_dataset,
+                    batch_size=None,  # each instance is a bag
+                    shuffle=False,
+                    num_workers=self.num_workers,
+                    prefetch_factor=10,
+                    pin_memory=True,
+                )
+            
         elif stage == "predict":
             self.predict_dataset = SerialPatchDataset(
                 dataset=self.dataset,
@@ -153,45 +188,27 @@ class WsiDataModule(LightningDataModule):
                     GIPDEEP10_DATA_ROOT if self.openslide else None
                 ),
             )
+            
+            self.predict_dloader = DataLoader(
+                    self.predict_dataset,
+                    batch_size=self.batch_size,
+                    shuffle=False,
+                    num_workers=self.num_workers,
+                    prefetch_factor=10,
+                    pin_memory=True,
+            )
 
     def train_dataloader(self):
-        return DataLoader(
-            self.train_dataset,
-            batch_size=self.batch_size,
-            shuffle=True,
-            num_workers=self.num_workers,
-            pin_memory=True,
-            drop_last=True,
-            persistent_workers=True,
-        )
+        return self.train_dloader
 
     def val_dataloader(self):
-        return DataLoader(
-            self.val_dataset,
-            batch_size=None,  # each instance is a bag
-            shuffle=False,
-            num_workers=self.num_workers,
-            pin_memory=True,
-            persistent_workers=True,
-        )
+        return self.val_dloader
 
     def test_dataloader(self):
-        return DataLoader(
-            self.test_dataset,
-            batch_size=None,  # each instance is a bag
-            shuffle=False,
-            num_workers=self.num_workers,
-            pin_memory=True,
-        )
+        return self.test_dloader
 
     def predict_dataloader(self):
-        return DataLoader(
-            self.predict_dataset,
-            batch_size=self.batch_size,
-            shuffle=False,
-            num_workers=self.num_workers,
-            pin_memory=True,
-        )
+        return self.predict_dloader
 
     def define_transforms(self):
         normalization = transforms.Normalize(**NORMALIZATIONS[self.normalization])
@@ -203,9 +220,27 @@ class WsiDataModule(LightningDataModule):
             normalization,
         ]
 
-        if self.autoaug:
+        if self.autoaug == "imagenet":
             train_transforms = [
                 transforms.AutoAugment(transforms.AutoAugmentPolicy.IMAGENET),
+                *train_transforms,
+            ]
+            
+        if self.autoaug == "wsi_ron":
+            color_param = 0.1
+            scale_factor = 0.2
+            transform_ron = \
+                [
+                    transforms.ColorJitter(brightness=color_param, contrast=color_param * 2,
+                                           saturation=color_param, hue=color_param),
+                    transforms.GaussianBlur(3, sigma=(1e-7, 1e-1)),
+                    MyGaussianNoiseTransform(sigma=(0, 0.05)),
+                    transforms.RandomVerticalFlip(),
+                    MyRotation(angles=[0, 90, 180, 270]),
+                    transforms.RandomAffine(degrees=0, scale=(1, 1 + scale_factor)),
+                ]
+            train_transforms = [
+                *transform_ron,
                 *train_transforms,
             ]
 
@@ -221,95 +256,95 @@ class WsiDataModule(LightningDataModule):
         return train_transforms, eval_transforms
 
 
-# class LegacyWsiDataModule(LightningDataModule):
-#     def __init__(
-#         self,
-#         dataset: str = "CAT",  # TODO: dataset enum/choices
-#         target: Literal["ER", "PR", "HER2", "KI67"] = "ER",  # TODO: target enum/choices
-#         val_fold: Optional[int] = 1,
-#         eval_on_train: bool = False,
-#         patches_per_slide_train: int = 10,
-#         patches_per_slide_eval: int = 10,
-#         img_size: int = 256,
-#         batch_size: int = 32,
-#         num_workers: int = 8,
-#         normalization: Literal[
-#             "standard", "imagenet", "wsi_ron", "tcga", "cat", "none"
-#         ] = "cat",
-#         autoaug: bool = False,
-#         **kwargs
-#     ):
-#         """
-#         Args:
-#             dataset: name of the dataset
-#             target: name of the target to predict
-#             val_fold: validation fold
-#             eval_on_train: whether to evaluate on the training set for test/predict
-#             patches_per_slide_train: number of patches per slide in each training epoch
-#             patches_per_slide_eval: number of patches per slide in evaluation
-#             img_size: square image dimension at entry to the model
-#             batch_size: batch size for training and feature extraction
-#             num_workers: number of dataloader workers
-#             normalization: normalization scheme
-#             autoaug: whether to use autoaugment imagenet recipe for default train transforms
-#             transforms: override default transforms, of the form (train_transforms, eval_transforms)
-#         """
-#         super().__init__()
-#
-#         self.save_hyperparameters()
-#
-#         self.dataset = dataset
-#         self.target = target
-#         self.val_fold = val_fold
-#         self.eval_on_train = eval_on_train
-#         self.patches_per_slide_train = patches_per_slide_train
-#         self.patches_per_slide_eval = patches_per_slide_eval
-#         self.img_size = img_size
-#         self.batch_size = batch_size
-#         self.num_workers = num_workers
-#         self.normalization = normalization
-#         self.autoaug = autoaug
-#
-#     def prepare_data(self, *args, **kwargs):
-#         """Any preparations to be done once before the data is loaded"""
-#         pass
-#
-#     def setup(self, stage=None):
-#         """Initialize datasets / splits and transforms, called on every process in ddp"""
-#
-#         if stage == "fit":
-#             self.train_dataset = WSI_REGdataset(
-#                 DataSet=self.dataset,
-#                 target_kind=self.target,
-#                 test_fold=self.val_fold,
-#                 train=True,
-#                 transform_type="pcbnfrsc",
-#                 n_tiles=self.patches_per_slide_train,
-#             )
-#             self.val_dataset = WSI_REGdataset(
-#                 DataSet=self.dataset,
-#                 target_kind=self.target,
-#                 test_fold=self.val_fold,
-#                 train=False,
-#                 transform_type="none",
-#                 n_tiles=self.patches_per_slide_eval,
-#             )
-#
-#     def train_dataloader(self):
-#         return DataLoader(
-#             self.train_dataset,
-#             batch_size=self.batch_size,
-#             shuffle=True,
-#             num_workers=self.num_workers,
-#             pin_memory=True,
-#             drop_last=True,
-#         )
-#
-#     def val_dataloader(self):
-#         return DataLoader(
-#             self.val_dataset,
-#             batch_size=self.batch_size,
-#             shuffle=False,
-#             num_workers=self.num_workers,
-#             pin_memory=True,
-#         )
+class LegacyWsiDataModule(LightningDataModule):
+    def __init__(
+        self,
+        dataset: str = "CAT",  # TODO: dataset enum/choices
+        target: Literal["ER", "PR", "HER2", "KI67"] = "ER",  # TODO: target enum/choices
+        val_fold: Optional[int] = 1,
+        eval_on_train: bool = False,
+        patches_per_slide_train: int = 10,
+        patches_per_slide_eval: int = 10,
+        img_size: int = 256,
+        batch_size: int = 32,
+        num_workers: int = 8,
+        normalization: Literal[
+            "standard", "imagenet", "wsi_ron", "tcga", "cat", "none"
+        ] = "cat",
+        autoaug: bool = False,
+        **kwargs
+    ):
+        """
+        Args:
+            dataset: name of the dataset
+            target: name of the target to predict
+            val_fold: validation fold
+            eval_on_train: whether to evaluate on the training set for test/predict
+            patches_per_slide_train: number of patches per slide in each training epoch
+            patches_per_slide_eval: number of patches per slide in evaluation
+            img_size: square image dimension at entry to the model
+            batch_size: batch size for training and feature extraction
+            num_workers: number of dataloader workers
+            normalization: normalization scheme
+            autoaug: whether to use autoaugment imagenet recipe for default train transforms
+            transforms: override default transforms, of the form (train_transforms, eval_transforms)
+        """
+        super().__init__()
+
+        self.save_hyperparameters()
+
+        self.dataset = dataset
+        self.target = target
+        self.val_fold = val_fold
+        self.eval_on_train = eval_on_train
+        self.patches_per_slide_train = patches_per_slide_train
+        self.patches_per_slide_eval = patches_per_slide_eval
+        self.img_size = img_size
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+        self.normalization = normalization
+        self.autoaug = autoaug
+
+    def prepare_data(self, *args, **kwargs):
+        """Any preparations to be done once before the data is loaded"""
+        pass
+
+    def setup(self, stage=None):
+        """Initialize datasets / splits and transforms, called on every process in ddp"""
+
+        if stage == "fit":
+            self.train_dataset = WSI_REGdataset(
+                DataSet=self.dataset,
+                target_kind=self.target,
+                test_fold=self.val_fold,
+                train=True,
+                transform_type="pcbnfrsc",
+                n_tiles=self.patches_per_slide_train,
+            )
+            self.val_dataset = WSI_REGdataset(
+                DataSet=self.dataset,
+                target_kind=self.target,
+                test_fold=self.val_fold,
+                train=False,
+                transform_type="none",
+                n_tiles=self.patches_per_slide_eval,
+            )
+
+    def train_dataloader(self):
+        return DataLoader(
+            self.train_dataset,
+            batch_size=self.batch_size,
+            shuffle=True,
+            num_workers=self.num_workers,
+            pin_memory=True,
+            drop_last=True,
+        )
+
+    def val_dataloader(self):
+        return DataLoader(
+            self.val_dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=self.num_workers,
+            pin_memory=True,
+        )

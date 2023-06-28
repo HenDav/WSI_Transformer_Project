@@ -13,7 +13,7 @@ max_attempts = 10
 white_ratio_threshold = 0.5
 white_intensity_threshold = 170
 current_mpp = 1.0  # TODO: maybe infer it directly from the folder?
-main_metadata_csv = "/home/dahen/WSI_ran_legacy/royve/WSI/metadata.csv"  # TODO: change to proper central metadata once Carmel9-11 & Haemek are incorporated.
+main_metadata_csv = "/home/dahen/WSI/metadata_csvs/largest_current_metadata.csv"
 data_root_gipdeep10 = "/data/unsynced_data/h5"
 data_root_netapp = ""
 

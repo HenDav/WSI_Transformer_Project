@@ -5,12 +5,11 @@ import pandas
 from tqdm import tqdm
 
 from wsi_core import constants
-from wsi_core.base import SeedableObject
 from wsi_core.metadata import MetadataBase
 from wsi_core.wsi import Slide, SlideContext, Tile, TilesManager
 
 
-class SlidesManager(SeedableObject, MetadataBase):
+class SlidesManager(MetadataBase):
     def __init__(
         self,
         datasets_base_dir_path: Path,
@@ -29,7 +28,6 @@ class SlidesManager(SeedableObject, MetadataBase):
         self._metadata_file_path = metadata_file_path
         self._slides = []
         self._current_slides = []
-        self._slides_with_interior = []
         # self._tile_to_slide_dict = self._create_tile_to_slide_dict()
         MetadataBase.__init__(
             self,
@@ -38,7 +36,6 @@ class SlidesManager(SeedableObject, MetadataBase):
             metadata_at_magnification=metadata_at_magnification,
             desired_mpp=desired_mpp,
         )
-        SeedableObject.__init__(self)
         self._df = self._df.iloc[row_predicate(self._df, **predicate_args)]
         self._current_slides = self._create_slides()
         self._tiles_df = self._create_tiles_df()
@@ -50,13 +47,13 @@ class SlidesManager(SeedableObject, MetadataBase):
         return len(self._df)
 
     def _create_tiles_df(self) -> pandas.DataFrame:
-        tiles_dfs = [slide._tiles_df.assign(slide_idx=idx).drop(columns=[TilesManager.tile_index, TilesManager.location_x, TilesManager.location_y, TilesManager.is_interior]) for idx, slide in enumerate(self._current_slides)]
+        tiles_dfs = [slide._tiles_df.assign(slide_idx=idx).drop(columns=[TilesManager.tile_index,]) for idx, slide in enumerate(self._current_slides)]
         tiles_df = pandas.concat(tiles_dfs)
         return tiles_df
     
     def _create_slides(self) -> List[Slide]:
         slides = []
-        total = self._df.shape[0]
+        # total = self._df.shape[0]
         row_index = 0
         for idx in tqdm(self._df.index, desc="Loading slides"):
             slide_context = SlideContext(
@@ -68,14 +65,14 @@ class SlidesManager(SeedableObject, MetadataBase):
             )
             slide = Slide(slide_context=slide_context)
             # TODO: This is a temporary fix for the issue where the slide doesn't have interior tiles
-            if not slide.has_interior_tiles:
-                self._df.drop(index=idx, inplace=True)
-                continue
+            # if not slide.has_interior_tiles:
+            #     self._df.drop(index=idx, inplace=True)
+            #     continue
             slides.append(slide)
             row_index += 1
-        print(
-            f"Loaded {len(slides)} slides, skipped {total - len(slides)} that have no interior tiles"
-        )
+        # print(
+        #     f"Loaded {len(slides)} slides, skipped {total - len(slides)} that have no interior tiles"
+        # )
 
         # self._df = self._update_metadata()
         self._file_name_to_slide = self._create_file_name_to_slide_dict()
@@ -137,15 +134,8 @@ class SlidesManager(SeedableObject, MetadataBase):
         return Tile(slide.slide_context, top_left_pixel)
 
     def get_random_slide(self) -> Slide:
-        index = self._rng.integers(low=0, high=self._df.shape[0])
+        index = np.random.randint(low=0, high=self._df.shape[0])
         return self.get_slide(index=index)
-
-    def get_slide_with_interior(self, index: int) -> Slide:
-        return self._slides_with_interior[index]
-
-    def get_random_slide_with_interior(self) -> Slide:
-        index = self._rng.integers(low=0, high=len(self._slides_with_interior))
-        return self.get_slide_with_interior(index=index)
 
     def _add_shared_objects(self, namespace):
         namespace.metadata = self._df
@@ -232,11 +222,3 @@ class SlidesManager(SeedableObject, MetadataBase):
         return [
             self._file_name_to_slide[x] for x in self._df[constants.file_column_name]
         ]
-
-    def _get_slides_with_interior_tiles(self) -> List[Slide]:
-        slides_with_interior_tiles = []
-        for slide in self._slides:
-            if slide.interior_tiles_count > 0:
-                slides_with_interior_tiles.append(slide)
-
-        return slides_with_interior_tiles

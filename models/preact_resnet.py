@@ -67,7 +67,7 @@ class PreActBottleNeck(nn.Module):
                                       PreActBottleNeck.expansion,
                                       1,
                                       stride=stride)
-
+        
     def forward(self, x):
 
         res = self.residual(x)
@@ -91,6 +91,7 @@ class PreActResNet(nn.Module):
         self.stage4 = self._make_layers(block, num_block[3], 512, 2)
 
         self.linear = nn.Linear(self.input_channels, class_num)
+
 
     def _make_layers(self, block, block_num, out_channels, stride):
         layers = []

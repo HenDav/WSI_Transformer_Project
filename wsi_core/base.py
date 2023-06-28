@@ -6,18 +6,6 @@ import numpy
 
 import wsi_core.utils as utils
 
-
-class SeedableObject:
-    seed: Union[None, int] = 10
-
-    def __init__(self, **kw: object):
-        self._rng = numpy.random.default_rng(seed=SeedableObject.seed)
-
-    @property
-    def rng(self) -> numpy.random.Generator:
-        return self._rng
-
-
 class OutputObject:
     def __init__(
         self, name: str, output_dir_path: Path, level: int = logging.DEBUG, **kw: object

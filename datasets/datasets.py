@@ -11,7 +11,6 @@ from torchvision.transforms.functional import to_tensor
 
 from datasets.slides_manager import SlidesManager
 from wsi_core import constants
-from wsi_core.base import SeedableObject
 from wsi_core.wsi import (
     BIOMARKER_TO_COLUMN,
     BioMarker,
@@ -24,7 +23,7 @@ from wsi_core.wsi import (
 )
 
 
-class WSIDataset(ABC, Dataset, SeedableObject):
+class WSIDataset(ABC, Dataset):
     def __init__(
         self,
         instances_per_slide: int = 10,
