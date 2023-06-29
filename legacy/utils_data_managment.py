@@ -62,7 +62,7 @@ def herohe_slides2images():
 
 def slide_2_image(slide_name: str, DataSet: str = 'HEROHE'):
     slide_file = os.path.join('All Data', DataSet, slide_name + '.mrxs')
-    segMap_file = os.path.join('All Data', DataSet, 'SegData', 'SegMaps', slide_name + '_SegMap.png')
+    segMap_file = os.path.join('All Data', DataSet, 'SegData', 'SegMaps', slide_name + '_SegMap.jpg')
 
     segMap = np.array(Image.open(segMap_file))
     (rows, cols) = np.where(segMap == 255)
@@ -79,7 +79,7 @@ def slide_2_image(slide_name: str, DataSet: str = 'HEROHE'):
     if not os.path.isdir(os.path.join('All Data', DataSet, 'images')):
         os.mkdir(os.path.join('All Data', DataSet, 'images'))
 
-    image.save(os.path.join('All Data', DataSet, 'images', slide_name + '.png'))
+    image.save(os.path.join('All Data', DataSet, 'images', slide_name + '.jpg'))
     #image.save(os.path.join('All Data', DataSet, 'images', slide_name + '.png'))
 
 
@@ -235,7 +235,7 @@ def _make_HC_tiles_from_slide(file: str,
             image_tile[0] = image_tile[0].resize((resize_tiles_to_size, resize_tiles_to_size), resample=Image.BICUBIC)
 
         if as_jpg:
-            tile_file_name = os.path.join(out_dir, base_name, 'tile_' + str(ind) + '.png')
+            tile_file_name = os.path.join(out_dir, base_name, 'tile_' + str(ind) + '.jpg')
             image_tile[0].save(tile_file_name, "JPEG")
         else:
             tile_file_name = os.path.join(out_dir, base_name, 'tile_' + str(ind) + '.data')
@@ -314,8 +314,8 @@ def compute_normalization_values(DataSet: str = 'HEROHE', ROOT_DIR: str = 'All D
             continue
 
         image_stats = {}
-        thumb = np.array(Image.open(os.path.join(ROOT_DIR, DataSet, 'SegData/Thumbs', filename + '_thumb.png')))
-        segMap = np.array(Image.open(os.path.join(ROOT_DIR, DataSet, 'SegData/SegMaps', filename + '_SegMap.png')))
+        thumb = np.array(Image.open(os.path.join(ROOT_DIR, DataSet, 'SegData/Thumbs', filename + '_thumb.jpg')))
+        segMap = np.array(Image.open(os.path.join(ROOT_DIR, DataSet, 'SegData/SegMaps', filename + '_SegMap.jpg')))
         tissue = thumb.transpose(2, 0, 1) * (segMap > 0)  # SegMap positive is to 255
         tissue_pixels = (tissue[0] != 0).sum()
         tissue_matter = np.where(tissue[0] != 0)
@@ -461,7 +461,7 @@ def _make_grid_for_image(file, meta_data_DF, ROOT_DIR, different_SegData_path_ex
     database = meta_data_DF.loc[file, 'id']
     grid_file = os.path.join(grids_dir, filename + '--tlsz' + str(tile_sz) + '.data')
     segmap_file = os.path.join(ROOT_DIR, database, 'SegData' + different_SegData_path_extension, 'SegMaps',
-                               filename + '_SegMap.png')
+                               filename + '_SegMap.jpg')
 
     if os.path.isfile(os.path.join(ROOT_DIR, database, file)) and os.path.isfile(segmap_file):  # make sure file exists
         height = int(meta_data_DF.loc[file, 'Height'])
@@ -494,11 +494,11 @@ def _make_grid_for_image(file, meta_data_DF, ROOT_DIR, different_SegData_path_ex
 
         # Plot grid on thumbnail
         # thumb_file_jpg = os.path.join(ROOT_DIR, database, 'SegData' + different_SegData_path_extension, 'Thumbs',
-        #                           filename + '_thumb.png')
+        #                           filename + '_thumb.jpg')
         thumb_file_png = os.path.join(ROOT_DIR, database, 'SegData' + different_SegData_path_extension, 'Thumbs',
-                                  filename + '_thumb.png')  # for old files
+                                  filename + '_thumb.jpg')  # for old files
 
-        grid_image_file = os.path.join(grid_images_dir, filename + '_GridImage.png')
+        grid_image_file = os.path.join(grid_images_dir, filename + '_GridImage.jpg')
 
         if os.path.isfile(thumb_file_png):
             # try:
@@ -682,7 +682,7 @@ def make_slides_xl_file(fake_step_0: bool, external_obj_power: int = 10, DataSet
     slide_files_mrxs = glob.glob(os.path.join(ROOT_DIR, DataSet, '*.mrxs'))
     slide_files_tiff = glob.glob(os.path.join(ROOT_DIR, DataSet, '*.tiff'))
     slide_files_tif = glob.glob(os.path.join(ROOT_DIR, DataSet, '*.tif'))
-    slide_files_jpg = glob.glob(os.path.join(ROOT_DIR, DataSet, '*.png'))
+    slide_files_jpg = glob.glob(os.path.join(ROOT_DIR, DataSet, '*.jpg'))
     slides = slide_files_svs + slide_files_ndpi + slide_files_mrxs + slide_files_tiff + slide_files_tif + slide_files_jpg
     mag_dict = {'.svs': 'aperio.AppMag', '.ndpi': 'hamamatsu.SourceLens', '.mrxs': 'openslide.objective-power',
                 'tiff': 'tiff.Software'}  # dummy for TIFF
@@ -833,7 +833,7 @@ def make_segmentations(DataSet: str = 'TCGA', ROOT_DIR: str = 'All Data', rewrit
     slide_files_svs = glob.glob(os.path.join(data_path, '*.svs'))
     slide_files_ndpi = glob.glob(os.path.join(data_path, '*.ndpi'))
     slide_files_mrxs = glob.glob(os.path.join(data_path, '*.mrxs'))
-    slide_files_jpg = glob.glob(os.path.join(data_path, '*.png'))
+    slide_files_jpg = glob.glob(os.path.join(data_path, '*.jpg'))
     slide_files_tiff = glob.glob(os.path.join(data_path, '*.tiff'))
     slide_files_tif = glob.glob(os.path.join(data_path, '*.tif'))
     slide_files = slide_files_svs + slide_files_ndpi + slide_files_mrxs + slide_files_jpg + slide_files_tiff + slide_files_tif
@@ -882,9 +882,9 @@ def _make_segmentation_for_image(file, DataSet, rewrite, out_path_dataset, slide
     fn, data_format = os.path.splitext(os.path.basename(file))
     data_dir = os.path.dirname(out_path_dataset)
     if not rewrite:
-        pic1 = os.path.exists(os.path.join(out_path_dataset, 'SegData', 'Thumbs', fn + '_thumb.png'))
-        pic2 = os.path.exists(os.path.join(out_path_dataset, 'SegData', 'SegMaps', fn + '_SegMap.png'))
-        pic3 = os.path.exists(os.path.join(out_path_dataset, 'SegData', 'SegImages', fn + '_SegImage.png'))
+        pic1 = os.path.exists(os.path.join(out_path_dataset, 'SegData', 'Thumbs', fn + '_thumb.jpg'))
+        pic2 = os.path.exists(os.path.join(out_path_dataset, 'SegData', 'SegMaps', fn + '_SegMap.jpg'))
+        pic3 = os.path.exists(os.path.join(out_path_dataset, 'SegData', 'SegImages', fn + '_SegImage.jpg'))
         if pic1 and pic2 and pic3:
             return []
 
@@ -947,10 +947,10 @@ def _make_segmentation_for_image(file, DataSet, rewrite, out_path_dataset, slide
         thmb_seg_image = Image.blend(thumb, edge_image, 0.5)
 
         # Saving segmentation map, segmentation image and thumbnail:
-        thumb.save(os.path.join(out_path_dataset, 'SegData', 'Thumbs', fn + '_thumb.png'))
-        thmb_seg_map.save(os.path.join(out_path_dataset, 'SegData', 'SegMaps', fn + '_SegMap.png'))
+        thumb.save(os.path.join(out_path_dataset, 'SegData', 'Thumbs', fn + '_thumb.jpg'))
+        thmb_seg_map.save(os.path.join(out_path_dataset, 'SegData', 'SegMaps', fn + '_SegMap.jpg'))
         thmb_seg_image.save(
-            os.path.join(out_path_dataset, 'SegData', 'SegImages', fn + '_SegImage.png'))
+            os.path.join(out_path_dataset, 'SegData', 'SegImages', fn + '_SegImage.jpg'))
     else:
         print('Error: Found no slide in path {}'.format(dir))
         # TODO: implement a case for a slide that cannot be opened.

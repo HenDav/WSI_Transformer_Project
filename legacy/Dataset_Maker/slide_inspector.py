@@ -49,7 +49,7 @@ def create_slide_inspection_folder(in_dir, out_dir, desired_mag, grid_only=False
     for _, file in enumerate(tqdm(slides)):
         fn_full = os.path.basename(file)
         fn = os.path.splitext(fn_full)[0]
-        out_path = os.path.join(out_dir, fn + '.png')
+        out_path = os.path.join(out_dir, fn + '.jpg')
 
         need_to_process_slide = rewrite_figs or not os.path.isfile(out_path)
         if need_to_process_slide:
@@ -107,12 +107,12 @@ def slide_2_image(in_dir, out_dir, grid_image_path, slide_file, ind, slide_mag, 
             grid[ii].set_yticklabels([])
             grid[ii].set_xticklabels([])
         plt.tight_layout()
-        plt.savefig(os.path.join(out_dir, str(ind).zfill(4) + '_2_patches_' + fn + '.png'))
+        plt.savefig(os.path.join(out_dir, str(ind).zfill(4) + '_2_patches_' + fn + '.jpg'))
         plt.close()
     # thumb image
-    if os.path.isfile(os.path.join(in_dir, 'SegData', 'Thumbs', fn + '_thumb.png')):
-        copyfile(os.path.join(in_dir, 'SegData', 'Thumbs', fn + '_thumb.png'),
-                 os.path.join(out_dir, str(ind).zfill(4) + '_0_thumb_' + fn + '.png'))
+    if os.path.isfile(os.path.join(in_dir, 'SegData', 'Thumbs', fn + '_thumb.jpg')):
+        copyfile(os.path.join(in_dir, 'SegData', 'Thumbs', fn + '_thumb.jpg'),
+                 os.path.join(out_dir, str(ind).zfill(4) + '_0_thumb_' + fn + '.jpg'))
     # elif os.path.isfile(os.path.join(in_dir, 'SegData', 'Thumbs', fn + '_thumb.png')):  # old format
     #     copyfile(os.path.join(in_dir, 'SegData', 'Thumbs', fn + '_thumb.png'),
     #              os.path.join(out_dir, str(ind).zfill(4) + '_0_thumb_' + fn + '.png'))
@@ -121,9 +121,9 @@ def slide_2_image(in_dir, out_dir, grid_image_path, slide_file, ind, slide_mag, 
         success_flag = False
     # grid image
     if not thumbs_only:
-        if os.path.isfile(os.path.join(grid_image_path, fn + '_GridImage.png')):
-            copyfile(os.path.join(grid_image_path, fn + '_GridImage.png'),
-                     os.path.join(out_dir, str(ind).zfill(4) + '_1_GridImage_' + fn + '.png'))
+        if os.path.isfile(os.path.join(grid_image_path, fn + '_GridImage.jpg')):
+            copyfile(os.path.join(grid_image_path, fn + '_GridImage.jpg'),
+                     os.path.join(out_dir, str(ind).zfill(4) + '_1_GridImage_' + fn + '.jpg'))
         else:
             print('no grid image found for slide ' + fn)
             success_flag = False

@@ -552,7 +552,7 @@ if True:
     if not os.path.isdir(path_to_save):
         os.mkdir(path_to_save)
     # Saving tile image:
-    matplotlib.image.imsave(path_to_save + slide.split('.')[0] + '_tile_' + str(tile_num) + '.png', np.transpose(original_tile_data[0].squeeze(0).numpy(), (1, 2, 0)))
+    matplotlib.image.imsave(path_to_save + slide.split('.')[0] + '_tile_' + str(tile_num) + '.jpg', np.transpose(original_tile_data[0].squeeze(0).numpy(), (1, 2, 0)))
     pd.DataFrame(small_heat_maps_all[0].squeeze().numpy()).to_excel(path_to_save + 'heatmap_' + slide.split('.')[0] + '_tile_' + str(tile_num) + '.xlsx')
     pd.DataFrame(mil_weights_image_all[0]).to_excel(path_to_save + 'MIL_heatmap_' + slide.split('.')[0] + '_tile_' + str(tile_num) + '.xlsx')
     # Saving both small Heatmaps to excel files:

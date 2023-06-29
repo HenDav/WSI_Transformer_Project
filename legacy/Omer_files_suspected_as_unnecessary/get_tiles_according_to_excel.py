@@ -18,7 +18,7 @@ which should be 40 for maximum resolution
 parser = argparse.ArgumentParser(description='Extract tiles from excel')
 parser.add_argument('-o', dest='original', action='store_true', help='Extract original size  ?')
 parser.add_argument('-mag', dest='desired_magnification', type=int, default=40, help='Desired Magnification for tiles')
-parser.add_argument('-png', dest='png', action='store_true', help='Save as .png ?')
+parser.add_argument('-png', dest='png', action='store_true', help='Save as .jpg ?')
 parser.add_argument('--file', dest='file', type=str, default='low_grade_patches_to_extract_Batch9', help='file name to use')
 args = parser.parse_args()
 
@@ -119,7 +119,7 @@ for key in batches.keys():
 
         tile_number = (8 - len(str(tile_index_in_xl))) * '0' + str(tile_index_in_xl)
         tile_filename = os.path.join('Data For Gil', args.file, outputnames[file_idx])  #  os.path.join('Data For Gil', tile_number)
-        tile_filename_extension = '.png' if args.png else '.png'
+        tile_filename_extension = '.jpg' if args.png else '.png'
         image_tiles[0].save(tile_filename + tile_filename_extension)
 
 print('Done')

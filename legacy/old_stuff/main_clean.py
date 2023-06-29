@@ -20,7 +20,7 @@ if __name__ == '__main__':
     if not os.path.isdir(os.path.join(img_dir, 'out')):
         os.mkdir(os.path.join(img_dir, 'out'))
 
-    img_files = glob.glob(os.path.join(img_dir, '*.png'))
+    img_files = glob.glob(os.path.join(img_dir, '*.jpg'))
     df = pd.DataFrame(columns=['barcode', 'left', 'top', 'h', 'w', 'file'])
     for img_file in img_files:
         print('processing image: ' + img_file)
@@ -53,7 +53,7 @@ if __name__ == '__main__':
 
         figManager = plt.get_current_fig_manager()
         figManager.window.showMaximized()
-        fig.savefig(os.path.join(img_dir, 'out', os.path.splitext(os.path.basename(img_file))[0] + '_results.png'), dpi=300)
+        fig.savefig(os.path.join(img_dir, 'out', os.path.splitext(os.path.basename(img_file))[0] + '_results.jpg'), dpi=300)
         plt.close(fig)
         df.to_csv(os.path.join(img_dir, 'out', 'barcode_list.csv')) #save after every image
         image_time = time.time()

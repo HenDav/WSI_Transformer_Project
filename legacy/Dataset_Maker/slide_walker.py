@@ -177,7 +177,7 @@ def save_slide_label_to_image(data_dir, slide_info):
         plt.imshow(label_im)
         dir_str = slide_info[1]['dir'].replace('\\', '_').replace('/', '_').replace(':', '_')
         label_name = str(slide_info[0]).zfill(4) + '_' + dir_str + '_' + os.path.splitext(slide_info[1]['file'])[
-            0] + '.png'
+            0] + '.jpg'
 
         if not os.path.isdir(os.path.join(data_dir, 'unreadable_labels')):
             os.mkdir(os.path.join(data_dir, 'unreadable_labels'))
@@ -224,7 +224,11 @@ def decode_slide_barcode(slide_info, downsmple_factor, barcode_convention):
 
 
 def get_slide_label_image(slide_info):
-    slide = openslide.OpenSlide(os.path.join(slide_info[1]['dir'], slide_info[1]['file']))
+    path1 = Path(slide_info[1]['dir'])
+    path2 = Path(slide_info[1]['file'])
+    merged_path = path1 / path2
+    str_path = str(merged_path)
+    slide = openslide.OpenSlide(str_path)
     if 'label' in slide.associated_images._keys():
         label_im = slide.associated_images['label']
     else:

@@ -145,7 +145,7 @@ def _get_tiles(slide: openslide.OpenSlide,
     labels = np.zeros(len(locations)) - 1
     if loan:
         slide_name = os.path.splitext(os.path.basename(slide._filename))[0]
-        annotation_file = os.path.join(os.path.dirname(slide._filename), 'local_labels', slide_name + '-labels.png')
+        annotation_file = os.path.join(os.path.dirname(slide._filename), 'local_labels', slide_name + '-labels.jpg')
         annotation = (plt_image.imread(annotation_file) * 255).astype('uint8')
         ds = 8  # defined in the QuPath groovy script
 
