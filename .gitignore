@@ -11,11 +11,15 @@ data/
 slurm*
 *.idea*
 config.yaml
+patch_*
+test_*
 
 # Byte-compiled / optimized / DLL files
-__pycache__/
+*.ipynb_checkpoints*
+*__pycache__*
 *.py[cod]
 *$py.class
+metadata_generation_app.log
 
 # C extensions
 *.so
