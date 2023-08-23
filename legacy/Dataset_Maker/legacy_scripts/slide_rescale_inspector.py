@@ -81,7 +81,7 @@ def slide_2_image(slide_file, ind, mag, n_legit_tiles, desired_mag, grid_only):
 
 
         plt.tight_layout()
-        plt.savefig(os.path.join(out_dir, str(ind).zfill(4) +'_2_patches_' + fn + '.png'))
+        plt.savefig(os.path.join(out_dir, str(ind).zfill(4) +'_2_patches_' + fn + '.jpg'))
         plt.close()
 
     if success_flag:
@@ -121,7 +121,7 @@ for _, file in enumerate(tqdm(slides)):
     fn_full = os.path.basename(file)
     fn = fn_full[:-5]
 
-    out_path = os.path.join(out_dir, fn + '.png')
+    out_path = os.path.join(out_dir, fn + '.jpg')
 
     if not os.path.isfile(out_path) or rewrite_figs:
         #mag = meta_data_DF.loc[meta_data_DF['patient barcode'] == fn, 'Manipulated Objective Power'].item()

@@ -181,7 +181,7 @@ def compute_AUC(all_tile_scores, all_slide_targets, all_slide_names, train_type,
     plt.ylim(0, 1)
     plt.grid(b=True)
     plt.title('AUC for ' + train_type + ' Loss, Removed {}/{} Patients'.format(len(patients_with_multiple_targets), total_patients))
-    plt.savefig(os.path.join(file_location, train_type + '_AUC_Model_' + model + '_Epoch_' + epoch + '.png'))
+    plt.savefig(os.path.join(file_location, train_type + '_AUC_Model_' + model + '_Epoch_' + epoch + '.jpg'))
     plt.close()
 
     return {'Tile': (fpr_tile, tpr_tile, AUC_tile),
@@ -434,7 +434,7 @@ if __name__ == '__main__':
 
         plt.legend(legends[idx])
         plt.title(titles[idx])
-        plt.savefig(os.path.join(file_location, titles[idx] + '_Comparison.png'))
+        plt.savefig(os.path.join(file_location, titles[idx] + '_Comparison.jpg'))
         plt.close()
 
     print('Done')

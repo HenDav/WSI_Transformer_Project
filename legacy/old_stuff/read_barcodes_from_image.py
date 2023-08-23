@@ -7,7 +7,7 @@ from re import search
 from pylibdmtx.pylibdmtx import decode as decode
 import matplotlib.patches as patches
 # Load image, grayscale, Gaussian blur, Otsu's threshold
-img_path = r'C:\ran_data\RAMBAM\SlideID_images\box 1_1.png'
+img_path = r'C:\ran_data\RAMBAM\SlideID_images\box 1_1.jpg'
 image = cv2.imread(img_path)
 gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 #thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]

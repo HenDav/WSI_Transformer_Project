@@ -445,12 +445,12 @@ else:
 
 if multi_class or multi_target:
     for i_graph in range(N_graphs):
-        fig_list[i_graph].savefig(os.path.join(inference_dir, inference_name + '_thresh' + str(i_graph) + '_inference.png'), bbox_inches="tight")
+        fig_list[i_graph].savefig(os.path.join(inference_dir, inference_name + '_thresh' + str(i_graph) + '_inference.jpg'), bbox_inches="tight")
         if patient_level:
-            fig_list_patient[i_graph].savefig(os.path.join(inference_dir, inference_name + '_thresh' + str(i_graph) + '_inference_patient.png'),bbox_inches="tight")
+            fig_list_patient[i_graph].savefig(os.path.join(inference_dir, inference_name + '_thresh' + str(i_graph) + '_inference_patient.jpg'),bbox_inches="tight")
 else:
-    fig1.savefig(os.path.join(inference_dir, inference_name + '_inference.png'), bbox_inches="tight")
+    fig1.savefig(os.path.join(inference_dir, inference_name + '_inference.jpg'), bbox_inches="tight")
     if patient_level:
-        fig1_patient.savefig(os.path.join(inference_dir, inference_name + '_inference_patient.png'), bbox_inches="tight")
+        fig1_patient.savefig(os.path.join(inference_dir, inference_name + '_inference_patient.jpg'), bbox_inches="tight")
 
 print('finished')

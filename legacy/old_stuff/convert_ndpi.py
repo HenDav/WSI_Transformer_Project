@@ -182,8 +182,8 @@ def convert_1_slide(slide_name, batch: str = ''):
 
     slide_basic_name = '.'.join(slide_name.split('.')[:-1])
     tif_filename = os.path.join(new_slides_path, slide_basic_name + '.tif')
-    tif_thumb_filename_png = os.path.join(new_slides_path, 'TIF_Thumbs', slide_basic_name + '_thumb.png')
-    tif_thumb_filename_jpg = os.path.join(new_slides_path, 'TIF_Thumbs', slide_basic_name + '_thumb.png')
+    tif_thumb_filename_png = os.path.join(new_slides_path, 'TIF_Thumbs', slide_basic_name + '_thumb.jpg')
+    tif_thumb_filename_jpg = os.path.join(new_slides_path, 'TIF_Thumbs', slide_basic_name + '_thumb.jpg')
 
     if os.path.isfile(tif_filename):  # Check if conversion was already done
         print('TIF Slide Exists')
@@ -211,7 +211,7 @@ def convert_1_slide(slide_name, batch: str = ''):
 
     # Create thumbnail for original slide:
     tmb = slide.get_thumbnail((1000, 1000))
-    tmb.save(os.path.join(new_slides_path, 'TIF_Thumbs', slide_basic_name + '_thumb_ndpi.png'))
+    tmb.save(os.path.join(new_slides_path, 'TIF_Thumbs', slide_basic_name + '_thumb_ndpi.jpg'))
 
     best_slide_level, adjusted_tile_size, level_0_tile_size = get_optimal_slide_level(slide,
                                                                                       magnification=slide_magnification,
@@ -284,7 +284,7 @@ def convert_1_slide(slide_name, batch: str = ''):
     tif_filename = os.path.join(temp_slides_path, slide_basic_name + '.tif')
     tif_slide = openslide.open_slide(tif_filename)
     tmb_tif = tif_slide.get_thumbnail((1000, 1000))
-    tmb_tif.save(os.path.join(new_slides_path, 'TIF_Thumbs', slide_basic_name + '_thumb.png'))
+    tmb_tif.save(os.path.join(new_slides_path, 'TIF_Thumbs', slide_basic_name + '_thumb.jpg'))
 
 
     print('Removing ndpi slide from Temp dir and moving tif slide to removable HD ')

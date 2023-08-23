@@ -112,9 +112,9 @@ for file in file_list:
     if not args.binary:
         fig.colorbar(sp)
     if args.superimpose:
-        fig.savefig(os.path.join(dn, 'out', slide_name, 'thumb.png'), bbox_inches='tight', dpi=1000)
+        fig.savefig(os.path.join(dn, 'out', slide_name, 'thumb.jpg'), bbox_inches='tight', dpi=1000)
     else:
-        fig.savefig(os.path.join(dn, 'out', os.path.splitext(slide_name)[0] + '.png'), bbox_inches='tight', dpi=1000)
+        fig.savefig(os.path.join(dn, 'out', os.path.splitext(slide_name)[0] + '.jpg'), bbox_inches='tight', dpi=1000)
     plt.close(fig)
     if args.superimpose:
         for i_y in range(N_patches_y):
@@ -132,7 +132,7 @@ for file in file_list:
                     ax.axis('off')
                     if not args.binary:
                         fig.colorbar(sp)
-                    fig.savefig(os.path.join(dn, 'out', slide_name, str(i_x) + '_' + str(i_y) + '.png'),
+                    fig.savefig(os.path.join(dn, 'out', slide_name, str(i_x) + '_' + str(i_y) + '.jpg'),
                                 bbox_inches='tight', dpi=1000)
                     plt.close(fig)
 

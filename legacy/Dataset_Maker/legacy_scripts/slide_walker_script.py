@@ -73,7 +73,7 @@ for root, subdirs, files in os.walk(walk_dir):
 
     #for each mrxs file, open the slide and get the label
     if args.is_jpg:
-        slide_files = [file for file in files if file[-4:] == '.png']
+        slide_files = [file for file in files if file[-4:] == '.jpg']
     else:
         slide_files = [file for file in files if file[-5:] == '.mrxs']
         slide_files.extend([file for file in files if file[-4:] == '.svs'])
@@ -124,7 +124,7 @@ for root, subdirs, files in os.walk(walk_dir):
                     label_im = slide.associated_images['label']
                     slide.close()
                     plt.imshow(label_im)
-                    label_name = str(ind).zfill(4) + root.replace('/', '_') + '_' + os.path.splitext(file)[0] + '.png'
+                    label_name = str(ind).zfill(4) + root.replace('/', '_') + '_' + os.path.splitext(file)[0] + '.jpg'
                     plt.savefig(os.path.join(walk_dir, 'unreadable_labels', label_name))
                     #code_dict_0 = {'SlideID': '', 'file': file, 'dir': root, 'unreadable': 'True'}
                     code_dict[ind] = {'dir': root, 'file': file, 'SlideID': '', 'unreadable': 'True'}

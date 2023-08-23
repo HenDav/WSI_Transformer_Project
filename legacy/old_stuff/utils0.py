@@ -96,11 +96,11 @@ def copy_segImages(data_path: str = 'tcga-data'):
         for _, dir in enumerate(dirs):
             if 'segImage.png' in next(os.walk(os.path.join(data_path, dir)))[2]:
                 shutil.copy2(os.path.join(data_path, dir, 'segImage.png'),
-                             os.path.join('Segmentation_Images', dir + '_SegImage.png'))
+                             os.path.join('Segmentation_Images', dir + '_SegImage.jpg'))
             else:
                 print('Found no segImage file for {}'.format(dir))
     elif data_format == 'ABCTB' or data_format == 'MIRAX':
-        files = [file for file in os.listdir(data_path) if file.endswith("_segImage.png")]
+        files = [file for file in os.listdir(data_path) if file.endswith("_segImage.jpg")]
         for file in files:
             shutil.copy2(os.path.join(data_path, file), os.path.join('Segmentation_Images', file))
 
@@ -123,8 +123,8 @@ def compute_normalization_values(data_path: 'str'= 'tcga-data/') -> tuple:
             continue
 
         image_stats = {}
-        thumb = np.array(Image.open(os.path.join(data_path, dir, 'thumb.png')))
-        segMap = np.array(Image.open(os.path.join(data_path, dir, 'segMap.png')))
+        thumb = np.array(Image.open(os.path.join(data_path, dir, 'thumb.jpg')))
+        segMap = np.array(Image.open(os.path.join(data_path, dir, 'segMap.jpg')))
         tissue = thumb.transpose(2, 0, 1) * segMap
         tissue_pixels = (tissue[0] != 0).sum()
         tissue_matter = np.where(tissue[0] != 0)

@@ -330,5 +330,5 @@ plt.xlim(0, 1)
 plt.ylim(0, 1)
 plt.grid(b=True)
 
-plt.savefig(os.path.join(output_dir, 'feature_mil_inference.png'))
+plt.savefig(os.path.join(output_dir, 'feature_mil_inference.jpg'))
 print('Done')

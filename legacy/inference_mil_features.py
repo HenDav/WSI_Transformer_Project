@@ -768,9 +768,9 @@ if compute_performance:
     plt.title(title)
 
     if args.is_per_patient:
-        graph_name = 'feature_mil_inference_per_patient_CARMEL_ONLY.png' if args.carmel_only else 'feature_mil_inference_per_patient.png'
+        graph_name = 'feature_mil_inference_per_patient_CARMEL_ONLY.jpg' if args.carmel_only else 'feature_mil_inference_per_patient.jpg'
     else:
-        graph_name = 'feature_mil_inference_per_slide_CARMEL_ONLY.png' if args.carmel_only else 'feature_mil_inference_per_slide.png'
+        graph_name = 'feature_mil_inference_per_slide_CARMEL_ONLY.jpg' if args.carmel_only else 'feature_mil_inference_per_slide.jpg'
 
     if 'file_name_extension' in locals():
         graph_name = '.'.join(graph_name.split(
