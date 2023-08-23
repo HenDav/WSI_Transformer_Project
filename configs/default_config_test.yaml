@@ -13,15 +13,13 @@ trainer:
   devices: 1
   accelerator: gpu
 model:
-  model: resnet50
+  model: resnet101
   num_classes: 2
   ckpt_path: null
   imagenet_pretrained: false
 data:
-  dataset: CAT
+  dataset: datasets_folds: {"CAT": [1]}
   target: ER
-  val_fold: 1
-  eval_on_train: false
   patches_per_slide_eval: 100
   min_tiles_eval: 100
   img_size: 256

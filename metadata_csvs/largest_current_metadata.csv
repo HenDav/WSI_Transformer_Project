@@ -1,4 +1,4 @@
-,file,patient_barcode,id,mpp,total_tiles,tiles_count,legitimate_tiles,width,height,magnification,er_status,pr_status,her2_status,grade,tumor_type,ki_67_status,onco_ki_67,onco_score_11,onco_score_18,onco_score_26,onco_score_31,onco_score_all,fold
+Unnamed: 0,file,patient_barcode,id,mpp,total_tiles,tiles_count,legitimate_tiles,width,height,magnification,er_status,pr_status,her2_status,grade,tumor_type,ki_67_status,onco_ki_67,onco_score_11,onco_score_18,onco_score_26,onco_score_31,onco_score_all,fold
 0,GS0117622202.tiff,436.0,SHEBA2,,3605.0,231,231.0,104960.0,35328.0,20.0,3.0,3.0,0.0,2,IDC,,5%,Positive,Negative,Negative,Negative,1.0,4
 1,GS133536102.tiff,355.0,SHEBA2,,2745.0,690,690.0,62464.0,45568.0,20.0,3.0,1.0,0.0,2,IDC,,15%,Positive,Positive,Positive,Negative,3.0,1
 2,GS210801202.tiff,435.0,SHEBA2,,2040.0,567,567.0,51712.0,40448.0,20.0,1.0,1.0,0.0,3,IDC,,,Positive,Positive,Positive,Positive,4.0,6

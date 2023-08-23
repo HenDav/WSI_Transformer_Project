@@ -31,8 +31,8 @@ max_attempts = 10
 white_ratio_threshold = 0.5
 white_intensity_threshold = 170
 current_mpp = 1.0  # TODO: maybe infer it directly from the folder?
-main_metadata_csv = "/home/dahen/WSI/metadata_csvs/largest_current_metadata.csv"
-data_root_gipdeep10 = "/data/unsynced_data/h5"
+main_metadata_csv = "/home/dahen/WSI/metadata_csvs/largest_with_taylor.csv"
+data_root_gipdeep10 = "/SSDStorage/h5"
 data_root_netapp = ""
 
 # Invalid values
@@ -55,6 +55,7 @@ dataset_id_sheba = "SHEBA"
 dataset_id_tcga = "TCGA"
 dataset_id_carmel = "CARMEL"
 dataset_id_haemek = "HAEMEK"
+dataset_id_taylorX = "TAILORx_1"
 number_of_carmel_train_batches = 8
 dataset_containment_dict = {
     dataset_id_cat: (dataset_id_ta, dataset_id_carmel),
@@ -72,6 +73,8 @@ folds_for_datasets = {
 }
 folds_for_datasets[dataset_id_tcga] = (1, 2, 3, 4, 5)
 folds_for_datasets[dataset_id_abctb] = (1, 2, 3, 4, 5)
+folds_for_datasets[dataset_id_taylorX] = (1, 2, 3, 4, 5)
+
 metadata_base_dataset_ids = (
     dataset_id_abctb,
     dataset_id_sheba,
@@ -100,6 +103,7 @@ her2_status_column_name_haemek = "Her2 status"
 ki_67_status_column_name_haemek = "Ki67 status"
 fold_column_name_haemek = "test fold idx"
 tumor_type_column_name_haemek = "TumorType"
+disease_free_status_column_name = "dfsind"
 
 # Carmel
 file_column_name_carmel = "file"
@@ -135,6 +139,20 @@ her2_status_column_name_tcga = "Her2 status"
 fold_column_name_tcga = "test fold idx"
 patient_barcode_column_name_enhancement_tcga = "Sample CLID"
 slide_barcode_prefix_column_name_enhancement_tcga = "Sample CLID"
+
+# TaylorX
+file_column_name_taylorX = "file"
+patient_barcode_column_name_taylorX = "patient barcode"
+dataset_id_column_name_taylorX = "dataset name"
+mpp_column_name_taylorX = "MPP"
+scan_date_column_name_taylorX = "Scan Date"
+width_column_name_taylorX = "Width"
+height_column_name_taylorX = "Height"
+magnification_column_name_taylorX = "Manipulated Objective Power"
+er_status_column_name_taylorX = "ER status"
+pr_status_column_name_taylorX = "PR status"
+her2_status_column_name_taylorX = "Her2 status"
+fold_column_name_taylorX = "test fold idx"
 
 # ABCTB
 file_column_name_abctb = "file"
@@ -222,6 +240,7 @@ def get_path_suffixes() -> Dict[str, Path]:
     path_suffixes = {
         dataset_id_tcga: f"Breast/{dataset_id_tcga}",
         dataset_id_abctb: f"Breast/{dataset_id_abctb}_TIF",
+        dataset_id_taylorX: f"Breast/TAILORx/Deid/{dataset_id_taylorX}",
     }
 
     for i in range(1, 12):
@@ -259,27 +278,23 @@ def get_dataset_paths(datasets_base_dir_path: Path) -> Dict[str, Path]:
     return dataset_paths
 
 
-def get_dataset_ids(dataset_id: str) -> List[str]:
-    dataset_ids = set([dataset_id])
-    dataset_ids_updated = set()
-    set_contains_dict_keys = dataset_id in dataset_containment_dict.keys()
+def get_datasets_folds(datasets_folds: Dict) -> Dict:
+    datasets_folds_updated = {}
+    dataset_ids = set(list(datasets_folds.keys()))
+    containment_set = set(list(dataset_containment_dict.keys()))
+    set_contains_dict_keys = len(containment_set.intersection(dataset_ids)) > 0
 
     while set_contains_dict_keys:
         for dataset_id in dataset_ids:
-            if dataset_id in dataset_containment_dict.keys():
+            if dataset_id in containment_set:
                 for contained_dataset_id in dataset_containment_dict[dataset_id]:
-                    dataset_ids_updated.add(contained_dataset_id)
-            else:
-                dataset_ids_updated.add(dataset_id)
-        dataset_ids = dataset_ids_updated.copy()
-        dataset_ids_updated = set()
-        set_contains_dict_keys = False
-        for dataset_id in dataset_ids:
-            set_contains_dict_keys = (
-                set_contains_dict_keys or dataset_id in dataset_containment_dict.keys()
-            )
+                    datasets_folds_updated[contained_dataset_id] = datasets_folds[dataset_id]
+        datasets_folds = datasets_folds_updated.copy()
+        datasets_folds_updated = {}
+        dataset_ids = set(list(datasets_folds.keys()))
+        set_contains_dict_keys = len(containment_set.intersection(dataset_ids)) > 0
 
-    return sorted(list(dataset_ids))
+    return datasets_folds
 
 
 def get_dataset_id_suffix(dataset_id: str) -> int:

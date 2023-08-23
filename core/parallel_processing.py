@@ -12,7 +12,7 @@ from typing import Dict, Generic, List, Optional, TypeVar, Union, cast
 
 import numpy
 
-from wsi_core.base import OutputObject
+from core.base import OutputObject
 
 
 # =================================================

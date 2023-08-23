@@ -4,9 +4,9 @@ from typing import Callable, Dict, List, Optional, Tuple
 import pandas
 from tqdm import tqdm
 
-from wsi_core import constants
-from wsi_core.metadata import MetadataBase
-from wsi_core.wsi import Slide, SlideContext, Tile, TilesManager
+from core import constants
+from core.metadata import MetadataBase
+from core.wsi import Slide, SlideContext, Tile, TilesManager, BINARY_BIOMARKERS, BIOMARKER_TO_COLUMN
 
 
 class SlidesManager(MetadataBase):
@@ -20,10 +20,6 @@ class SlidesManager(MetadataBase):
         row_predicate: Callable,  # [[pandas.DataFrame, ...], pandas.Index] somehow causes a bug, I have no idea why
         **predicate_args,
     ):
-        if "folds" in predicate_args.keys():
-            assert self.datasets_have_compatible_folds(
-                predicate_args["datasets"]
-            ), "datasets do not have compatible folds"
         self._desired_mpp = desired_mpp
         self._metadata_file_path = metadata_file_path
         self._slides = []
@@ -36,6 +32,12 @@ class SlidesManager(MetadataBase):
             metadata_at_magnification=metadata_at_magnification,
             desired_mpp=desired_mpp,
         )
+        if ("target" in predicate_args.keys() and 
+            predicate_args["target"] in BINARY_BIOMARKERS):
+            self._df[BIOMARKER_TO_COLUMN[predicate_args["target"]]] = \
+                self.binarize_biomarker(
+                    self._df[BIOMARKER_TO_COLUMN[predicate_args["target"]]]
+                )
         self._df = self._df.iloc[row_predicate(self._df, **predicate_args)]
         self._current_slides = self._create_slides()
         self._tiles_df = self._create_tiles_df()
@@ -48,7 +50,7 @@ class SlidesManager(MetadataBase):
 
     def _create_tiles_df(self) -> pandas.DataFrame:
         tiles_dfs = [slide._tiles_df.assign(slide_idx=idx).drop(columns=[TilesManager.tile_index,]) for idx, slide in enumerate(self._current_slides)]
-        tiles_df = pandas.concat(tiles_dfs)
+        tiles_df = pandas.concat(tiles_dfs) if len(tiles_dfs)>1 else tiles_dfs[0]
         return tiles_df
     
     def _create_slides(self) -> List[Slide]:
@@ -107,6 +109,9 @@ class SlidesManager(MetadataBase):
     # def get_slide_by_tile(self, tile: Tile) -> Slide:
     #     return self._tile_to_slide_dict[tile]
 
+    def binarize_biomarker(self, bm: pandas.Series) -> pandas.Series:
+        return bm.map({'Positive': 1, 'Negative': 0, "1": 1, "0": 0}).astype('Int64')
+    
     def get_slides_ratio(self, ratio: float) -> List[Slide]:
         modulo = int(1 / ratio)
         return self.get_slides_modulo(modulo=modulo)

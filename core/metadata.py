@@ -11,8 +11,8 @@ from typing import Callable, Dict, List, Union
 import numpy
 import pandas
 
-from wsi_core import constants, utils
-from wsi_core.base import OutputObject
+from core import constants, utils
+from core.base import OutputObject
 
 
 # =================================================

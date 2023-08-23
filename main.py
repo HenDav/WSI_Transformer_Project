@@ -1,14 +1,17 @@
 from pathlib import Path
+import os
 
 import torch
 from pytorch_lightning.callbacks import LearningRateMonitor
 from pytorch_lightning.cli import ArgsType, LightningCLI
 from pytorch_lightning.loggers.wandb import WandbLogger
+from pytorch_lightning.profilers import AdvancedProfiler
 
 from datasets.datamodules import WsiDataModule  # , LegacyWsiDataModule
 from utils.features_writer import FeaturesWriter  # noqa: F401
 from wsi_classifier import WsiClassifier
 
+torch.set_float32_matmul_precision("high")
 
 class WsiLightningCLI(LightningCLI):
     def add_arguments_to_parser(self, parser):
@@ -50,6 +53,8 @@ def cli_main(args: ArgsType = None):
         "devices": "auto",
         "max_epochs": 1000,
         "callbacks": [lr_monitor],
+        "strategy": "ddp_find_unused_parameters_false", 
+        # "profiler": AdvancedProfiler(), 
     }
 
     # note the current run's generated config.yaml file is saved in the cwd and not logged to wandb atm, it is overwritten every run

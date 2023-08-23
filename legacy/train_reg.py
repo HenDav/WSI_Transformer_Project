@@ -1,5 +1,5 @@
 import utils
-import datasets
+import datasets_legacy
 from torch.utils.data import DataLoader
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
@@ -23,6 +23,11 @@ import re
 import logging
 import send_gmail
 import wandb
+import sys
+from transformations import MyGaussianNoiseTransform, MyRotation
+from torchvision import transforms
+sys.path.insert(0, os.path.abspath('../'))
+from datasets.datasets import RandomPatchDataset
 
 try:
     utils.send_run_data_via_mail()
@@ -61,11 +66,49 @@ parser.add_argument('-baldat', '--balanced_dataset', dest='balanced_dataset', ac
 parser.add_argument('--RAM_saver', action='store_true', help='use only a quarter of the slides + reshuffle every 100 epochs')
 parser.add_argument('-tl', '--transfer_learning', default='', type=str, help='use model trained on another experiment')
 parser.add_argument('--wnb', type=str, default='', help='wandb project name for model diagnosis. disabled if empty string')
+parser.add_argument('--h5', action='store_true', help='whether to use h5 dataset, behaviour with RAM saver undefined.')
 
 args = parser.parse_args()
 config = vars(args)
 EPS = 1e-7
 
+def define_transforms():
+    normalization = transforms.Normalize(mean=[0.8998, 0.8253, 0.9357], std = [0.1125, 0.1751, 0.0787])
+    img_size = 256
+    color_param = 0.1
+    scale_factor = 0.2
+    
+    train_transforms = [transforms.ToTensor(), normalization]
+    eval_transforms = [
+        transforms.CenterCrop(size=img_size),
+        transforms.ToTensor(),
+        normalization,
+    ]
+    transform_ron = \
+        [
+            transforms.ColorJitter(brightness=color_param, contrast=color_param * 2,
+                                   saturation=color_param, hue=color_param),
+            transforms.GaussianBlur(3, sigma=(1e-7, 1e-1)),
+            MyGaussianNoiseTransform(sigma=(0, 0.05)),
+            transforms.RandomVerticalFlip(),
+            MyRotation(angles=[0, 90, 180, 270]),
+            transforms.RandomAffine(degrees=0, scale=(1, 1 + scale_factor)),
+        ]
+    train_transforms = [
+        *transform_ron,
+        *train_transforms,
+    ]
+
+    train_transforms = [
+        transforms.RandomCrop(size=img_size),
+        transforms.RandomHorizontalFlip(),
+        *train_transforms,
+    ]
+
+    train_transforms = transforms.Compose(train_transforms)
+    eval_transforms = transforms.Compose(eval_transforms)
+
+    return train_transforms, eval_transforms
 
 def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader, DEVICE, optimizer, criterion, print_timing: bool=False, wnb: bool=False):
     """
@@ -85,11 +128,11 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
         all_writer.add_text('Experiment No.', str(experiment))
         all_writer.add_text('Train type', 'Regular')
         all_writer.add_text('Model type', str(type(model)))
-        all_writer.add_text('Data type', dloader_train.dataset.DataSet)
-        all_writer.add_text('Train Folds', str(dloader_train.dataset.folds).strip('[]'))
-        all_writer.add_text('Test Folds', str(dloader_test.dataset.folds).strip('[]'))
-        all_writer.add_text('Transformations', str(dloader_train.dataset.transform))
-        all_writer.add_text('Receptor Type', str(dloader_train.dataset.target_kind))
+        all_writer.add_text('Data type', dloader_train.dataset.DataSet) if not args.h5 else None
+        all_writer.add_text('Train Folds', str(dloader_train.dataset.folds).strip('[]')) if not args.h5 else None
+        all_writer.add_text('Test Folds', str(dloader_test.dataset.folds).strip('[]')) if not args.h5 else None
+        all_writer.add_text('Transformations', str(dloader_train.dataset.transform)) if not args.h5 else None
+        all_writer.add_text('Receptor Type', str(dloader_train.dataset.target_kind)) if not args.h5 else None
 
     if print_timing:
         time_writer = SummaryWriter(os.path.join(writer_folder, 'time'))
@@ -130,10 +173,10 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
         model.to(DEVICE)
 
         for batch_idx, minibatch in enumerate(tqdm(dloader_train)):
-            data = minibatch['Data']
-            target = minibatch['Target']
-            time_list = minibatch['Time List']
-            f_names = minibatch['File Names']
+            data = minibatch['patch'] if args.h5 else minibatch['Data']
+            target = minibatch['label'] if args.h5 else  minibatch['Target']
+            time_list =  None if args.h5 else minibatch['Time List']
+            f_names = minibatch["slide_name"] if args.h5 else minibatch['File Names']
 
             temp_plot = False
             if temp_plot:
@@ -149,7 +192,7 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                 target_cont = minibatch['Survival Time']
 
             train_start = time.time()
-            data, target = data.to(DEVICE), target.to(DEVICE).squeeze(1)
+            data, target = data.to(DEVICE), target.to(DEVICE) if args.h5 else target.to(DEVICE).squeeze(1)
 
             optimizer.zero_grad()
             if print_timing:
@@ -236,7 +279,7 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                 all_writer.add_scalar('GPU/gpu', res.gpu, batch_idx + e * len(dloader_train))
                 all_writer.add_scalar('GPU/gpu-mem', res.memory, batch_idx + e * len(dloader_train))
             train_time = time.time() - train_start
-            if print_timing:
+            if print_timing and not args.h5:
                 time_stamp = batch_idx + e * len(dloader_train)
                 time_writer.add_scalar('Time/Train (iter) [Sec]', train_time, time_stamp)
                 time_writer.add_scalar('Time/Forward Pass [Sec]', time_fwd, time_stamp)
@@ -380,13 +423,13 @@ def check_accuracy(model: nn.Module, data_loader: DataLoader, all_writer, DEVICE
 
     with torch.no_grad():
         for batch_idx, minibatch in enumerate(data_loader):
-            data = minibatch['Data']
-            targets = minibatch['Target']
-            f_names = minibatch['File Names']
+            data = minibatch['patch'] if args.h5 else minibatch['Data']
+            targets = minibatch['label'] if args.h5 else  minibatch['Target']
+            f_names = minibatch["slide_name"] if args.h5 else minibatch['File Names']
             slide_names_batch = [os.path.basename(f_name) for f_name in f_names]
             slide_names.extend(slide_names_batch)
 
-            data, targets = data.to(device=DEVICE), targets.to(device=DEVICE).squeeze(1)
+            data, targets = data.to(device=DEVICE), targets if args.h5 else targets.to(device=DEVICE).squeeze(1)
             model.to(DEVICE)
 
             outputs, _ = model(data)
@@ -624,39 +667,58 @@ if __name__ == '__main__':
     
     with wandb.init(project=args.wnb, config=config, mode=wnb_mode, entity="gipmed"):
         # Get data:
-        train_dset = datasets.WSI_REGdataset(DataSet=args.dataset,
-                                             tile_size=TILE_SIZE,
-                                             target_kind=args.target,
-                                             test_fold=args.test_fold,
-                                             train=True,
-                                             print_timing=args.time,
-                                             transform_type=args.transform_type,
-                                             n_tiles=args.n_patches_train,
-                                             color_param=args.c_param,
-                                             get_images=args.images,
-                                             desired_slide_magnification=args.mag,
-                                             DX=args.dx,
-                                             loan=args.loan,
-                                             er_eq_pr=args.er_eq_pr,
-                                             slide_per_block=args.slide_per_block,
-                                             balanced_dataset=args.balanced_dataset,
-                                             RAM_saver=args.RAM_saver
-                                             )
-        test_dset = datasets.WSI_REGdataset(DataSet=args.dataset,
-                                            tile_size=TILE_SIZE,
-                                            target_kind=args.target,
-                                            test_fold=args.test_fold,
+        if args.h5:
+            train_transforms, eval_transforms = define_transforms()
+            train_dset = RandomPatchDataset(target=args.target,
+                                            dataset=args.dataset,
+                                            metadata_file_path="/home/dahen/WSI/metadata_csvs/largest_current_metadata.csv",
+                                            datasets_base_dir_path="/data/unsynced_data/h5",
+                                            transform=train_transforms,
+                                            train=True,
+                                            val_fold=args.test_fold,
+                                           )
+            test_dset = RandomPatchDataset(target=args.target,
+                                            dataset=args.dataset,
+                                            metadata_file_path="/home/dahen/WSI/metadata_csvs/largest_current_metadata.csv",
+                                            datasets_base_dir_path="/data/unsynced_data/h5",
+                                            transform=eval_transforms,
                                             train=False,
-                                            print_timing=False,
-                                            transform_type='none',
-                                            n_tiles=args.n_patches_test,
-                                            get_images=args.images,
-                                            desired_slide_magnification=args.mag,
-                                            DX=args.dx,
-                                            loan=args.loan,
-                                            er_eq_pr=args.er_eq_pr,
-                                            RAM_saver=args.RAM_saver
-                                            )
+                                            val_fold=args.test_fold,
+                                           )
+        else:
+            train_dset = datasets_legacy.WSI_REGdataset(DataSet=args.dataset,
+                                                 tile_size=TILE_SIZE,
+                                                 target_kind=args.target,
+                                                 test_fold=args.test_fold,
+                                                 train=True,
+                                                 print_timing=args.time,
+                                                 transform_type=args.transform_type,
+                                                 n_tiles=args.n_patches_train,
+                                                 color_param=args.c_param,
+                                                 get_images=args.images,
+                                                 desired_slide_magnification=args.mag,
+                                                 DX=args.dx,
+                                                 loan=args.loan,
+                                                 er_eq_pr=args.er_eq_pr,
+                                                 slide_per_block=args.slide_per_block,
+                                                 balanced_dataset=args.balanced_dataset,
+                                                 RAM_saver=args.RAM_saver
+                                                 )
+            test_dset = datasets_legacy.WSI_REGdataset(DataSet=args.dataset,
+                                                tile_size=TILE_SIZE,
+                                                target_kind=args.target,
+                                                test_fold=args.test_fold,
+                                                train=False,
+                                                print_timing=False,
+                                                transform_type='none',
+                                                n_tiles=args.n_patches_test,
+                                                get_images=args.images,
+                                                desired_slide_magnification=args.mag,
+                                                DX=args.dx,
+                                                loan=args.loan,
+                                                er_eq_pr=args.er_eq_pr,
+                                                RAM_saver=args.RAM_saver
+                                                )
         sampler = None
         do_shuffle = True
         if args.balanced_sampling:
@@ -675,7 +737,7 @@ if __name__ == '__main__':
                                   num_workers=num_workers, pin_memory=True)
 
         # Save transformation data to 'run_data.xlsx'
-        transformation_string = ', '.join([str(train_dset.transform.transforms[i]) for i in range(len(train_dset.transform.transforms))])
+        transformation_string = "pcbnfrsc" if args.h5 else', '.join([str(train_dset.transform.transforms[i]) for i in range(len(train_dset.transform.transforms))])
         utils.run_data(experiment=experiment, transformation_string=transformation_string)
 
         # Load model
@@ -692,11 +754,11 @@ if __name__ == '__main__':
         # Save model data and data-set size to run_data.xlsx file (Only if this is a new run).
         if args.experiment == 0:
             utils.run_data(experiment=experiment, model=model.model_name)
-            utils.run_data(experiment=experiment, DataSet_size=(train_dset.real_length, test_dset.real_length))
-            utils.run_data(experiment=experiment, DataSet_Slide_magnification=train_dset.desired_magnification)
+            utils.run_data(experiment=experiment, DataSet_size=(train_dset.real_length, test_dset.real_length)) if not args.h5 else None
+            utils.run_data(experiment=experiment, DataSet_Slide_magnification=train_dset.desired_magnification) if not args.h5 else None
 
             # Saving code files, args and main file name (this file) to Code directory within the run files.
-            utils.save_code_files(args, train_dset)
+            utils.save_code_files(args, train_dset) if not args.h5 else None
 
         epoch = args.epochs
         from_epoch = args.from_epoch
@@ -745,7 +807,7 @@ if __name__ == '__main__':
                 {'params': conv_params, 'lr': args.clr}], lr=args.lr, weight_decay=args.weight_decay)
         #optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
-        if isinstance(train_dset.target_kind, list):
+        if not args.h5 and isinstance(train_dset.target_kind, list):
             multi_target = True
             target_list = train_dset.target_kind
             N_targets = len(target_list)
@@ -794,7 +856,7 @@ if __name__ == '__main__':
                 print('Reshuffling dataset:')
                 # shuffle train and test set to get new slides
                 # Get data:
-                train_dset = datasets.WSI_REGdataset(DataSet=args.dataset,
+                train_dset = datasets_legacy.WSI_REGdataset(DataSet=args.dataset,
                                                      tile_size=TILE_SIZE,
                                                      target_kind=args.target,
                                                      test_fold=args.test_fold,
@@ -812,7 +874,7 @@ if __name__ == '__main__':
                                                      balanced_dataset=args.balanced_dataset,
                                                      RAM_saver=args.RAM_saver
                                                      )
-                test_dset = datasets.WSI_REGdataset(DataSet=args.dataset,
+                test_dset = datasets_legacy.WSI_REGdataset(DataSet=args.dataset,
                                                     tile_size=TILE_SIZE,
                                                     target_kind=args.target,
                                                     test_fold=args.test_fold,

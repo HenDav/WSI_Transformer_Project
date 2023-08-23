@@ -3,7 +3,20 @@ from pathlib import Path
 import argparse
 
 # gipmed
-from wsi_core.metadata import MetadataGenerator
+from core.metadata import MetadataGenerator
+from tap import Tap
+from typing import List
+
+# gipmed
+from core.metadata import MetadataGenerator
+
+class MetadataGeneratorArgumentsParser(Tap):
+    datasets_base_dir_path: Path
+    tile_size: int
+    desired_magnification: int
+    metadata_enhancement_dir_path: Path
+    output_dir_path: Path
+    dataset_ids: List[str]
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process some integers.')

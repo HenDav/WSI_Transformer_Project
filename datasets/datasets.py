@@ -1,6 +1,6 @@
 import socket
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import List, Optional, Dict
 from datetime import datetime
 
 import pandas
@@ -10,8 +10,8 @@ from torchvision import transforms
 from torchvision.transforms.functional import to_tensor
 
 from datasets.slides_manager import SlidesManager
-from wsi_core import constants
-from wsi_core.wsi import (
+from core import constants
+from core.wsi import (
     BIOMARKER_TO_COLUMN,
     BioMarker,
     GridPatchExtractor,
@@ -32,12 +32,10 @@ class WSIDataset(ABC, Dataset):
         desired_mpp: float = 1.0,
         metadata_at_magnification: int = 10,
         min_tiles: int = 100,
-        dataset: str = "CAT",
         metadata_file_path: Optional[str] = None,
         datasets_base_dir_path: Optional[str] = None,
         transform=transforms.Compose([]),
-        val_fold: Optional[int] = None,
-        train: bool = True,
+        datasets_folds: Dict = {"CAT": [2,3,4,5]},
         slides_manager: SlidesManager = None,
         **kw: object,
     ):
@@ -52,16 +50,12 @@ class WSIDataset(ABC, Dataset):
             else:
                 if socket.gethostname() == "gipdeep10":
                     datasets_base_dir_path = constants.data_root_gipdeep10
+                    print("Using gipdeep10 data.")
                 else:
                     datasets_base_dir_path = constants.data_root_netapp
             if not metadata_file_path:
                 metadata_file_path = constants.main_metadata_csv
-            datasets = constants.get_dataset_ids(dataset)
-            current_folds = list(constants.folds_for_datasets[datasets[0]])
-            if val_fold is not None and train:
-                current_folds.remove(val_fold)
-            elif val_fold is not None and not train:
-                current_folds = [val_fold]
+            datasets_folds = constants.get_datasets_folds(datasets_folds)
 
             slides_manager = SlidesManager(
                 datasets_base_dir_path=datasets_base_dir_path,
@@ -71,8 +65,7 @@ class WSIDataset(ABC, Dataset):
                 metadata_file_path=metadata_file_path,
                 row_predicate=self.default_predicate,
                 min_tiles=min_tiles,
-                datasets=datasets,
-                folds=current_folds,
+                datasets_folds=datasets_folds,
                 target=self._target,
             )
         self._slides_manager = slides_manager
@@ -82,10 +75,6 @@ class WSIDataset(ABC, Dataset):
     def __len__(self):
         return self._dataset_size
 
-    # @abstractmethod
-    # def __getitem__(self, item: int) -> object:
-    #     pass
-
     def set_folds(self, folds: List[int]):
         self._slides_manager.filter_folds(folds=folds)
 
@@ -93,23 +82,23 @@ class WSIDataset(ABC, Dataset):
     def default_predicate(
         df: pandas.DataFrame,
         min_tiles: int,
-        datasets: List[str],
-        folds: List[int],
+        datasets_folds: Dict,
         target: BioMarker,
     ) -> pandas.Index:
-        fold_indices = df.index[df[constants.fold_column_name].isin(folds)]
-        dataset_indices = df.index[df[constants.dataset_id_column_name].isin(datasets)]
+        matching_indices = pandas.Index([])
+        for ds in datasets_folds:
+            fold_indices = df.index[df[constants.fold_column_name].isin(datasets_folds[ds])]
+            dataset_indices = df.index[df[constants.dataset_id_column_name] == ds]
+            matching_indices = matching_indices.union(dataset_indices.intersection(fold_indices))
+        print(
+            f"Found {len(matching_indices)} slides in datasets and folds {datasets_folds}"
+        )
         min_tiles_indices = df.index[
             df[constants.legitimate_tiles_column_name] > min_tiles
         ]
         target_indices = df.index[
-            df[BIOMARKER_TO_COLUMN[target]].isin(("Positive", "Negative"))
+            df[BIOMARKER_TO_COLUMN[target]].notna()
         ]  # TODO: review this and check possible column values
-
-        matching_indices = dataset_indices.intersection(fold_indices)
-        print(
-            f"Found {len(matching_indices)} slides in datasets {datasets} and folds {folds}"
-        )
         
         filtered_target = matching_indices.intersection(target_indices)
         filtered_min_tiles = filtered_target.intersection(min_tiles_indices)
@@ -129,12 +118,10 @@ class RandomPatchDataset(WSIDataset):
         desired_mpp: float = 1.0,  # TODO: make this useful through patch extraction
         metadata_at_magnification: int = 10,
         min_tiles: int = 100,
-        dataset: str = "CAT",
         metadata_file_path: str = None,
         datasets_base_dir_path: str = None,
         transform=transforms.Compose([]),
-        train: bool = True,  # controls folds
-        val_fold: Optional[int] = None,
+        datasets_folds: Dict = {"CAT": [2,3,4,5]},
         slides_manager: SlidesManager = None,
         **kw: object,
     ):
@@ -146,33 +133,28 @@ class RandomPatchDataset(WSIDataset):
             desired_mpp=desired_mpp,
             metadata_at_magnification=metadata_at_magnification,
             min_tiles=min_tiles,
-            dataset=dataset,
+            datasets_folds=datasets_folds,
             metadata_file_path=metadata_file_path,
             datasets_base_dir_path=datasets_base_dir_path,
             transform=transform,
-            val_fold=val_fold,
-            train=train,
             **kw,
         )
         self._transform = transform
-        self._train = train
 
     def __getitem__(self, item: int):
         slide = self._slides_manager.get_slide(item % self.num_slides)
 
-        slide_name = slide.slide_context.image_file_name_stem
+        slide_name = slide.slide_context.image_file_name
+        dataset_id = slide.slide_context.dataset_id
         patch_extractor = RandomPatchExtractor(slide=slide)
         patch, center_pixel = patch_extractor.extract_patch(patch_validators=[])
         label = slide.slide_context.get_biomarker_value(bio_marker=self._target)
-        if label == "Positive":
-            label = 1
-        elif label == "Negative":
-            label = 0
 
         return {
             "patch": self._transform(patch.image),
             "label": label,
             "slide_name": slide_name,
+            "dataset_id": dataset_id,
             "center_pixel": center_pixel,
         }
 
@@ -185,12 +167,10 @@ class SerialPatchDataset(WSIDataset):
         desired_mpp: float = 1.0,  # TODO: make this useful through patch extraction
         metadata_at_magnification: int = 10,
         min_tiles: int = 100,
-        dataset: str = "CAT",
         metadata_file_path: str = None,
         datasets_base_dir_path: str = None,
         transform=transforms.Compose([]),
-        train: bool = True,  # controls folds
-        val_fold: Optional[int] = None,
+        datasets_folds: Dict = {"CAT": [2,3,4,5]},
         slides_manager: SlidesManager = None,
         **kw: object,
     ):
@@ -202,17 +182,14 @@ class SerialPatchDataset(WSIDataset):
             desired_mpp=desired_mpp,
             metadata_at_magnification=metadata_at_magnification,
             min_tiles=min_tiles,
-            dataset=dataset,
+            datasets_folds=datasets_folds,
             metadata_file_path=metadata_file_path,
             datasets_base_dir_path=datasets_base_dir_path,
             transform=transform,
-            val_fold=val_fold,
-            train=train,
             **kw,
         )
         self._dataset_size = self._slides_manager.tiles_count
         self._transform = transform
-        self._train = train
         self._n_slides = 0
         self._n_slide_patches = 0
 
@@ -222,12 +199,9 @@ class SerialPatchDataset(WSIDataset):
         patch = Patch(
             slide_context=self._tile.slide_context, center_pixel=center_pixel
         )
-        slide_name = self._tile.slide_context.image_file_name_stem
+        slide_name = self._tile.slide_context.image_file_name
+        dataset_id = self._tile.slide_context.dataset_id
         label = self._tile.slide_context.get_biomarker_value(bio_marker=self._target)
-        if label == "Positive":
-            label = 1
-        elif label == "Negative":
-            label = 0
         
         patch_img = patch.image
         patch_img = self._transform(patch_img)
@@ -235,6 +209,7 @@ class SerialPatchDataset(WSIDataset):
             "patch": patch_img,
             "label": label,
             "slide_name": slide_name,
+            "dataset_id": dataset_id,
             "center_pixel": center_pixel,
         }
 
@@ -249,17 +224,14 @@ class SlideDataset(WSIDataset):
         bag_size: int = 100,
         metadata_at_magnification: int = 10,
         min_tiles: int = 100,
-        dataset: str = "CAT",
+        datasets_folds: Dict = {"CAT": [2,3,4,5]},
         metadata_file_path: str = None,
         datasets_base_dir_path: str = None,
         transform=transforms.Compose([]),
-        train: bool = True,  # controls folds
-        val_fold: Optional[int] = None,
         slides_manager: SlidesManager = None,
         **kw: object,
     ):
         self._transform = transform
-        self._train = train
         self._bag_size = bag_size
         super().__init__(
             instances_per_slide=bags_per_slide,
@@ -269,12 +241,10 @@ class SlideDataset(WSIDataset):
             desired_mpp=desired_mpp,  # TODO: make this useful through patch extraction
             metadata_at_magnification=metadata_at_magnification,
             min_tiles=min_tiles,
-            dataset=dataset,
+            datasets_folds=datasets_folds,
             metadata_file_path=metadata_file_path,
             datasets_base_dir_path=datasets_base_dir_path,
             transform=transform,
-            val_fold=val_fold,
-            train=train,
             **kw,
         )
 
@@ -284,7 +254,8 @@ class SlideDataset(WSIDataset):
 
     def get_bag(self, item: int):
         slide = self._slides_manager.get_slide(item % self.num_slides)
-        slide_name = slide.slide_context.image_file_name_stem
+        slide_name = slide.slide_context.image_file_name
+        dataset_id = slide.slide_context.dataset_id
         self.patch_extractor = self.patch_extractor_constructor(slide=slide)
         patch, center_pixel = self.patch_extractor.extract_patch(patch_validators=[])
         bag_item = to_tensor(patch.image)
@@ -300,39 +271,10 @@ class SlideDataset(WSIDataset):
             bag[idx] = bag_item
 
         label = slide.slide_context.get_biomarker_value(bio_marker=self._target)
-        if label == "Positive":
-            label = 1
-        elif label == "Negative":
-            label = 0
         label = torch.tensor(label).expand(self._bag_size).clone()
 
         # TODO: add patch locations/coords
-        return {"bag": bag, "label": label, "slide_name": slide_name}
-
-    # def get_bag(self, item: int):
-    #     slide = self._slides_manager.get_slide(item % self.num_slides)
-    #     slide_name = slide.slide_context.image_file_name_stem
-    #     self.patch_extractor = self.patch_extractor_constructor(slide=slide)
-    #     patch, center_pixel = self.patch_extractor.extract_patch(patch_validators=[])
-    #     bag_item = transforms.ToTensor()(patch.image)
-    #     bag_shape = (self._bag_size, *bag_item.shape)
-    #     bag = torch.zeros(bag_shape)
-    #     bag[0] = bag_item
-    #     for idx in range(1, self._bag_size):
-    #         patch, center_pixel = self.patch_extractor.extract_patch(
-    #             patch_validators=[]
-    #         )
-    #         bag_item = transforms.ToTensor()(patch.image)
-    #         bag[idx] = bag_item
-    #
-    #     label = slide.slide_context.get_biomarker_value(bio_marker=self._target)
-    #     if label == "Positive":
-    #         label = 1
-    #     elif label == "Negative":
-    #         label = 0
-    #
-    #     # TODO: add patch locations/coords
-    #     return {"bag": self._transform(bag), "label": label, "slide_name": slide_name}
+        return {"bag": bag, "label": label, "slide_name": slide_name, "dataset_id": dataset_id}
 
 
 class SlideRandomDataset(SlideDataset):
@@ -345,17 +287,14 @@ class SlideRandomDataset(SlideDataset):
         bag_size: int = 100,
         metadata_at_magnification: int = 10,
         min_tiles: int = 100,
-        dataset: str = "CAT",
+        datasets_folds: Dict = {"CAT": [2,3,4,5]},
         metadata_file_path: str = None,
         datasets_base_dir_path: str = None,
         transform=transforms.Compose([]),
-        train: bool = True,  # controls folds
-        val_fold: Optional[int] = None,
         slides_manager: SlidesManager = None,
         **kw: object,
     ):
         self._transform = transform
-        self._train = train
         self._bag_size = bag_size
         super().__init__(
             bags_per_slide=bags_per_slide,
@@ -366,12 +305,10 @@ class SlideRandomDataset(SlideDataset):
             bag_size=bag_size,
             metadata_at_magnification=metadata_at_magnification,
             min_tiles=min_tiles,
-            dataset=dataset,
+            datasets_folds=datasets_folds,
             metadata_file_path=metadata_file_path,
             datasets_base_dir_path=datasets_base_dir_path,
             transform=transform,
-            val_fold=val_fold,
-            train=train,
             **kw,
         )
 
@@ -391,17 +328,14 @@ class SlideStridedDataset(SlideDataset):
         bag_size: int = 100,
         metadata_at_magnification: int = 10,
         min_tiles: int = 100,
-        dataset: str = "CAT",
+        datasets_folds: Dict = {"CAT": [2,3,4,5]},
         metadata_file_path: str = None,
         datasets_base_dir_path: str = None,
         transform=transforms.Compose([]),
-        train: bool = True,  # controls folds
-        val_fold: Optional[int] = None,
         slides_manager: SlidesManager = None,
         **kw: object,
     ):
         self._transform = transform
-        self._train = train
         self._bag_size = bag_size
         super().__init__(
             bags_per_slide=1,
@@ -412,12 +346,10 @@ class SlideStridedDataset(SlideDataset):
             bag_size=bag_size,
             metadata_at_magnification=metadata_at_magnification,
             min_tiles=min_tiles,
-            dataset=dataset,
+            datasets_folds=datasets_folds,
             metadata_file_path=metadata_file_path,
             datasets_base_dir_path=datasets_base_dir_path,
             transform=transform,
-            val_fold=val_fold,
-            train=train,
             **kw,
         )
 
@@ -438,12 +370,10 @@ class SlideGridDataset(SlideDataset):
         desired_mpp: float = 1.0,  # TODO: make this useful through patch extraction
         metadata_at_magnification: int = 10,
         min_tiles: int = 100,
-        dataset: str = "CAT",
+        datasets_folds: Dict = {"CAT": [2,3,4,5]},
         metadata_file_path: str = None,
         datasets_base_dir_path: str = None,
         transform=transforms.Compose([]),
-        train: bool = True,  # controls folds
-        val_fold: Optional[int] = None,
         slides_manager: SlidesManager = None,
         **kw: object,
     ):
@@ -456,16 +386,13 @@ class SlideGridDataset(SlideDataset):
             bag_size=side_length**2,
             metadata_at_magnification=metadata_at_magnification,
             min_tiles=min_tiles,
-            dataset=dataset,
+            datasets_folds=datasets_folds,
             metadata_file_path=metadata_file_path,
             datasets_base_dir_path=datasets_base_dir_path,
             transform=transform,
-            val_fold=val_fold,
-            train=train,
             **kw,
         )
         self._transform = transform
-        self._train = train
         self._side_length = side_length
 
     def __getitem__(self, item: int):

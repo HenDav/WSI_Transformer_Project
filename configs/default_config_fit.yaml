@@ -26,7 +26,7 @@ trainer:
   #     patience: 20
   #     mode: max
   devices: auto
-  check_val_every_n_epoch: 1
+  check_val_every_n_epoch: 5
   fast_dev_run: false
   max_epochs: 1000
   limit_train_batches: null # set to 0. to not perform training
@@ -37,8 +37,8 @@ trainer:
   auto_lr_find: false
   auto_scale_batch_size: false
 model:
-  model: resnet50
-  lr: 0.0001
+  model: resnet101
+  lr: 0.006
   num_classes: 2
   ckpt_path: null # for transfer learning
   imagenet_pretrained: false
@@ -46,18 +46,16 @@ model:
   criterion: crossentropy
   log_params: false
 data:
-  dataset: CAT
+  datasets_folds: {"CAT": [2,3,4,5]}
   target: ER
-  val_fold: 1
-  eval_on_train: false
   patches_per_slide_train: 10
   patches_per_slide_eval: 10
-  min_tiles_test: 100
+  min_tiles_eval: 100
   img_size: 256
   batch_size: 256
   num_workers: 8
   normalization: cat
-  autoaug: false
+  autoaug: wsi_ron
   transforms: null
   openslide: false
 # override default optimizer and lr scheduler

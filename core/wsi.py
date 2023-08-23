@@ -24,20 +24,29 @@ import torch
 from matplotlib import pyplot as plt
 from PIL import Image
 
-from wsi_core import constants, utils
+from core import constants, utils
 
 
 class BioMarker(Enum):
     ER = auto()
     PR = auto()
     HER2 = auto()
+    DFS = auto() # Disease free survival indicator
 
 
 BIOMARKER_TO_COLUMN = {
     BioMarker.ER: constants.er_status_column_name,
     BioMarker.PR: constants.pr_status_column_name,
     BioMarker.HER2: constants.her2_status_column_name,
+    BioMarker.DFS: constants.disease_free_status_column_name
 }
+
+BINARY_BIOMARKERS = [
+    BioMarker.ER,
+    BioMarker.PR,
+    BioMarker.HER2,
+    BioMarker.DFS
+]
 
 # Let if be known for all of eternity:
 # - SlideContext uses the np covention for coordinates (row_index, col_index)
@@ -80,6 +89,7 @@ class SlideContext:
         self._er = self._row[constants.er_status_column_name].item()
         self._pr = self._row[constants.pr_status_column_name].item()
         self._her2 = self._row[constants.her2_status_column_name].item()
+        self._dfs = self._row[constants.disease_free_status_column_name].item()
         self._color_channels = 3
         self._is_h5 = "/h5" in str(self._dataset_path)
         if self._is_h5:
@@ -300,6 +310,8 @@ class SlideContext:
             return self._pr
         elif bio_marker is BioMarker.HER2:
             return self._her2
+        elif bio_marker is BioMarker.DFS:
+            return self._dfs
 
     def _get_best_level_for_downsample(self, slide: openslide.OpenSlide):
         level = 0
@@ -477,7 +489,7 @@ class TilesManager(ABC, SlideElement):
                 pixels = file_handle["segmentation_pixels"][...]
                 pixels[:, 0], pixels[:, 1] = pixels[:, 1], pixels[:, 0].copy()
         except:
-            print(self._slide_context._image_file_path + " is the offending file")
+            print(str(self._slide_context._image_file_path) + " is the offending file")
 
         return pixels
 

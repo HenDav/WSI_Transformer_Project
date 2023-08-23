@@ -4,7 +4,7 @@ from typing import Union
 
 import numpy
 
-import wsi_core.utils as utils
+from core import utils
 
 class OutputObject:
     def __init__(
