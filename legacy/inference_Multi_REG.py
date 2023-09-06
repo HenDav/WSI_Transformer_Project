@@ -1,4 +1,5 @@
 import utils as utils
+from utils import check_blurry, map_colors, normalize, unnormalize
 from torch.utils.data import DataLoader
 import torch
 import datasets
@@ -13,6 +14,7 @@ from collections import OrderedDict
 from Nets import resnet_v2, PreActResNets
 import send_gmail
 import logging
+import warnings
 
 parser = argparse.ArgumentParser(description='WSI_REG Slide inference')
 parser.add_argument('-ex', '--experiment', nargs='+', type=int, default=[10607], help='Use models from this experiment')
@@ -30,6 +32,9 @@ parser.add_argument('-sd', '--subdir', type=str, default='', help='output sub-di
 parser.add_argument('-se', '--seed', type=int, help='use for deterministic patch sampling')
 parser.add_argument('-tar', '--target', type=str, help='label: Her2/ER/PR/EGFR/PDL1')
 parser.add_argument('-baldat', '--balanced_dataset', dest='balanced_dataset', action='store_true', help='take same # of positive and negative patients from each dataset')
+parser.add_argument('-filter', '--filter_blurry', dest='filter_blurry', action='store_true', help='run inference only on non blurry patches')
+parser.add_argument('-remap', '--remap_colors', dest='remap_colors', action='store_true', help='run remap patch colors for carmel rescan')
+parser.add_argument('-hl', '--use_hl', dest='use_hl', type=int, default=-1, help='if non negative then uses hl and the number is the noise')
 args = parser.parse_args()
 
 args.folds = list(map(int, args.folds[0]))
@@ -77,9 +82,9 @@ for counter in range(len(args.from_epoch)):
     # Basic meta data will be taken from the first model (ONLY if all inferences are done from the same experiment)
     if counter == 0:
         run_data_output = utils.run_data(experiment=experiment)
-        output_dir, TILE_SIZE, dx, model_name, args.mag =\
+        output_dir, TILE_SIZE, dx, model_name =\
             run_data_output['Location'], run_data_output['Tile Size'], run_data_output['DX'],\
-            run_data_output['Model Name'], run_data_output['Desired Slide Magnification']
+            run_data_output['Model Name']
         if args.target is None:
              args.target = run_data_output['Receptor']
         if different_experiments:
@@ -87,9 +92,9 @@ for counter in range(len(args.from_epoch)):
         fix_data_path = True
     elif counter > 0 and different_experiments:
         run_data_output = utils.run_data(experiment=experiment)
-        output_dir, dx, target, model_name, args.mag =\
+        output_dir, dx, target, model_name =\
             run_data_output['Location'], run_data_output['DX'], run_data_output['Receptor'],\
-            run_data_output['Model Name'], run_data_output['Desired Slide Magnification']
+            run_data_output['Model Name']
         Output_Dirs.append(output_dir)
         fix_data_path = True
 
@@ -211,7 +216,8 @@ inf_dset = datasets.Infer_Dataset(DataSet=args.dataset,
                                   resume_slide=slide_num,
                                   patch_dir=args.patch_dir,
                                   balanced_dataset=args.balanced_dataset,
-                                  chosen_seed=args.seed)
+                                  chosen_seed=args.seed,
+                                  use_hl_label = args.use_hl)
 
 inf_loader = DataLoader(inf_dset, batch_size=1, shuffle=False, num_workers=0, pin_memory=True)
 
@@ -270,8 +276,10 @@ if not os.path.isdir(os.path.join(data_path, output_dir, 'Inference')):
 
 if not os.path.isdir(os.path.join(data_path, output_dir, 'Inference', args.subdir)):
     os.mkdir(os.path.join(data_path, output_dir, 'Inference', args.subdir))
-
+    
 with torch.no_grad():
+    i=0
+    locs = np.zeros((200,2))
     for batch_idx, MiniBatch_Dict in enumerate(tqdm(inf_loader)):
 
         # Unpacking the data:
@@ -282,8 +290,17 @@ with torch.no_grad():
         slide_file = MiniBatch_Dict['Slide Filename']
         slide_dataset = MiniBatch_Dict['Slide DataSet']
         patch_locs = MiniBatch_Dict['Patch Loc']
-
+          
+        
         if new_slide:
+            if args.remap_colors or args.filter_blurry:
+                data = unnormalize(data)
+                if args.filter_blurry:
+                    non_blurry_flags = check_blurry(data)
+                    total_non_blurry = non_blurry_flags
+                if args.remap_colors:
+                    data = map_colors(data)
+                data = normalize(data)
             n_tiles = inf_loader.dataset.num_tiles[slide_num - args.resume]
 
             current_slide_tile_scores = [np.zeros((n_tiles, N_classes)) for ii in range(NUM_MODELS)]
@@ -293,11 +310,50 @@ with torch.no_grad():
             target_current = target
             slide_batch_num = 0
             new_slide = False
+        elif args.remap_colors or args.filter_blurry:
+            data = unnormalize(data)
+            if args.filter_blurry:
+                non_blurry_flags = check_blurry(data)
+                try:
+                    total_non_blurry = torch.cat([total_non_blurry, non_blurry_flags])
+                except:
+                    logging.info(f'Got exception, non_blurry_flags.shape: {non_blurry_flags.shape}, data.shape: {data.shape}')
+                    total_non_blurry = torch.cat([total_non_blurry, non_blurry_flags.unsqueeze(0)])
+            if args.remap_colors:
+                data = map_colors(data)
+            data = normalize(data)
+            
 
         data = data.squeeze(0)
+        
+        
+        for patch, loc in zip(data, patch_locs):
+            patch = patch.detach().cpu().numpy()
+            #locs[i,:] = np.array([loc[1].detach().cpu().numpy(), loc[0].detach().cpu().numpy()]).squeeze()
+            np.save(f'./patches_finher3/patch_{i}', patch)
+            i+=1
+            if i==200:
+                #np.save(f'./patches_carmel11/locs', locs)
+                a=djfdj
+        continue
+        
+        
         data, target = data.to(DEVICE), target.to(DEVICE)
-
-        patch_locs_1_slide[slide_batch_num * tiles_per_iter: slide_batch_num * tiles_per_iter + len(data),:] = np.array(patch_locs)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            try:    
+                patch_locs_1_slide[slide_batch_num * tiles_per_iter: slide_batch_num * tiles_per_iter + len(data),:] = np.array(patch_locs)
+            except:
+                print(len(data))
+                print(np.array(patch_locs).shape)
+                print(patch_locs_1_slide[slide_batch_num * tiles_per_iter: slide_batch_num * tiles_per_iter + len(data),:].shape)
+                print(n_tiles)
+                print(total_non_blurry.shape)
+                print(torch.sum(total_non_blurry))
+                print(non_blurry_flags.shape)
+                print(torch.sum(non_blurry_flags))
+                raise Exception()
+            
 
         for model_ind, model in enumerate(models):
             model.to(DEVICE)
@@ -345,37 +401,63 @@ with torch.no_grad():
                     else:
                         total_neg += 1
 
-            if args.save_features:
-                features_all[slide_num % NUM_SLIDES_SAVE, 0, :len(feature_arr[0])] = feature_arr[0]
-
-            patch_locs_all[slide_num, :len(patch_locs_1_slide), :] = patch_locs_1_slide
-
-            for model_ind in range(NUM_MODELS):
-                if multi_target:
-                    batch_len = len(target)
-                    predicted = torch.zeros(N_targets, batch_len)
-                    for i_target in range(N_targets):
-                        predicted[i_target, :] = current_slide_tile_scores[model_ind][:, i_target * 2: i_target * 2 + 2].mean(0).argmax()
-                        patch_scores[slide_num, model_ind, :n_tiles, i_target] = current_slide_tile_scores[model_ind][:, i_target * 2 + 1]
-                        all_scores[slide_num, model_ind, i_target] = current_slide_tile_scores[model_ind][:, i_target * 2 + 1].mean()
-                    correct_pos[model_ind] += np.squeeze((predicted == 1).cpu().numpy() & (target_squeezed.eq(1).cpu().numpy()))
-                    correct_neg[model_ind] += np.squeeze((predicted == 0).cpu().numpy() & (target_squeezed.eq(0).cpu().numpy()))
+            if args.filter_blurry:
+                good_patches = torch.sum(total_non_blurry)
+                if good_patches == 0:
+                    logging.info(f'slide {slide_file[0]} had no non blurry patches')
+                    skip = True
                 else:
-                    predicted = current_slide_tile_scores[model_ind].mean(0).argmax()
-                    if N_classes == 2:
-                        patch_scores[slide_num, model_ind, :n_tiles] = current_slide_tile_scores[model_ind][:, 1]
-                        all_scores[slide_num, model_ind] = current_slide_tile_scores[model_ind][:, 1].mean()
-                        if target == 1 and predicted == 1:
-                            correct_pos[model_ind] += 1
-                        elif target == 0 and predicted == 0:
-                            correct_neg[model_ind] += 1
-                    else:  # multiclass
-                        patch_scores[slide_num, model_ind, :n_tiles, :] = current_slide_tile_scores[model_ind]
-                        all_scores[slide_num, model_ind, :] = current_slide_tile_scores[model_ind].mean(0)
-
-                all_labels[slide_num, model_ind] = np.squeeze(predicted)
-                all_slide_names[slide_num] = slide_file[0]
-                all_slide_datasets[slide_num] = slide_dataset[0]
+                    skip = False
+                    indices_non_blurry = torch.where(total_non_blurry == True)[0]
+                    patch_locs_all[slide_num, :good_patches, :] = patch_locs_1_slide[indices_non_blurry]
+            else:
+                skip = False
+                patch_locs_all[slide_num, :len(patch_locs_1_slide), :] = patch_locs_1_slide
+            if args.save_features and not skip:
+                if args.filter_blurry:
+                    features_all[slide_num % NUM_SLIDES_SAVE, 0, :good_patches] = feature_arr[0][indices_non_blurry]
+                else:
+                    features_all[slide_num % NUM_SLIDES_SAVE, 0, :len(feature_arr[0])] = feature_arr[0]
+            if not skip:
+                for model_ind in range(NUM_MODELS):
+                    if multi_target:
+                        batch_len = len(target)
+                        predicted = torch.zeros(N_targets, batch_len)
+                        for i_target in range(N_targets):
+                            predicted[i_target, :] = current_slide_tile_scores[model_ind][:, i_target * 2: i_target * 2 + 2].mean(0).argmax()
+                            patch_scores[slide_num, model_ind, :n_tiles, i_target] = current_slide_tile_scores[model_ind][:, i_target * 2 + 1]
+                            all_scores[slide_num, model_ind, i_target] = current_slide_tile_scores[model_ind][:, i_target * 2 + 1].mean()
+                        correct_pos[model_ind] += np.squeeze((predicted == 1).cpu().numpy() & (target_squeezed.eq(1).cpu().numpy()))
+                        correct_neg[model_ind] += np.squeeze((predicted == 0).cpu().numpy() & (target_squeezed.eq(0).cpu().numpy()))
+                    else:
+                        if args.filter_blurry: 
+                            predicted = current_slide_tile_scores[model_ind][indices_non_blurry].mean(0).argmax()
+                        else:
+                            predicted = current_slide_tile_scores[model_ind].mean(0).argmax()
+                        if N_classes == 2:
+                            patch_scores[slide_num, model_ind, :n_tiles] = current_slide_tile_scores[model_ind][:, 1]
+                            if args.filter_blurry:
+                                patch_scores[slide_num, model_ind, :good_patches] = patch_scores[slide_num, model_ind, indices_non_blurry]
+                                patch_scores[slide_num, model_ind, good_patches:] = np.nan
+                                all_scores[slide_num, model_ind] = current_slide_tile_scores[model_ind][indices_non_blurry, 1].mean()
+                            else:
+                                all_scores[slide_num, model_ind] = current_slide_tile_scores[model_ind][:, 1].mean()
+                            if target == 1 and predicted == 1:
+                                correct_pos[model_ind] += 1
+                            elif target == 0 and predicted == 0:
+                                correct_neg[model_ind] += 1
+                        else:  # multiclass
+                            patch_scores[slide_num, model_ind, :n_tiles, :] = current_slide_tile_scores[model_ind]
+                            if args.filter_blurry:                        
+                                patch_scores[slide_num, model_ind, :good_patches, :] = patch_scores[slide_num, model_ind, indices_non_blurry, :]
+                                patch_scores[slide_num, model_ind, good_patches:, :] = np.nan
+                                all_scores[slide_num, model_ind, :] = current_slide_tile_scores[model_ind][indices_non_blurry].mean(0)
+                            else:                            
+                                all_scores[slide_num, model_ind, :] = current_slide_tile_scores[model_ind].mean(0)
+                    
+                    all_labels[slide_num, model_ind] = np.squeeze(predicted)
+            all_slide_names[slide_num] = slide_file[0]
+            all_slide_datasets[slide_num] = slide_dataset[0]
 
             slide_num += 1
 

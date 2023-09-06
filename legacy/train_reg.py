@@ -1,4 +1,6 @@
 import utils
+from utils import multiclass_auc
+from utils import check_blurry, map_colors, normalize, unnormalize
 import datasets_legacy
 from torch.utils.data import DataLoader
 import torch.nn as nn
@@ -67,6 +69,7 @@ parser.add_argument('--RAM_saver', action='store_true', help='use only a quarter
 parser.add_argument('-tl', '--transfer_learning', default='', type=str, help='use model trained on another experiment')
 parser.add_argument('--wnb', type=str, default='', help='wandb project name for model diagnosis. disabled if empty string')
 parser.add_argument('--h5', action='store_true', help='whether to use h5 dataset, behaviour with RAM saver undefined.')
+parser.add_argument('-hl', '--use_hl', dest='use_hl', type=int, default=-1, help='if non negative then uses hl and the number is the noise')
 
 args = parser.parse_args()
 config = vars(args)
@@ -154,7 +157,7 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             if N_classes == 2:
                 scores_train = np.zeros(0)
             else:
-                scores_train = np.zeros((N_classes, 0))
+                scores_train = np.zeros((0, N_classes))
             true_targets_train = np.zeros(0)
             correct_pos, correct_neg = 0, 0
             total_pos_train, total_neg_train = 0, 0
@@ -171,12 +174,29 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
 
         model.train()
         model.to(DEVICE)
-
+        '''
+        i=0
+        '''
         for batch_idx, minibatch in enumerate(tqdm(dloader_train)):
             data = minibatch['patch'] if args.h5 else minibatch['Data']
             target = minibatch['label'] if args.h5 else  minibatch['Target']
             time_list =  None if args.h5 else minibatch['Time List']
             f_names = minibatch["slide_name"] if args.h5 else minibatch['File Names']
+            
+            
+            '''
+            data = data.unsqueeze(0)
+            non_blurry_flags = check_blurry(data)
+            if non_blurry_flags[0] == False:
+                continue
+            data = data.squeeze()
+            data = data.detach().cpu().numpy()
+            np.save(f'./patches_carmel_rescan/patch_{i}', data)
+            i+=1
+            if i==2000:
+                a=djfdj
+            continue
+            '''
 
             temp_plot = False
             if temp_plot:
@@ -247,7 +267,7 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                     if N_classes == 2:
                         scores_train = np.concatenate((scores_train, outputs[:, 1].cpu().detach().numpy()))
                     else:
-                        scores_train = np.hstack((scores_train, outputs.cpu().detach().numpy().transpose()))
+                        scores_train = np.concatenate((scores_train, outputs.cpu().detach().numpy()))
                     true_targets_train = np.concatenate((true_targets_train, target.cpu().detach().numpy()))
                     total_pos_train += target.eq(1).sum().item()
                     total_neg_train += target.eq(0).sum().item()
@@ -314,19 +334,18 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
                     all_writer.add_scalars('Train/Roc-Auc', {target_list[i_target]: roc_auc_train[i_target]}, e)
                     all_writer.add_scalars('Train/Accuracy', {target_list[i_target]: train_acc[i_target]}, e)
         elif N_classes > 2: #multiclass
-            #calculate binary AUC scores for each threshold
-            for i_thresh in range(N_classes-1):
-                roc_auc_train = np.float64(np.nan)
-                N_pos = np.sum(true_targets_train >= (i_thresh + 1))  # num of positive targets
-                N_neg = np.sum(true_targets_train < (i_thresh + 1))  # num of negative targets
-                if (N_pos > 0) and (N_neg > 0):  # more than one label
-                    scores_train_thresh = np.sum(scores_train[i_thresh+1:, :], axis=0)
-                    true_targets_train_thresh = true_targets_train >= (i_thresh + 1)
-                    fpr_train, tpr_train, _ = roc_curve(true_targets_train_thresh, scores_train_thresh)
-                    roc_auc_train = auc(fpr_train, tpr_train)
-                all_writer.add_scalar('Train/Roc-Auc_thresh' + str(i_thresh), roc_auc_train, e)
-            all_writer.add_scalar('Train/Balanced Accuracy', balanced_acc_train, e)
+            try:
+                roc_ova = multiclass_auc(scores_train, true_targets_train, 'ovr')
+                all_writer.add_scalar('Train/Roc-Auc_one_vs_all', roc_ova, e)
+            except ValueError:
+                roc_ova = None
+            try:
+                roc_ovo = multiclass_auc(scores_train, true_targets_train, 'ovo')            
+                all_writer.add_scalar('Train/Roc-Auc_one_vs_one', roc_ovo, e)
+            except ValueError:
+                roc_ovo = None
             all_writer.add_scalar('Train/Accuracy', train_acc, e)
+            all_writer.add_scalar('Train/Balanced Accuracy', balanced_acc_train, e)
         else:
             roc_auc_train = np.float64(np.nan)
             if len(np.unique(true_targets_train[true_targets_train >= 0])) > 1:  # more than one label
@@ -336,13 +355,23 @@ def train(model: nn.Module, dloader_train: DataLoader, dloader_test: DataLoader,
             all_writer.add_scalar('Train/Roc-Auc', roc_auc_train, e)
             all_writer.add_scalar('Train/Accuracy', train_acc, e)
         all_writer.add_scalar('Train/Loss Per Epoch', train_loss, e)
-        logging.info('Finished Epoch: {}, Loss: {:.4f}, Loss Delta: {:.3f}, Train AUC per patch: {:.2f} , Time: {:.0f} m {:.0f} s'
+        if N_classes > 2:
+            logging.info('Finished Epoch: {}, Loss: {:.4f}, Loss Delta: {:.3f}, Train AUC per patch one vs all: {:.2f}, one vs one {:.2f}, Time: {:.0f} m {:.0f} s'
               .format(e,
                       train_loss,
                       previous_epoch_loss - train_loss,
-                      roc_auc_train if roc_auc_train.size == 1 else roc_auc_train[0],
+                      roc_ova,
+                      roc_ovo,
                       time_epoch // 60,
                       time_epoch % 60))
+        else:
+            logging.info('Finished Epoch: {}, Loss: {:.4f}, Loss Delta: {:.3f}, Train AUC per patch: {:.2f} , Time: {:.0f} m {:.0f} s'
+                  .format(e,
+                          train_loss,
+                          previous_epoch_loss - train_loss,
+                          roc_auc_train if roc_auc_train.size == 1 else roc_auc_train[0],
+                          time_epoch // 60,
+                          time_epoch % 60))
         previous_epoch_loss = train_loss
 
         # Save model to file:
@@ -411,7 +440,7 @@ def check_accuracy(model: nn.Module, data_loader: DataLoader, all_writer, DEVICE
         if N_classes == 2:
             scores_test = np.zeros(0)
         else:
-            scores_test = np.zeros((N_classes, 0))
+            scores_test = np.zeros((0, N_classes))
         true_pos_test, true_neg_test = 0, 0
         total_pos_test, total_neg_test = 0, 0
         true_labels_test = np.zeros(0)
@@ -470,7 +499,7 @@ def check_accuracy(model: nn.Module, data_loader: DataLoader, all_writer, DEVICE
                 if N_classes == 2:
                     scores_test = np.concatenate((scores_test, outputs[:, 1].cpu().detach().numpy()))
                 else:
-                    scores_test = np.hstack((scores_test, outputs.cpu().detach().numpy().transpose()))
+                    scores_test = np.concatenate((scores_test, outputs.cpu().detach().numpy()))
 
                 true_labels_test = np.concatenate((true_labels_test, targets.cpu().detach().numpy()))
                 correct_labeling_test += predicted.eq(targets).sum().item()
@@ -566,17 +595,16 @@ def check_accuracy(model: nn.Module, data_loader: DataLoader, all_writer, DEVICE
             all_writer.add_scalars('Test/Roc-Auc', {target0: roc_auc[0], target1: roc_auc[1]}, epoch)
             all_writer.add_scalars('Test/Accuracy', {target0: acc[0], target1: acc[1]}, epoch)'''
         elif N_classes > 2:  # multiclass
-            # calculate binary AUC scores for each threshold
-            for i_thresh in range(N_classes - 1):
-                roc_auc = np.float64(np.nan)
-                N_pos = np.sum(true_labels_test >= (i_thresh + 1))  # num of positive targets
-                N_neg = np.sum(true_labels_test < (i_thresh + 1))  # num of negative targets
-                if (N_pos > 0) and (N_neg > 0):  # more than one label
-                    scores_test_thresh = np.sum(scores_test[i_thresh + 1:, :], axis=0)
-                    true_targets_test_thresh = true_labels_test >= (i_thresh + 1)
-                    fpr, tpr, _ = roc_curve(true_targets_test_thresh, scores_test_thresh)
-                    roc_auc = auc(fpr, tpr)
-                all_writer.add_scalar('Test/Roc-Auc_thresh_' + str(i_thresh), roc_auc, epoch)
+            try:
+                roc_ova = multiclass_auc(scores_test, true_labels_test, 'ovr')
+                all_writer.add_scalar('Test/Roc-Auc_one_vs_all', roc_ova, epoch)
+            except ValueError:
+                pass
+            try:
+                roc_ovo = multiclass_auc(scores_test, true_labels_test, 'ovo')            
+                all_writer.add_scalar('Test/Roc-Auc_one_vs_one', roc_ovo, epoch)
+            except ValueError:
+                pass
             all_writer.add_scalar('Test/Accuracy', acc, epoch)
             all_writer.add_scalar('Test/Balanced Accuracy', bacc, epoch)
         else:
@@ -598,7 +626,10 @@ def check_accuracy(model: nn.Module, data_loader: DataLoader, all_writer, DEVICE
                 #print('Tile AUC of {:.2f} over Test set'.format(roc_auc))
                 logging.info('Tile AUC of {:.2f} over Test set'.format(roc_auc))
     model.train()
-    return acc, bacc, roc_auc
+    try:
+        return acc, bacc, roc_auc
+    except:
+        return acc, bacc, None
 
 ########################################################################################################
 ########################################################################################################
@@ -686,7 +717,7 @@ if __name__ == '__main__':
                                             val_fold=args.test_fold,
                                            )
         else:
-            train_dset = datasets_legacy.WSI_REGdataset(DataSet=args.dataset,
+            train_dset = datasets.WSI_REGdataset(DataSet=args.dataset,
                                                  tile_size=TILE_SIZE,
                                                  target_kind=args.target,
                                                  test_fold=args.test_fold,
@@ -702,9 +733,10 @@ if __name__ == '__main__':
                                                  er_eq_pr=args.er_eq_pr,
                                                  slide_per_block=args.slide_per_block,
                                                  balanced_dataset=args.balanced_dataset,
-                                                 RAM_saver=args.RAM_saver
+                                                 RAM_saver=args.RAM_saver,
+                                                 use_hl_label = args.use_hl
                                                  )
-            test_dset = datasets_legacy.WSI_REGdataset(DataSet=args.dataset,
+            test_dset = datasets.WSI_REGdataset(DataSet=args.dataset,
                                                 tile_size=TILE_SIZE,
                                                 target_kind=args.target,
                                                 test_fold=args.test_fold,
@@ -717,7 +749,8 @@ if __name__ == '__main__':
                                                 DX=args.dx,
                                                 loan=args.loan,
                                                 er_eq_pr=args.er_eq_pr,
-                                                RAM_saver=args.RAM_saver
+                                                RAM_saver=args.RAM_saver,
+                                                use_hl_label = args.use_hl
                                                 )
         sampler = None
         do_shuffle = True

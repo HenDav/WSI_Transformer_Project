@@ -3,7 +3,8 @@ import matplotlib.pyplot as plt
 import openslide
 import numpy as np
 import cv2
-import os
+import sys, os
+sys.path.insert(0, os.path.abspath('./'))
 from utils import get_optimal_slide_level
 from Dataset_Maker.dataset_utils import get_datasets_dir_dict
 import glob
@@ -41,7 +42,7 @@ else:
     dn = args.dn
     file_list = glob.glob(os.path.join(dn, '*ScoreHeatMap.xlsx'))
     dataset_dir_dict = get_datasets_dir_dict(Dataset=args.dataset)
-    slides_dir = dataset_dir_dict[args.dataset]
+    #slides_dir = dataset_dir_dict[args.dataset]
     calib = args.calib
     binary = args.binary
 
@@ -50,7 +51,12 @@ if not os.path.isdir(os.path.join(dn, 'out')):
 
 for file in file_list:
     slide_name = get_slide_name(file)
-    slide_file = os.path.join(slides_dir, slide_name)
+    for key in dataset_dir_dict:
+        slides_dir = dataset_dir_dict[key]
+        if os.path.isfile(os.path.join(slides_dir, slide_name)):
+            slide_file = os.path.join(slides_dir, slide_name)
+            break
+    #slide_file = os.path.join(slides_dir, slide_name)
 
     if args.superimpose and not os.path.isdir(os.path.join(dn, 'out', slide_name)):
         os.mkdir(os.path.join(dn, 'out', slide_name))

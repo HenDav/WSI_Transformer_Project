@@ -62,6 +62,18 @@ def get_RegModel_Features_location_dict(
                         ],
                         "REG Model Location": r"/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_355-ER-TestFold_1/Model_CheckPoints/model_data_Epoch_1000.pt",
                     },
+                    "Her2_with_cancer": {
+                        "DataSet Name": r"FEATURES: Exp_355-ER-TestFold_-1+Exp_20010-PR-TestFold_-1",
+                        "TrainSet Location": [
+                            "/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_392-Her2-TestFold_1/Inference/train_w_features/",
+                            "/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_627-is_cancer-TestFold_1/Inference/CAT_Her2_train_fold2345_patches_inference_w_features/",
+                        ],
+                        "TestSet Location": [
+                            "/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_392-Her2-TestFold_1/Inference/test_w_features/",
+                            "/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_627-is_cancer-TestFold_1/Inference/CAT_Her2_fold1_patches_inference_w_features/",
+                        ],
+                        "REG Model Location": r"/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_355-ER-TestFold_1/Model_CheckPoints/model_data_Epoch_1000.pt",
+                    },
                     "Her2": {
                         "DataSet Name": r"FEATURES: Exp_392-Her2-TestFold_1 With Locations",
                         "TrainSet Location": r"/home/rschley/code/WSI_MIL/WSI_MIL/runs/Exp_392-Her2-TestFold_1/Inference/train_w_features",
