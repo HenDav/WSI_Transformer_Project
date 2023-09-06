@@ -326,7 +326,7 @@ with torch.no_grad():
 
         data = data.squeeze(0)
         
-        
+        '''
         for patch, loc in zip(data, patch_locs):
             patch = patch.detach().cpu().numpy()
             #locs[i,:] = np.array([loc[1].detach().cpu().numpy(), loc[0].detach().cpu().numpy()]).squeeze()
@@ -336,7 +336,7 @@ with torch.no_grad():
                 #np.save(f'./patches_carmel11/locs', locs)
                 a=djfdj
         continue
-        
+        '''
         
         data, target = data.to(DEVICE), target.to(DEVICE)
         with warnings.catch_warnings():
