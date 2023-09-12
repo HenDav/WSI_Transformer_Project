@@ -227,7 +227,7 @@ class WsiClassifier(LightningModule):
         if len(self.datasets_keys_val)>1:
             dataset_ids_series = pd.Series(dataset_ids)
             for i in range(len(self.datasets_keys_val)):
-                indices = np.argwhere(dataset_ids == i).flatten()
+                indices = np.argwhere(dataset_ids_series.array == i).flatten()
                 if indices.size>3: # for the tracking not to trigger during the sanity check
                     self.log(
                         f"{self.datasets_keys_val[i]}/slide_auc",
