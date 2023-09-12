@@ -15,7 +15,7 @@ from ray import tune
 
 from datasets.datamodules import WsiDataModule  # , LegacyWsiDataModule
 from utils.features_writer import FeaturesWriter  # noqa: F401
-from wsi_classifier import WsiClassifier
+from wsi.wsi_classifier import WsiClassifier
 
 
 def train_wsi(config, num_epochs=100):

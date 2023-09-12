@@ -7,15 +7,17 @@ from pytorch_lightning.cli import ArgsType, LightningCLI
 from pytorch_lightning.loggers.wandb import WandbLogger
 from pytorch_lightning.profilers import AdvancedProfiler
 
-from datasets.datamodules import WsiDataModule  # , LegacyWsiDataModule
-from utils.features_writer import FeaturesWriter  # noqa: F401
-from wsi_classifier import WsiClassifier
+from wsi.datasets.datamodules import WsiDataModule  # , LegacyWsiDataModule
+from wsi.utils.features_writer import FeaturesWriter  # noqa: F401
+from wsi.wsi_classifier import WsiClassifier
 
 torch.set_float32_matmul_precision("high")
 
 class WsiLightningCLI(LightningCLI):
     def add_arguments_to_parser(self, parser):
         parser.link_arguments("data.batch_size", "model.batch_size")
+        parser.link_arguments("data.datasets_folds", "model.datasets_folds")
+        parser.link_arguments("data.datasets_folds_val", "model.datasets_folds_val")
         # allow specifying wandb checkpoint paths in the form of "USER/PROJECT/MODEL-RUN_ID:VERSION"
         # reference can be retrieved in artifacts panel
         # "VERSION" can be a version (ex: "v2") or an alias ("latest or "best_k")

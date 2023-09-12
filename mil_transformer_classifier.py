@@ -13,7 +13,7 @@ from torch.nn import functional as F
 from torchmetrics.functional import auroc
 
 from models.mil_transformer import MilTransformer
-from wsi_classifier import WsiClassifier
+from wsi.wsi_classifier import WsiClassifier
 
 
 class MilTransformerClassifier(LightningModule):

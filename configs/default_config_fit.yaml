@@ -37,7 +37,7 @@ trainer:
   auto_lr_find: false
   auto_scale_batch_size: false
 model:
-  model: resnet101
+  model: resnet50
   lr: 0.006
   num_classes: 2
   ckpt_path: null # for transfer learning
@@ -46,8 +46,8 @@ model:
   criterion: crossentropy
   log_params: false
 data:
-  datasets_folds: {"CAT": [2,3,4,5]}
-  target: ER
+  datasets_folds: {'CAT':[2,3,4,5]}
+  target: er_status
   patches_per_slide_train: 10
   patches_per_slide_eval: 10
   min_tiles_eval: 100
