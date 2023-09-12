@@ -12,15 +12,15 @@ import numpy as np
 import openslide
 import pandas as pd
 import torch
-from legacy.Dataset_Maker.dataset_utils import get_datasets_dir_dict
+from Dataset_Maker.dataset_utils import get_datasets_dir_dict, name_of_gipdeep_host_node
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 from tqdm import tqdm
-from legacy.transformations import define_transformations
-from legacy.utils_MIL import dataset_properties_to_location
+from transformations import define_transformations
+from utils_MIL import dataset_properties_to_location
 
-from legacy.utils import (_choose_data, _get_tiles, assert_dataset_target,
+from utils import (_choose_data, _get_tiles, assert_dataset_target,
                    balance_dataset, chunks, cohort_to_int, get_label,
                    get_optimal_slide_level,
                    map_original_grid_list_to_equiv_grid_list)
@@ -51,7 +51,8 @@ class WSI_Master_Dataset(Dataset):
                  slide_per_block: bool = False,
                  balanced_dataset: bool = False,
                  RAM_saver: bool = False,
-                 patch_dir: str = ''):
+                 patch_dir: str = '',
+                 use_hl_label = -1):
 
         # Multi target training
         N_targets = len(target_kind.split('+'))
@@ -80,6 +81,7 @@ class WSI_Master_Dataset(Dataset):
         self.color_param = color_param
         self.loan = loan
         self.patch_dir = patch_dir
+        self.HL = use_hl_label
 
         # Get DataSets location:
         self.dir_dict = get_datasets_dir_dict(Dataset=self.DataSet)
@@ -105,6 +107,13 @@ class WSI_Master_Dataset(Dataset):
 
             slide_meta_data_DF = pd.read_excel(slide_meta_data_file)
             grid_meta_data_DF = pd.read_excel(grid_meta_data_file)
+            
+            '''
+            name = '21-1335_1_7_a.tif'
+            slide_meta_data_DF = slide_meta_data_DF.loc[slide_meta_data_DF['file'] == name]
+            grid_meta_data_DF = grid_meta_data_DF.loc[grid_meta_data_DF['file'] == name]
+            '''
+            
 
             if use_multiples:
                 if any(grid_meta_data_DF['file'] != slide_meta_data_DF['file']
@@ -125,7 +134,7 @@ class WSI_Master_Dataset(Dataset):
             self.meta_data_DF = meta_data_DF if not hasattr(
                 self,
                 'meta_data_DF') else self.meta_data_DF.append(meta_data_DF)
-
+        
         if self.meta_data_DF['id'].isnull().sum() > 0:
             logging.info('Disregarding slides without id')
             self.meta_data_DF = self.meta_data_DF[
@@ -159,6 +168,9 @@ class WSI_Master_Dataset(Dataset):
                 elif (PR_target == 'Negative'
                       or ER_target == 'Negative'):  # avoid 'Missing Data'
                     all_targets[ii] = 'Negative'
+        elif self.target_kind in ['Her2Score']:
+            score_to_target = {0:0, 0.5:1, 1:2, 1.5:3, 2:3, 2.5:3, 3:4, 'Missing Data': 'Missing Data'}
+            all_targets = [score_to_target[x] for x in list(self.meta_data_DF['Her2 score'])]
 
         elif self.target_kind in [
                 'Survival_Time', 'Survival_Binary'
@@ -316,7 +328,12 @@ class WSI_Master_Dataset(Dataset):
             fold_column_name = 'test fold idx for is_tel_aml_B'
         else:
             fold_column_name = 'test fold idx'
-
+        forbidden_values = ['1', '2', '3', '4', '5']
+        values_in_folds = list(self.meta_data_DF[fold_column_name].unique())
+        
+        for item in values_in_folds:
+            if item in forbidden_values:
+                raise ValueError(f'fold column contains forbidden values: {values_in_folds}') 
         if self.train_type in ['REG', 'MIL']:
             if self.train:
                 folds = list(self.meta_data_DF[fold_column_name].unique())
@@ -326,6 +343,11 @@ class WSI_Master_Dataset(Dataset):
                     folds.remove('test')
                 if 'val' in folds:
                     folds.remove('val')
+                if 'Missing Data' in folds:
+                    folds.remove('Missing Data')
+                for item in folds:
+                    if item not in [1,2,3,4,5,1.0,2.0,3.0,4.0,5.0]:
+                        folds.remove(item)
             else:
                 if test_fold != -1:
                     folds = [self.test_fold, 'val']
@@ -349,7 +371,7 @@ class WSI_Master_Dataset(Dataset):
         correct_folds = self.meta_data_DF[fold_column_name][
             valid_slide_indices].isin(folds)
         valid_slide_indices = np.array(correct_folds.index[correct_folds])
-
+        
         all_image_file_names = list(self.meta_data_DF['file'])
         all_image_ids = list(self.meta_data_DF['id'])
 
@@ -419,18 +441,43 @@ class WSI_Master_Dataset(Dataset):
         self.slides = []
         self.grid_lists = []
         self.presaved_tiles = []
+        
+        if self.HL >= 0:
+            if self.HL == 0:
+                col_hl = 'label_HL'
+            else:
+                col_hl = f'label_HL_noisy_ {self.HL}'
+            HL_df = pd.read_excel('./Summary_data_per_slide_With_HL_noisy.xlsx')
+            HL_df = HL_df [HL_df[col_hl].notna()]
+            print(f'len of hl df is {len(HL_df)}')
+            counter = 0
 
         if self.target_kind in ['Survival_Time', 'Survival_Binary']:
             self.target_binary, self.target_cont, self.censored, self.cohort = [], [], [], []
 
         for _, index in enumerate(tqdm(valid_slide_indices)):
             if (self.DX and all_is_DX_cut[index]) or not self.DX:
+                if self.HL >= 0:
+                    dataset = self.dir_dict[all_image_ids[index]].split('/')
+                    idx = dataset.index('Breast')+1
+                    dataset = dataset[idx].split('_')[0]
+                    slide_name = all_image_file_names[index]
+                    slides = HL_df[HL_df['DatasetName'] == dataset]
+                    slides = slides[slides['SlideName'] == slide_name]
+                    if len(slides) == 0:
+                        counter+=1
+                        continue
+                    if len(slides) > 1:
+                        raise Exception(f'more than one slide with the name {slide_name} in {dataset}')
+                    target = slides[col_hl].item()
+                    self.target.append(target)
                 self.image_file_names.append(all_image_file_names[index])
                 self.image_path_names.append(
                     self.dir_dict[all_image_ids[index]])
                 self.in_fold.append(all_in_fold[index])
                 self.tissue_tiles.append(all_tissue_tiles[index])
-                self.target.append(all_targets[index])
+                if self.HL < 0:
+                    self.target.append(all_targets[index])
                 self.magnification.append(all_magnifications[index])
                 self.presaved_tiles.append(
                     all_image_ids[index] == 'ABCTB_TILES')
@@ -485,6 +532,13 @@ class WSI_Master_Dataset(Dataset):
                     raise FileNotFoundError(
                         'Couldn\'t open slide {} or its Grid file {}'.format(
                             image_file, grid_file))
+        if self.HL >= 0:
+            print(f'skipped {counter} slides because of no hl label')
+        
+        with open(f'slide_names/{self.DataSet}_folds_{folds}_target_{self.target_kind}.txt', 'w') as f:
+            for label, name in zip(self.target, self.image_file_names):
+                f.write(f"name: {name}, label: {label}\n")
+            print("saved names of slides to file")
 
         # Setting the transformation:
         if self.DataSet[:3] == 'TMA':
@@ -677,7 +731,8 @@ class WSI_REGdataset(WSI_Master_Dataset):
                  er_eq_pr: bool = False,
                  slide_per_block: bool = False,
                  balanced_dataset: bool = False,
-                 RAM_saver: bool = False):
+                 RAM_saver: bool = False,
+                 use_hl_label = -1):
         super(WSI_REGdataset, self).__init__(
             DataSet=DataSet,
             tile_size=tile_size,
@@ -696,7 +751,8 @@ class WSI_REGdataset(WSI_Master_Dataset):
             er_eq_pr=er_eq_pr,
             slide_per_block=slide_per_block,
             balanced_dataset=balanced_dataset,
-            RAM_saver=RAM_saver)
+            RAM_saver=RAM_saver,
+            use_hl_label=use_hl_label)
 
         self.loan = loan
         logging.info(
@@ -742,7 +798,8 @@ class Infer_Dataset(WSI_Master_Dataset):
                  resume_slide: int = 0,
                  patch_dir: str = '',
                  balanced_dataset: bool = False,
-                 chosen_seed: int = None):
+                 chosen_seed: int = None,
+                 use_hl_label = -1):
         super(Infer_Dataset, self).__init__(
             DataSet=DataSet,
             tile_size=tile_size,
@@ -758,7 +815,8 @@ class Infer_Dataset(WSI_Master_Dataset):
             train_type='Infer',
             desired_slide_magnification=desired_slide_magnification,
             balanced_dataset=balanced_dataset,
-            patch_dir=patch_dir)
+            patch_dir=patch_dir,
+            use_hl_label = use_hl_label)
 
         self.tiles_per_iter = tiles_per_iter
         self.folds = folds
@@ -946,7 +1004,7 @@ class Features_MILdataset_combined(Dataset):
     def __init__(
         self,
         dataset: str = r'TCGA_ABCTB',
-        # assuming a list of 2 locations (is that a valid assumption?)
+        # assuming a list of 2 locations
         data_location: list = [
             r'/Users/wasserman/Developer/WSI_MIL/All Data/Features/'
         ],
@@ -969,8 +1027,13 @@ class Features_MILdataset_combined(Dataset):
         print_timing: bool = False
         # slide_repetitions: int = 1
     ):
-        # currently only support combining ER and PR features
-        targets = target.split('_')
+        if type(target) is str:
+            targets = target.split('_')
+            targets = [targets[0], targets[2]]
+        elif type(target) is list:
+            targets = target
+        else:
+            raise Exception("target type not supported")
         self.ER_dataset = Features_MILdataset(
             dataset, data_location[0], bag_size, minimum_tiles_in_slide,
             is_per_patient, is_all_tiles, fixed_tile_num, is_repeating_tiles,
@@ -979,7 +1042,7 @@ class Features_MILdataset_combined(Dataset):
         self.PR_dataset = Features_MILdataset(
             dataset, data_location[1], bag_size, minimum_tiles_in_slide,
             is_per_patient, is_all_tiles, fixed_tile_num, is_repeating_tiles,
-            targets[2], is_train, data_limit, test_fold, carmel_only,
+            targets[1], is_train, data_limit, test_fold, carmel_only,
             print_timing, False)
         self.receptor_plus_is_tumor_dset = self.ER_dataset.receptor_plus_is_tumor_dset
         self.train_type = self.ER_dataset.train_type
@@ -1075,6 +1138,7 @@ class Features_MILdataset(Dataset):
     ):
         # to support consistent sampling between 2 dataset classes in the get_item function, assumes this is shared between classes with the same parameters
         # so dimensions should be the same
+        self.magnification = 10
         self.tile_idx = None
         self.sample_tiles = sample_tiles
         self.is_per_patient, self.is_all_tiles, self.is_repeating_tiles = is_per_patient, is_all_tiles, is_repeating_tiles
@@ -1207,25 +1271,28 @@ class Features_MILdataset(Dataset):
         #
         #     else:
         #         raise Exception("Need to write which dictionaries to use in this receptor case")
-
+        if name_of_gipdeep_host_node() == "gipdeep10":
+            path_init = r'/data/'
+        else:
+            path_init = r'/mnt/gipmed_new/Data/'
         if sys.platform == 'linux':
-            if dataset in ['TCGA_ABCTB']:
-                if target in ['ER', 'ER_Features', 'PR', 'PR_Features', 'Her2', 'Her2_Features']:  
+            if dataset in ['TA 6', 'TCGA_ABCTB']:
+                if target in ['ER', 'ER_Features', 'PR', 'PR_Features', 'Her2', 'Her2_Features', 'ER_OR_PR']:  
                     # target in ['PR', 'PR_Features', 'Her2', 'Her2_Features'] and test_fold == 1):
                     grid_location_dict = {
                         'TCGA':
-                        r'/mnt/gipmed_new/Data/Breast/TCGA/Grids_10/Grid_data.xlsx',
+                        path_init + r'Breast/TCGA/Grids_10/Grid_data.xlsx',
                         'ABCTB':
-                        r'/mnt/gipmed_new/Data/Breast/ABCTB_TIF/Grids_10/Grid_data.xlsx'
+                        path_init + r'Breast/ABCTB_TIF/Grids_10/Grid_data.xlsx'
                     }
                     slide_data_DF_dict = {
                         'TCGA':
                         pd.read_excel(
-                            r'/mnt/gipmed_new/Data/Breast/TCGA/slides_data_TCGA.xlsx'
+                            path_init + r'Breast/TCGA/slides_data_TCGA.xlsx'
                         ),
                         'ABCTB':
                         pd.read_excel(
-                            r'/mnt/gipmed_new/Data/Breast/ABCTB_TIF/slides_data_ABCTB.xlsx'
+                            path_init + r'Breast/ABCTB_TIF/slides_data_ABCTB.xlsx'
                         )
                     }
 
@@ -1234,39 +1301,40 @@ class Features_MILdataset(Dataset):
             ]:
                 grid_location_dict = {
                     'ABCTB':
-                    r'/mnt/gipmed_new/Data/Breast/ABCTB_TIF/Grids_10/Grid_data.xlsx'
+                    path_init + r'Breast/ABCTB_TIF/Grids_10/Grid_data.xlsx'
                 }
                 slide_data_DF_dict = {
                     'ABCTB':
                     pd.read_excel(
-                        r'/mnt/gipmed_new/Data/Breast/ABCTB_TIF/slides_data_ABCTB.xlsx'
+                        path_init + r'Breast/ABCTB_TIF/slides_data_ABCTB.xlsx'
                     )
                 }
 
             elif dataset in ['CAT', 'CAT with Location']:
                 grid_location_dict = {
                     'TCGA':
-                    r'/mnt/gipmed_new/Data/Breast/TCGA/Grids_10/Grid_data.xlsx',
+                    path_init + r'Breast/TCGA/Grids_10/Grid_data.xlsx',
                     'ABCTB':
-                    r'/mnt/gipmed_new/Data/Breast/ABCTB_TIF/Grids_10/Grid_data.xlsx'
-                }.update({
+                    path_init + r'Breast/ABCTB_TIF/Grids_10/Grid_data.xlsx'
+                }
+                grid_location_dict.update({
                     f'CARMEL{i}':
-                    fr'/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_{i}/CARMEL{i}/Grids_10/Grid_data.xlsx'
+                    path_init + fr'Breast/Carmel/1-8/Batch_{i}/CARMEL{i}/Grids_10/Grid_data.xlsx'
                     for i in range(1, 9)
                 })
-
                 slide_data_DF_dict = {
                     'TCGA':
                     pd.read_excel(
-                        r'/mnt/gipmed_new/Data/Breast/TCGA/slides_data_TCGA.xlsx'
+                        path_init + r'Breast/TCGA/slides_data_TCGA.xlsx'
                     ),
                     'ABCTB':
                     pd.read_excel(
-                        r'/mnt/gipmed_new/Data/Breast/ABCTB_TIF/slides_data_ABCTB.xlsx'
+                        path_init + r'Breast/ABCTB_TIF/slides_data_ABCTB.xlsx'
                     )
-                }.update({
+                }
+                slide_data_DF_dict.update({
                     f'CARMEL{i}': pd.read_excel(
-                        fr'/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_{i}/CARMEL{i}/slides_data_CARMEL{i}.xlsx'
+                        path_init + fr'Breast/Carmel/1-8/Batch_{i}/CARMEL{i}/slides_data_CARMEL{i}.xlsx'
                     )
                     for i in range(1, 9)
                 })
@@ -1274,35 +1342,102 @@ class Features_MILdataset(Dataset):
             elif dataset in ['HAEMEK']:
                 grid_location_dict = {
                     'HAEMEK':
-                    r'/mnt/gipmed_new/Data/Breast/Haemek/Batch_1/HAEMEK1/Grids_10/Grid_data.xlsx'
+                    path_init + r'Breast/Haemek/Haemek_cancer_HE/Batch_1/HAEMEK1/Grids_10/Grid_data.xlsx'
                 }
                 slide_data_DF_dict = {
                     'HAEMEK':
                     pd.read_excel(
-                        '/mnt/gipmed_new/Data/Breast/Haemek/Batch_1/HAEMEK1/slides_data_HAEMEK1.xlsx'
+                        path_init + 'Breast/Haemek/Haemek_cancer_HE/Batch_1/HAEMEK1/slides_data_HAEMEK1.xlsx'
                     )
                 }
             elif dataset in ['PORTUGAL']:
                 grid_location_dict = {
                     'PORTUGAL':
-                    r'/mnt/gipmed_new/Data/Breast/portugul/portugul/Grids_10/Grid_data.xlsx'
+                    path_init + r'Breast/Ipatimup2/portugul/Grids_10/Grid_data.xlsx'
                 }
                 slide_data_DF_dict = {
                     'PORTUGAL':
                     pd.read_excel(
-                        '/mnt/gipmed_new/Data/Breast/portugul/portugul/slides_data_portugul.xlsx'
+                        path_init + 'Breast/Ipatimup2/portugul/slides_data_portugul.xlsx'
                     )
                 }
+            elif dataset in ['CARMEL100']:
+                grid_location_dict = {
+                    'PORTUGAL':
+                    path_init + r'Breast/Carmel/full_Carmel_Oncotype/CARMEL100/Grids_10/Grid_data.xlsx'
+                }
+                slide_data_DF_dict = {
+                    'PORTUGAL':
+                    pd.read_excel(
+                        path_init + 'Breast/Carmel/full_Carmel_Oncotype/CARMEL100/slides_data_CARMEL100.xlsx'
+                    )
+                }
+                
+            elif dataset in ['Carmel_Rescan']:
+                self.magnification = 2
+                grid_location_dict = {
+                    'Carmel_Rescan':
+                    path_init + r'unsynced_data/Rescan_TIF/RESCAN_1/Grids_2/Grid_data.xlsx'
+                }
+                slide_data_DF_dict = {
+                    'Carmel_Rescan':
+                    pd.read_excel(
+                        path_init + 'unsynced_data/Rescan_TIF/RESCAN_1/slides_data_RESCAN_1.xlsx'
+                    )
+                }
+            elif dataset in ['CARMEL+BENIGN']:                    
+                grid_location_dict = {
+                    f'CARMEL{i}':
+                    path_init + fr'Breast/Carmel/1-8/Batch_{i}/CARMEL{i}/Grids_10/Grid_data.xlsx'
+                    for i in range(1, 9)
+                }
+                grid_location_dict.update({
+                     f'BENIGN{i}':
+                    path_init + fr'Breast/Carmel/Benign/Batch_{i}/BENIGN{i}/Grids_10/Grid_data.xlsx'
+                    for i in range(1, 7)   
+                })
+                slide_data_DF_dict = {
+                    f'CARMEL{i}': pd.read_excel(
+                        path_init + fr'Breast/Carmel/1-8/Batch_{i}/CARMEL{i}/slides_data_CARMEL{i}.xlsx'
+                    )
+                    for i in range(1, 9)
+                }
+                slide_data_DF_dict.update({
+                    f'BENIGN{i}': pd.read_excel(
+                        path_init + fr'Breast/Carmel/Benign/Batch_{i}/BENIGN{i}/slides_data_BENIGN{i}.xlsx'
+                    )
+                    for i in range(1, 7)
+                })
+            elif dataset in ['Carmel_IHC']:
+                grid_location_dict = {
+                    f'CARMEL_her2_1':
+                    path_init + fr'Breast/Carmel/Her2/Batch_1/Her2_1/Grids_10/Grid_data.xlsx'
+                }
+                grid_location_dict.update({
+                    f'CARMEL_her2_{i}':
+                    path_init + fr'Breast/Carmel/Her2/Batch_{i}/HER2_{i}/Grids_10/Grid_data.xlsx'
+                    for i in range(2, 7)
+                })
+                slide_data_DF_dict = {
+                    f'CARMEL_her2_1': pd.read_excel(
+                    path_init + fr'Breast/Carmel/Her2/Batch_1/Her2_1/slides_data_HER2_1.xlsx')
+                }
+                slide_data_DF_dict.update({
+                    f'CARMEL_her2_{i}': pd.read_excel(
+                        path_init + fr'Breast/Carmel/Her2/Batch_{i}/HER2_{i}/slides_data_HER2_{i}.xlsx'
+                    )
+                    for i in range(2, 7)
+                })
             
             elif dataset in ['SHEBA']:
                 grid_location_dict = {
                     f'SHEBA{i}':
-                    fr'/mnt/gipmed_new/Data/Breast/Sheba/Batch_{i}/SHEBA{i}/Grids_10/Grid_data.xlsx'
+                    path_init + fr'Breast/Sheba/Batch_{i}/SHEBA{i}/Grids_10/Grid_data.xlsx'
                     for i in range(2, 7)
                 }
                 slide_data_DF_dict = {
                     f'SHEBA{i}': pd.read_excel(
-                        fr'/mnt/gipmed_new/Data/Breast/Sheba/Batch_{i}/SHEBA{i}/slides_data_SHEBA{i}.xlsx'
+                        path_init + fr'Breast/Sheba/Batch_{i}/SHEBA{i}/slides_data_SHEBA{i}.xlsx'
                     )
                     for i in range(2, 7)
                 }
@@ -1310,12 +1445,12 @@ class Features_MILdataset(Dataset):
             elif dataset == 'CARMEL':
                 grid_location_dict = {
                     f'CARMEL{i}':
-                    fr'/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_{i}/CARMEL{i}/Grids_10/Grid_data.xlsx'
+                    path_init + fr'Breast/Carmel/1-8/Batch_{i}/CARMEL{i}/Grids_10/Grid_data.xlsx'
                     for i in range(1, 9)
                 }
                 slide_data_DF_dict = {
                     f'CARMEL{i}': pd.read_excel(
-                        fr'/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_{i}/CARMEL{i}/slides_data_CARMEL{i}.xlsx'
+                        path_init + fr'Breast/Carmel/1-8/Batch_{i}/CARMEL{i}/slides_data_CARMEL{i}.xlsx'
                     )
                     for i in range(1, 9)
                 }
@@ -1323,12 +1458,12 @@ class Features_MILdataset(Dataset):
             elif dataset == 'CARMEL 9-11':
                 grid_location_dict = {
                     f'CARMEL{i}':
-                    fr'/mnt/gipmed_new/Data/Breast/Carmel/9-11/Batch_{i}/CARMEL{i}/Grids_10/Grid_data.xlsx'
+                    path_init + fr'Breast/Carmel/9-11/Batch_{i}/CARMEL{i}/Grids_10/Grid_data.xlsx'
                     for i in range(9, 12)
                 }
                 slide_data_DF_dict = {
                     f'CARMEL{i}': pd.read_excel(
-                        fr'/mnt/gipmed_new/Data/Breast/Carmel/9-11/Batch_{i}/CARMEL{i}/slides_data_CARMEL{i}.xlsx'
+                        path_init + fr'Breast/Carmel/9-11/Batch_{i}/CARMEL{i}/slides_data_CARMEL{i}.xlsx'
                     )
                     for i in range(9, 12)
                 }
@@ -1336,30 +1471,30 @@ class Features_MILdataset(Dataset):
             elif dataset == "HIC":
                 grid_location_dict = {
                     'HEROHE':
-                    r'/mnt/gipmed_new/Data/Breast/HEROHE/Grids_10/Grid_data.xlsx',
+                    path_init + r'Breast/HEROHE/Grids_10/Grid_data.xlsx',
                     'Ipatimup':
-                    r'/mnt/gipmed_new/Data/Breast/Ipatimup/Grids_10/Grid_data.xlsx',
+                    path_init + r'Breast/Ipatimup/Grids_10/Grid_data.xlsx',
                     'Covilha':
-                    r'/mnt/gipmed_new/Data/Breast/Covilha/Grids_10/Grid_data.xlsx'
+                    path_init + r'Breast/Covilha/Grids_10/Grid_data.xlsx'
                 }
                 slide_data_DF_dict = {
                     'HEROHE':
                     pd.read_excel(
-                        r'/mnt/gipmed_new/Data/Breast/HEROHE/slides_data_HEROHE.xlsx'
+                        path_init + r'Breast/HEROHE/slides_data_HEROHE.xlsx'
                     ),
                     'Ipatimup':
                     pd.read_excel(
-                        r'/mnt/gipmed_new/Data/Breast/Ipatimup/slides_data_Ipatimup.xlsx'
+                        path_init + r'Breast/Ipatimup/slides_data_Ipatimup.xlsx'
                     ),
                     'Covilha':
                     pd.read_excel(
-                        r'/mnt/gipmed_new/Data/Breast/Covilha/slides_data_Covilha.xlsx'
+                        path_init + r'Breast/Covilha/slides_data_Covilha.xlsx'
                     ),
                 }
 
             else:
                 raise Exception(
-                    "Need to write which dictionaries to use in this receptor case"
+                    f"Need to write which dictionaries to use in this receptor case"
                 )
 
         grid_DF = pd.DataFrame()
@@ -1375,7 +1510,7 @@ class Features_MILdataset(Dataset):
         if type(data_files) is dict:
             data_files_2 = data_files['is_Tumor']
             data_files = data_files['Receptor']
-            
+        
         for file_idx, file in enumerate(tqdm(data_files)):
             with open(file, 'rb') as filehandle:
                 inference_data = pickle.load(filehandle)
@@ -1441,7 +1576,7 @@ class Features_MILdataset(Dataset):
                     column_title = 'Legitimate tiles - 256 compatible @ X' + dataset.split(
                         '_')[-1]
                 else:
-                    column_title = 'Legitimate tiles - 256 compatible @ X10'
+                    column_title = f'Legitimate tiles - 256 compatible @ X{self.magnification}'
 
                 try:
                     tiles_in_slide_from_grid_data = int(
@@ -1454,6 +1589,9 @@ class Features_MILdataset(Dataset):
                     )
                     total_slides -= 1
                     continue
+                except:
+                    print(f'{slide_names[slide_num]}')
+                    raise
 
                 # Checking that the number of tiles in Grid_data.xlsx is equall to the one found in the actual data
                 if tiles_in_slide_from_grid_data < tiles_in_slide:
@@ -1576,7 +1714,6 @@ class Features_MILdataset(Dataset):
                     # self.tile_location.append(tile_location[slide_num, :tiles_in_slide, :])
                     self.tile_location.append(
                         tile_location[slide_num, :tiles_in_slide])
-
                 # Checking for consistency between targets loaded from the feature files and slides_data_DF.
                 # The location of this check should include per patient dataset or per slide dataset
                 # FIXME: is this necessary when not doing per_patient? doesn't look like it and it causes an error when doing extraction for OR
@@ -1666,7 +1803,7 @@ class Features_MILdataset(Dataset):
                         # Skip slides that have a "bad segmentation" marker in GridData.xlsx file
                         if grid_DF.loc[slide_names[slide_num],
                                        'bad segmentation'] == 1:
-                            slides_with_bad_segmentation_is_Tumor += 1
+                            slides_with_bad_segmentation += 1
                             continue
                     except ValueError:
                         raise Exception('Debug')
@@ -2816,19 +2953,23 @@ class One_Full_Slide_Inference_Dataset(WSI_Master_Dataset):
 class Batched_Full_Slide_Inference_Dataset(WSI_Master_Dataset):
 
     def __init__(self,
+                 DataSet: str = None,
+                 slide: str = None,
                  tile_size: int = 256,
                  tiles_per_iter: int = 500,
                  target_kind: str = 'ER',
                  desired_slide_magnification: int = 10,
                  num_background_tiles: int = 0):
-        f = open('Infer_Slides.txt', 'r')
-        DataSet = f.readline().split('\n')[0]
-        self.slide_names = []
-        for line in f:
-            if line.isspace():
-                continue
-            self.slide_names.append(line.split('\n')[0])
-        f.close()
+        if DataSet == None:
+            f = open('Infer_Slides.txt', 'r')
+            DataSet = f.readline().split('\n')[0]
+            self.slide_names = []
+            for line in f:
+                if line.isspace():
+                    continue
+                self.slide_names.append(line.split('\n')[0])
+            f.close()
+        
 
         super(Batched_Full_Slide_Inference_Dataset, self).__init__(
             DataSet=DataSet,

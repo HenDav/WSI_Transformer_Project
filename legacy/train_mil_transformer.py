@@ -30,6 +30,11 @@ def cli_main():
         help="load training state from lightning checkpoint",
     )
     parser.add_argument(
+        "--user",
+        default=None,
+        help="wandb checkpoint from another user who is not tal",
+    )
+    parser.add_argument(
         "--patience",
         type=int,
         default=0,
@@ -73,6 +78,9 @@ def cli_main():
     # dataset args
     parser.add_argument(
         "--dataset", type=str, default="CAT", help="dataset to train on"
+    )
+    parser.add_argument(
+        '--batch', type=int, default=9, help='Batch No. for carmel test dataset (9, 10, 11)'
     )
     parser.add_argument(
         "--dataset_type",
@@ -269,17 +277,25 @@ def cli_main():
 
     ckpt_path = args.ckpt_path
     if ckpt_path is not None and ckpt_path.startswith("wandb"):
+        if args.user is not None:
+            user = args.user
+        else:
+            user = "talneoran"
         run_id, run_version = args.ckpt_path.split(":")[1:]
-        checkpoint_reference = f"talneoran/MIL-Transformer/model-{run_id}:{run_version}"
+        checkpoint_reference = f"{user}/MIL-Transformer/model-{run_id}:{run_version}"
         # download checkpoint locally (if not already cached)
         if args.no_wandb:
             artifact_dir = WandbLogger.download_artifact(
                 artifact=checkpoint_reference, artifact_type="model"
             )
         else:
-            artifact_dir = logger.download_artifact(
-                artifact=checkpoint_reference, artifact_type="model"
-            )
+            try:
+                artifact_dir = logger.download_artifact(
+                    artifact=checkpoint_reference, artifact_type="model"
+                )
+            except:
+                artifact_dir = logger.experiment.use_artifact(checkpoint_reference, "model").download()
+                
         ckpt_path = os.path.join(artifact_dir, "model.ckpt")
 
     # only test with given checkpoint on test_features_dir

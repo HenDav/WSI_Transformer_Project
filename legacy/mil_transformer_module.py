@@ -75,16 +75,27 @@ class MilTransformerModule(LightningModule):
         return {"loss": loss, "scores": scores.detach(), "y": y}
 
     def training_epoch_end(self, outputs):
-        self.log(
+        if torchmetrics.__version__ == '0.9.3': #the version in environment_master
+            self.log(
             "train_auc",
             auroc(
                 torch.cat([x["scores"] for x in outputs], dim=0),
-                torch.cat([x["y"] for x in outputs]),
-                task="binary",
+                torch.cat([x["y"] for x in outputs])
             ),
             prog_bar=True,
             logger=True,
-        )
+            ) 
+        else: 
+            self.log(
+                "train_auc",
+                auroc(
+                    torch.cat([x["scores"] for x in outputs], dim=0),
+                    torch.cat([x["y"] for x in outputs]),
+                    task="binary",
+                ),
+                prog_bar=True,
+                logger=True,
+            )
 
     def validation_step(self, batch, batch_idx):
         loss, scores, y = self.shared_step(batch)
@@ -96,16 +107,27 @@ class MilTransformerModule(LightningModule):
         return {"loss": loss, "scores": scores, "y": y}
 
     def validation_epoch_end(self, outputs):
-        self.log(
-            "val_auc",
-            auroc(
-                torch.cat([x["scores"] for x in outputs], dim=0),
-                torch.cat([x["y"] for x in outputs]),
-                task="binary",
-            ),
-            prog_bar=True,
-            logger=True,
-        )
+        if torchmetrics.__version__ == '0.9.3': #the version in environment_master
+            self.log(
+                "val_auc",
+                auroc(
+                    torch.cat([x["scores"] for x in outputs], dim=0),
+                    torch.cat([x["y"] for x in outputs])
+                ),
+                prog_bar=True,
+                logger=True,
+            )
+        else:
+            self.log(
+                "val_auc",
+                auroc(
+                    torch.cat([x["scores"] for x in outputs], dim=0),
+                    torch.cat([x["y"] for x in outputs]),
+                    task="binary",
+                ),
+                prog_bar=True,
+                logger=True,
+            )
 
     def test_step(self, batch, batch_idx):
         # TODO: figure out how to make this only run on a single gpu/node in case running with multigpu
@@ -157,20 +179,36 @@ class MilTransformerModule(LightningModule):
         if not slide_targets.unique().shape[0] == 1:
             # TODO: only supports binary classification?
             # self.log('test_slide_acc_max', torchmetrics.functional.accuracy(all_slide_scores_max, torch.stack([x['y'] for x in outputs]).squeeze()))
-            self.log(
-                "test_slide_auc_max",
-                torchmetrics.functional.auroc(
-                    all_slide_scores_max, slide_targets, task="binary"
-                ),
-            )
+            if torchmetrics.__version__ == '0.9.3': #the version in environment_master
+                self.log(
+                    "test_slide_auc_max",
+                    torchmetrics.functional.auroc(
+                        all_slide_scores_max, slide_targets
+                    ),
+                )
 
-            # self.log('test_slide_acc_avg', torchmetrics.functional.accuracy(all_slide_scores_avg, torch.cat([x['y'] for x in outputs]).squeeze()))
-            self.log(
-                "test_slide_auc_avg",
-                torchmetrics.functional.auroc(
-                    all_slide_scores_avg, slide_targets, task="binary"
-                ),
-            )
+                # self.log('test_slide_acc_avg', torchmetrics.functional.accuracy(all_slide_scores_avg, torch.cat([x['y'] for x in outputs]).squeeze()))
+                self.log(
+                    "test_slide_auc_avg",
+                    torchmetrics.functional.auroc(
+                        all_slide_scores_avg, slide_targets
+                    ),
+                )
+            else:
+                self.log(
+                    "test_slide_auc_max",
+                    torchmetrics.functional.auroc(
+                        all_slide_scores_max, slide_targets, task="binary"
+                    ),
+                )
+
+                # self.log('test_slide_acc_avg', torchmetrics.functional.accuracy(all_slide_scores_avg, torch.cat([x['y'] for x in outputs]).squeeze()))
+                self.log(
+                    "test_slide_auc_avg",
+                    torchmetrics.functional.auroc(
+                        all_slide_scores_avg, slide_targets, task="binary"
+                    ),
+                )
 
         # save slide scores
         df = pd.DataFrame(

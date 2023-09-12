@@ -284,36 +284,13 @@ class PreActResNet_Ron(nn.Module):
             #print('OutPut size from Conv-Net is of size {}'.format(out.shape))
             #if x.shape[2] <= 256 or x.shape[2] == 1024 or x.shape[2] == 2048:  # If input is in the original tile size dimensions (using <= and not == for the case tile is 128 pixels)
             if x.shape[2] <= 256 or x.shape[2] == 1024 or x.shape[2] >= 2048:
-                image_to_compute_MilWeights = F.avg_pool2d(out, kernel_size=32, stride=1, padding=16, count_include_pad=False)
                 initial_image_size = out.shape[2]
-                out_for_dict = out
                 #vectored_image = out.view(out.size(2) * out.size(3), -1)
                 vectored_image = torch.transpose(torch.reshape(out.squeeze(0), (out.size(1), out.size(2) * out.size(3))), 1, 0)
                 vectored_heat_image_2_channels = self.linear(vectored_image)
                 vectored_heat_image = vectored_heat_image_2_channels[:, 1] - vectored_heat_image_2_channels[:, 0]
                 small_heat_map = vectored_heat_image.view(1, 1, initial_image_size, initial_image_size)
-
-                # Upsampling the heat map:
-                large_heat_map = F.interpolate(small_heat_map, size=x.shape[2], mode='bilinear')
-
-                # Computing the scores:
-                out = F.avg_pool2d(out, out.shape[3])
-                features = out.view(out.size(0), -1)
-                out = self.linear(features)
-
-                data_dict_4_gil = {'linear_weights': self.linear.weight.cpu().numpy(),
-                                   'linear_bias': self.linear.bias.cpu().numpy(),
-                                   'heat_map': small_heat_map.squeeze().cpu().numpy(),
-                                   'feature_map': out_for_dict.squeeze(0).cpu().numpy(),
-                                   }
-                out_data_dict = {'Large Heat Map': large_heat_map,
-                                 'Small Heat Map': small_heat_map,
-                                 'Scores': out,
-                                 'Data 4 Gil': data_dict_4_gil,
-                                 'Features': features,
-                                 'Large Image for MIL Weights': image_to_compute_MilWeights,
-                                 'Large Image for MIL Weights Without Averaging Sliding Window': out_for_dict}
-                return out_data_dict
+                return small_heat_map
 
             else:
                 raise Exception('Need to correct the code')
@@ -431,7 +408,6 @@ class PreActResNet_Ron_DomainAdaptation(nn.Module):
 def PreActResNet50_Ron(train_classifier_only=False, num_classes=2):
     model = PreActResNet_Ron(PreActBottleneck_Ron, [3, 4, 6, 3], num_classes=num_classes)
     model.model_name = THIS_FILE + 'PreActResNet50_Ron()'
-    print(model.model_name)
 
     if train_classifier_only:
         model.model_name = THIS_FILE + 'PreActResNet50_Ron(train_classifier_only=True)'

@@ -118,14 +118,18 @@ def get_datasets_dir_dict(Dataset: str):
         path_init = r'/data/'
     else:
         path_init = r'/mnt/gipmed_new/Data/'
+    ssd_path = r'/SSDStorage/'
 
     dir_dict = {}
     TCGA_gipdeep_path = path_init + r'Breast/TCGA'
+    TCGA_ssd_path = ssd_path + r'Breast/TCGA'
     ABCTB_gipdeep_path = path_init + r'Breast/ABCTB_ndpi/ABCTB'
     HEROHE_gipdeep_path = path_init + r'Breast/HEROHE'
     SHEBA_gipdeep_path = path_init + r'Breast/Sheba'
     ABCTB_TIF_gipdeep_path = path_init + r'Breast/ABCTB_TIF'
+    ABCTB_TIF_ssd_path = ssd_path + r'Breast/ABCTB_TIF'
     CARMEL_gipdeep_path = path_init + r'Breast/Carmel'
+    CARMEL_ssd_path = ssd_path + r'Breast/Carmel'
     TCGA_LUNG_gipdeep_path = path_init + r'Lung/TCGA_Lung/TCGA_LUNG'
     ALL_gipdeep_path = path_init + r'BoneMarrow/ALL'
     AML_gipdeep_path = path_init + r'BoneMarrow/AML/AML'
@@ -133,9 +137,17 @@ def get_datasets_dir_dict(Dataset: str):
     Covilha_gipdeep_path = path_init + r'Breast/Covilha'
     TMA_HE_02_008_gipdeep_path = path_init + r'Breast/TMA/bliss_data/02-008/HE/TMA_HE_02-008'
     TMA_HE_01_011_gipdeep_path = path_init + r'Breast/TMA/bliss_data/01-011/HE/TMA_HE_01-011'
-    HAEMEK_gipdeep_path = path_init + r'Breast/Haemek'
+    HAEMEK_gipdeep_path = path_init + r'Breast/Haemek/Haemek_cancer_HE/'
     CARMEL_BENIGN_gipdeep_path = path_init + r'Breast/Carmel/Benign'
-    PORTUGAL_gipdeep_path = path_init + r'Breast/portugul/portugul'
+    CARMEL_BENIGN_ssd_path = ssd_path + r'Breast/Carmel/Benign'
+    PORTUGAL_gipdeep_path = path_init + r'Breast/Ipatimup2/portugul/'
+    CARMEL_RESCAN_gipdeep_path = path_init + r'unsynced_data/Rescan_TIF/RESCAN_1'
+    CARMEL_RESCAN2_gipdeep_path = path_init + r'unsynced_data/Rescan_TIF_2/RESCAN_1/'
+    FINHER_gipdeep_path = path_init + r'unsynced_data/FinHer/'
+    CARMEL_Her2_gipdeep_path = path_init + r'Breast/Carmel/Her2/'
+    CARMEL_Her2_ssd_path = ssd_path + r'Breast/Carmel/Her2/'
+    CARMEL_ONCOTYPE_gipdeep_path = path_init + r'Breast/Carmel/full_Carmel_Oncotype/CARMEL100/'
+    CARMEL_ONCOTYPE_ssd_path = ssd_path + r'Breast/Carmel/full_Carmel_Oncotype/CARMEL100/'
     
 
     TCGA_ran_path = r'C:\ran_data\TCGA_example_slides\TCGA_examples_131020_flat\TCGA'
@@ -150,17 +162,25 @@ def get_datasets_dir_dict(Dataset: str):
     CARMEL_omer_path = r'/Users/wasserman/Developer/WSI_MIL/All Data/CARMEL'
 
     if Dataset == 'ABCTB_TCGA':
+        tcga_path = TCGA_gipdeep_path if not gipdeep10_used else TCGA_ssd_path
+        abctb_path = ABCTB_TIF_gipdeep_path if not gipdeep10_used else ABCTB_TIF_ssd_path
         if sys.platform == 'linux':  # GIPdeep
-            dir_dict['TCGA'] = TCGA_gipdeep_path
-            dir_dict['ABCTB'] = ABCTB_TIF_gipdeep_path
+            dir_dict['TCGA'] = tcga_path
+            dir_dict['ABCTB'] = abctb_path
         elif sys.platform == 'win32':  # GIPdeep
             dir_dict['TCGA'] = TCGA_ran_path
             dir_dict['ABCTB'] = ABCTB_ran_path
+    
+    elif Dataset == 'CARMEL100':
+        if sys.platform == 'linux':  # GIPdeep
+            carmel100_path = CARMEL_ONCOTYPE_gipdeep_path if not gipdeep10_used else CARMEL_ONCOTYPE_ssd_path
+            dir_dict['CARMEL100'] = carmel100_path
 
     elif Dataset == 'CARMEL':
         if sys.platform == 'linux':  # GIPdeep
             for ii in np.arange(1, 9):
-                dir_dict['CARMEL' + str(ii)] = os.path.join(CARMEL_gipdeep_path, '1-8', 'Batch_' + str(ii), 'CARMEL' + str(ii))
+                carmel_path = CARMEL_gipdeep_path if not gipdeep10_used else CARMEL_ssd_path
+                dir_dict['CARMEL' + str(ii)] = os.path.join(carmel_path, '1-8', 'Batch_' + str(ii), 'CARMEL' + str(ii))
         elif sys.platform == 'darwin':  # Omer
             dir_dict['CARMEL'] = CARMEL_omer_path
             
@@ -173,11 +193,13 @@ def get_datasets_dir_dict(Dataset: str):
 
     elif Dataset == 'CARMEL+BENIGN':
         if sys.platform == 'linux':  # GIPdeep
+            carmel_path = CARMEL_gipdeep_path if not gipdeep10_used else CARMEL_ssd_path
+            benign_path = CARMEL_BENIGN_gipdeep_path #if not gipdeep10_used else CARMEL_BENIGN_ssd_path
             for ii in np.arange(1, 9):
-                dir_dict['CARMEL' + str(ii)] = os.path.join(CARMEL_gipdeep_path, '1-8', 'Batch_' + str(ii), 'CARMEL' + str(ii))
+                dir_dict['CARMEL' + str(ii)] = os.path.join(carmel_path, '1-8', 'Batch_' + str(ii), 'CARMEL' + str(ii))
 
-            for ii in np.arange(1, 4):
-                dir_dict['BENIGN' + str(ii)] = os.path.join(CARMEL_BENIGN_gipdeep_path, 'Batch_' + str(ii), 'BENIGN' + str(ii))
+            for ii in np.arange(1, 7):
+                dir_dict['BENIGN' + str(ii)] = os.path.join(benign_path, 'Batch_' + str(ii), 'BENIGN' + str(ii))
 
     elif Dataset == 'Carmel 9-11':
         if sys.platform == 'linux':  # GIPdeep
@@ -185,6 +207,26 @@ def get_datasets_dir_dict(Dataset: str):
                 dir_dict['CARMEL' + str(ii)] = os.path.join(CARMEL_gipdeep_path, '9-11', 'Batch_' + str(ii), 'CARMEL' + str(ii))
         elif sys.platform == 'darwin':  # Omer
             raise Exception('Need to implement')
+            
+    elif Dataset == 'Carmel_Rescan':
+        if sys.platform == 'linux':  # GIPdeep
+            dir_dict['RESCAN_1'] = CARMEL_RESCAN_gipdeep_path
+    
+    elif Dataset == 'Carmel_Rescan2':
+        if sys.platform == 'linux':  # GIPdeep
+            dir_dict['RESCAN_1'] = CARMEL_RESCAN2_gipdeep_path
+            
+    elif Dataset == 'FINHER':
+        if sys.platform == 'linux':  # GIPdeep
+            for ii in np.arange(1, 2):
+                dir_dict['FINHER_' + str(ii)] = os.path.join(FINHER_gipdeep_path, 'Batch' + str(ii), 'FINHER_' + str(ii))
+    
+    elif Dataset == 'Carmel_IHC':
+        if sys.platform == 'linux':  # GIPdeep
+            carmel_her2_path = CARMEL_Her2_gipdeep_path if not gipdeep10_used else CARMEL_Her2_ssd_path
+            dir_dict['HER2_1'] = os.path.join(carmel_her2_path, 'Batch_1', 'Her2_1')
+            for i in np.arange(2,7):
+                dir_dict['HER2_'+str(i)] = os.path.join(carmel_her2_path, 'Batch_' +str(i), 'HER2_' +str(i))
 
     elif (Dataset[:6] == 'CARMEL') and (len(Dataset) > 6):
         batch_num = Dataset[6:]
@@ -196,14 +238,18 @@ def get_datasets_dir_dict(Dataset: str):
     elif (Dataset[:6] == 'BENIGN') and (len(Dataset) > 6):
         batch_num = Dataset[6:]
         if sys.platform == 'linux':  # GIPdeep
-            dir_dict[Dataset] = os.path.join(CARMEL_BENIGN_gipdeep_path, 'Batch_' + batch_num, 'BENIGN' + batch_num)
+            benign_path = CARMEL_BENIGN_gipdeep_path if not gipdeep10_used else CARMEL_BENIGN_ssd_path
+            dir_dict[Dataset] = os.path.join(benign_path, 'Batch_' + batch_num, 'BENIGN' + batch_num)
 
     elif Dataset == 'CAT':
         if sys.platform == 'linux':  # GIPdeep
+            tcga_path = TCGA_gipdeep_path if not gipdeep10_used else TCGA_ssd_path
+            carmel_path = CARMEL_gipdeep_path if not gipdeep10_used else CARMEL_ssd_path
+            abctb_path = ABCTB_TIF_gipdeep_path if not gipdeep10_used else ABCTB_TIF_ssd_path
             for ii in np.arange(1, 9):
-                dir_dict['CARMEL' + str(ii)] = os.path.join(CARMEL_gipdeep_path, '1-8', 'Batch_' + str(ii), 'CARMEL' + str(ii))
-            dir_dict['TCGA'] = TCGA_gipdeep_path
-            dir_dict['ABCTB'] = ABCTB_TIF_gipdeep_path
+                dir_dict['CARMEL' + str(ii)] = os.path.join(carmel_path, '1-8', 'Batch_' + str(ii), 'CARMEL' + str(ii))
+            dir_dict['TCGA'] = tcga_path
+            dir_dict['ABCTB'] = abctb_path
 
         elif sys.platform == 'win32':  #Ran local
             dir_dict['TCGA'] = TCGA_ran_path
@@ -222,7 +268,8 @@ def get_datasets_dir_dict(Dataset: str):
 
     elif Dataset == 'TCGA':
         if sys.platform == 'linux':  # GIPdeep
-            dir_dict['TCGA'] = TCGA_gipdeep_path
+            tcga_path = TCGA_gipdeep_path if not gipdeep10_used else TCGA_ssd_path
+            dir_dict['TCGA'] = tcga_path
 
         elif sys.platform == 'win32':  # Ran local
             dir_dict['TCGA'] = TCGA_ran_path
@@ -245,7 +292,8 @@ def get_datasets_dir_dict(Dataset: str):
 
     elif Dataset == 'ABCTB_TIF':
         if sys.platform == 'linux':  # GIPdeep
-            dir_dict['ABCTB_TIF'] = ABCTB_TIF_gipdeep_path
+            abctb_path = ABCTB_TIF_gipdeep_path if not gipdeep10_used else ABCTB_TIF_ssd_path
+            dir_dict['ABCTB_TIF'] = abctb_path
         elif sys.platform == 'darwin':  # Omer local
             dir_dict['ABCTB_TIF'] = r'All Data/ABCTB_TIF'
         else:
@@ -259,7 +307,8 @@ def get_datasets_dir_dict(Dataset: str):
 
     elif Dataset == 'ABCTB':
         if sys.platform == 'linux':  # GIPdeep Run from local files
-            dir_dict['ABCTB'] = ABCTB_TIF_gipdeep_path
+            abctb_path = ABCTB_TIF_gipdeep_path if not gipdeep10_used else ABCTB_TIF_ssd_path
+            dir_dict['ABCTB'] = abctb_path
 
         elif sys.platform == 'win32':  # Ran local
             dir_dict['ABCTB'] = ABCTB_ran_path

@@ -6,6 +6,8 @@ import pandas as pd
 import glob
 from random import sample, seed
 import torch
+import torchvision.transforms as transforms
+import torch.nn.functional as F
 import time
 from typing import List, Tuple
 from xlrd.biffh import XLRDError
@@ -24,10 +26,101 @@ from PIL import ImageFile
 from fractions import Fraction
 import openslide
 import logging
+from sklearn.preprocessing import LabelBinarizer
+from sklearn.metrics import roc_curve, auc, roc_auc_score
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 Image.MAX_IMAGE_PIXELS = None
 
+
+def unnormalize(patches):
+    mean = torch.tensor([0.8998, 0.8253, 0.9357]).reshape(1,3,1,1)
+    std = torch.tensor([0.1125, 0.1751, 0.0787]).reshape(1,3,1,1)
+    return ((patches*std+mean))
+    
+def normalize(patches):
+    mean = torch.tensor([0.8998, 0.8253, 0.9357])
+    std = torch.tensor([0.1125, 0.1751, 0.0787])
+    transform = transforms.Compose([transforms.Normalize(
+                                                  mean=(mean[0], mean[1], mean[2]),
+                                                  std=(std[0], std[1], std[2]))
+                                              ])
+    return transform(patches)
+
+def map_colors(patches, rate = 16):
+    map_file = './color_map_Rescan2Carmel11_new.csv'
+    colormap = np.genfromtxt(map_file, delimiter=',')
+    colormap_red = colormap[:,0]
+    colormap_green = colormap[:,1]
+    colormap_blue = colormap[:,2]
+    patches = F.interpolate(patches.squeeze(0), scale_factor = rate, mode = 'bilinear')
+    patches_int = (patches*999).type(torch.int)
+    patches[:,0,:,:] = torch.tensor(colormap_red[patches_int[:,0,:,:]])
+    patches[:,1,:,:] = torch.tensor(colormap_green[patches_int[:,1,:,:]])
+    patches[:,2,:,:] = torch.tensor(colormap_blue[patches_int[:,2,:,:]])
+    patches = F.interpolate(patches, scale_factor = 1/rate, mode = 'bilinear').unsqueeze(0)
+    return patches
+    
+
+def check_blurry(patches):
+    transform = transforms.Compose([
+    transforms.Grayscale(num_output_channels=1)])
+    patches = transform(patches.squeeze(0))
+    laplacian_filter = torch.tensor([[0, -1, 0], [-1, 4, -1], [0, -1, 0]], dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+    laplac_ims = torch.nn.functional.conv2d(patches, laplacian_filter, padding=1)
+    laplac_ims = laplac_ims[:, :, 3:-3, 3:-3]
+    laplac_vars = laplac_ims.var(dim=[2, 3])
+    gray_vars = patches.var(dim=[2, 3])
+    return ((laplac_vars*10000 > 0.25) & (gray_vars*50 > 0.03)).squeeze(0)
+    
+
+def multiclass_auc(scores, true_targets, policy):
+    auc_score = roc_auc_score(true_targets, scores, multi_class=policy, average="weighted")
+    return auc_score
+
+def get_patches_with_overlap(slide_file, segMap_file, rate = 8, size = 4096, thresh = 0.02, overlap = 64, level = 2):
+    img = openslide.open_slide(slide_file)
+    slide_size = (int(img.level_dimensions[level][1] / rate), int(img.level_dimensions[level][0] / rate))
+    segMap = np.array(Image.open(segMap_file))
+    (rows, cols) = np.where(segMap == 255)
+    min_row, max_row = rows.min(), rows.max()
+    min_col, max_col = cols.min(), cols.max()
+    scale = int(img.level_dimensions[0][1] / segMap.shape[0] / 4)
+
+    top_left = (min_row * scale * 4, min_col * scale * 4)
+    bottom_right = (max_row * scale * 4, max_col * scale * 4)
+    row_start = [top_left[0]]
+    next_start = row_start[-1]+(size-2*overlap)*4
+    row_end = [row_start[0]+size*4]
+    while next_start < bottom_right[0]:
+        row_start += [next_start]
+        row_end += [next_start+size*4]
+        next_start = row_start[-1]+(size-2*overlap)*4
+        
+    col_start = [top_left[1]]
+    next_start = col_start[-1]+(size-2*overlap)*4
+    col_end = [col_start[0]+size*4]
+    while next_start < bottom_right[1]:
+        col_start += [next_start]
+        col_end += [next_start+size*4]
+        next_start = col_start[-1]+(size-2*overlap)*4
+
+    for i, row in enumerate(row_start):
+        for j, col in enumerate(col_start):
+            window_top_left = (row, col)
+            window_top_left_in_level = (int(row/(4*rate)), int(col/(4*rate)))
+            window_bottom_right = (row_end[i], col_end[j])
+            window_size = (int((row_end[i]-row) / 4), int((col_end[j]-col) / 4))
+            window_size_in_level = (int((row_end[i]-row) / (4*rate)), int((col_end[j]-col) / (4*rate)))
+            seg_top_left = (int(row/scale/4), int(col/scale/4))
+            seg_bottom_right = (int(row_end[i]/scale/4), int(col_end[j]/scale/4))
+            seg = segMap[seg_top_left[0]:seg_bottom_right[0], seg_top_left[1]:seg_bottom_right[1]]
+            valid = np.mean(seg)/255 > thresh
+            if not valid:
+                continue
+            image = img.read_region((window_top_left[1], window_top_left[0]), level, (window_size[1], window_size[0])).convert('RGB')
+            to_yield = (normalize(transforms.ToTensor()(image).unsqueeze(0)), window_top_left_in_level, window_size, slide_size)
+            yield to_yield
 
 def chunks(list: List, length: int):
     new_list = [list[i * length:(i + 1) * length] for i in range((len(list) + length - 1) // length)]
@@ -64,7 +157,7 @@ def get_optimal_slide_level(slide, magnification, desired_mag, tile_size):
 def _choose_data(grid_list: list,
                  slide: openslide.OpenSlide,
                  how_many: int,
-                 magnification: int,
+                 magnification: int | float,
                  tile_size: int = 256,
                  print_timing: bool = False,
                  desired_mag: int = 20,
@@ -531,6 +624,14 @@ def assert_dataset_target(DataSet, target_kind):
         raise ValueError('Invalid target for SHEBA DataSet')
     elif DataSet == 'TCGA_LUNG' and not target_kind <= {'is_cancer', 'is_LUAD', 'is_full_cancer'}:
         raise ValueError('for TCGA_LUNG DataSet, target should be is_cancer or is_LUAD')
+    elif DataSet in ['CARMEL_IHC'] and not target_kind <= {'Her2Score', 'Her2'}:
+        raise ValueError('for CARMEL_IHC DataSet, target should be one of: Her2Score, Her2')
+    elif DataSet in ['CARMEL100'] and not target_kind <= {'IsHighRisk26', 'IsHighRisk31'}:
+        raise ValueError('for CARMEL100 DataSet, target should be one of: IsHighRisk26, IsHighRisk31')
+    elif DataSet in ['FINHER'] and not target_kind <= {'ER', 'PR', 'Her2', 'OR', 'is_cancer',
+                                                                            'Ki67'}:
+        raise ValueError('for FINHER DataSet, target should be one of: ER, PR, Her2, OR, is_cancer, Ki67')
+        
     elif (DataSet in ['LEUKEMIA', 'ALL', 'AML']) and not target_kind <= {'ALL', 'is_B', 'is_HR', 'is_over_6',
                                                                          'is_over_10', 'is_over_15', 'WBC_over_20',
                                                                          'WBC_over_50', 'is_HR_B', 'is_tel_aml_B',
