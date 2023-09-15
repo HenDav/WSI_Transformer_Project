@@ -61,7 +61,7 @@ class WsiClassifier(LightningModule):
         datasets_folds_val = constants.get_datasets_folds(datasets_folds_val)
 
         self.datasets_keys = list(datasets_folds.keys())
-        self.datasets_keys_val = list(datasets_folds_val.keys())
+        # self.datasets_keys_val = list(datasets_folds_val.keys())
 
         self.backbone, self.classifier = self._init_model(
             model, num_classes, ckpt_path, imagenet_pretrained, finetune, train_classifier_from_scratch, drop_rate
@@ -224,40 +224,40 @@ class WsiClassifier(LightningModule):
                 logger=True,
             )
             
-        if len(self.datasets_keys_val)>1:
-            dataset_ids_series = pd.Series(dataset_ids)
-            for i in range(len(self.datasets_keys_val)):
-                indices = np.argwhere(dataset_ids_series.array == i).flatten()
-                if indices.size>3: # for the tracking not to trigger during the sanity check
-                    self.log(
-                        f"{self.datasets_keys_val[i]}/slide_auc",
-                        auroc(slide_scores[indices], slide_labels[indices], task="multiclass", num_classes=self.num_classes),
-                        prog_bar=True,
-                        logger=True,
-                    )
-                    if "secondary_patch_label" in outputs[0].keys():
-                        self.log(
-                            f"{self.datasets_keys_val[i]}/secondary_slide_auc",
-                            auroc(slide_scores[indices], secondary_slide_labels[indices], task="multiclass", num_classes=self.num_classes),
-                            prog_bar=True,
-                            logger=True,
-                        )
+        # if len(self.datasets_keys_val)>1:
+        #     dataset_ids_series = pd.Series(dataset_ids)
+        #     for i in range(len(self.datasets_keys_val)):
+        #         indices = np.argwhere(dataset_ids_series.array == i).flatten()
+        #         if indices.size>3: # for the tracking not to trigger during the sanity check
+        #             self.log(
+        #                 f"{self.datasets_keys_val[i]}/slide_auc",
+        #                 auroc(slide_scores[indices], slide_labels[indices], task="multiclass", num_classes=self.num_classes),
+        #                 prog_bar=True,
+        #                 logger=True,
+        #             )
+        #             if "secondary_patch_label" in outputs[0].keys():
+        #                 self.log(
+        #                     f"{self.datasets_keys_val[i]}/secondary_slide_auc",
+        #                     auroc(slide_scores[indices], secondary_slide_labels[indices], task="multiclass", num_classes=self.num_classes),
+        #                     prog_bar=True,
+        #                     logger=True,
+        #                 )
                 
-                if self.datasets_keys_val[i] == "TCGA_not_DX": # TODO:hard coded because of reasons :( can probably be elegantly fixed.
-                    slide_scores = np.delete(slide_scores, indices, axis=0)
-                    slide_labels = np.delete(slide_labels, indices, axis=0)
-                    slide_preds = np.delete(slide_preds, indices, axis=0)
-                    dataset_ids = np.delete(dataset_ids, indices, axis=0)
-                    dataset_ids_series = dataset_ids_series.drop(indices)
-                    if "secondary_patch_label" in outputs[0].keys():
-                        secondary_slide_labels = np.delete(secondary_slide_labels, indices, axis=0)
+        #         if self.datasets_keys_val[i] == "TCGA_not_DX": # TODO:hard coded because of reasons :( can probably be elegantly fixed.
+        #             slide_scores = np.delete(slide_scores, indices, axis=0)
+        #             slide_labels = np.delete(slide_labels, indices, axis=0)
+        #             slide_preds = np.delete(slide_preds, indices, axis=0)
+        #             dataset_ids = np.delete(dataset_ids, indices, axis=0)
+        #             dataset_ids_series = dataset_ids_series.drop(indices)
+        #             if "secondary_patch_label" in outputs[0].keys():
+        #                 secondary_slide_labels = np.delete(secondary_slide_labels, indices, axis=0)
 
-                    repetitions = outputs_for_rank[0]["patch_labels"].size()[0]
-                    expanded_indices = np.repeat(indices * repetitions, repetitions) + np.tile(np.arange(repetitions), len(indices))
-                    patch_labels = np.delete(patch_labels, expanded_indices, axis=0)
-                    patch_scores = np.delete(patch_scores, expanded_indices, axis=0)
-                else:
-                    dataset_ids_series[indices] = self.datasets_keys_val[i]
+        #             repetitions = outputs_for_rank[0]["patch_labels"].size()[0]
+        #             expanded_indices = np.repeat(indices * repetitions, repetitions) + np.tile(np.arange(repetitions), len(indices))
+        #             patch_labels = np.delete(patch_labels, expanded_indices, axis=0)
+        #             patch_scores = np.delete(patch_scores, expanded_indices, axis=0)
+        #         else:
+        #             dataset_ids_series[indices] = self.datasets_keys_val[i]
         self.log(
             "val/slide_acc",
             accuracy(slide_preds, slide_labels, task="multiclass", num_classes=self.num_classes),
@@ -298,8 +298,8 @@ class WsiClassifier(LightningModule):
                     "target": slide_labels,
                 }
             )
-            if len(self.datasets_keys_val)>1:
-                df["dataset_id"] = dataset_ids_series
+            # if len(self.datasets_keys_val)>1:
+            #     df["dataset_id"] = dataset_ids_series
 
             # this also logs the table
             table = wandb.Table(data=df)
