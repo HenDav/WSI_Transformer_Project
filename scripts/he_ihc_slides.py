@@ -106,8 +106,8 @@ ihc_base_path = [
 ]
 
 # ihc_base_path = Path('C:/slide_thumbs/IHC')
-he_paths = list_files(path=he_base_path, pattern='thumb')
-ihc_paths = list_files(path=ihc_base_path, pattern='thumb')
+he_paths = list_files(paths=he_base_path, pattern='thumb')
+ihc_paths = list_files(paths=ihc_base_path, pattern='thumb')
 
 ihc_slides_mappings = SlidesMapping(paths=ihc_paths, slide_type=SlideType.IHC)
 he_slides_mappings = SlidesMapping(paths=he_paths, slide_type=SlideType.HE)
