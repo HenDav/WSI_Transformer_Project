@@ -126,7 +126,7 @@ for block_id in block_ids:
         current_he_slides = [f'{he_path.stem} (HE)' for he_path in current_he_paths]
         current_ihc_slides = [f'{ihc_path.stem} (IHC)' for ihc_path in current_ihc_paths]
 
-        current_paths = current_he_paths + current_ihc_paths
+        current_paths = current_he_slides + current_ihc_slides
         list_of_paths.append(current_paths)
     except:
         pass
