@@ -157,30 +157,31 @@ def get_block_id(thumb_id: str) -> str:
     return thumb_id.rsplit('_', 1)[0]
 
 
-# he_base_path = [
-#     Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_1/CARMEL1'),
-#     Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_2/CARMEL2'),
-#     Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_3/CARMEL3'),
-#     Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_4/CARMEL4'),
-#     Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_5/CARMEL5'),
-#     Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_6/CARMEL6'),
-#     Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_7/CARMEL7'),
-#     Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_8/CARMEL8'),
-#     Path('/mnt/gipmed_new/Data/Breast/Carmel/9-11/Batch_9/CARMEL9'),
-#     Path('/mnt/gipmed_new/Data/Breast/Carmel/9-11/Batch_10/CARMEL10'),
-#     Path('/mnt/gipmed_new/Data/Breast/Carmel/9-11/Batch_11/CARMEL11')
-# ]
-#
-# ihc_base_path = [
-#     Path('/mnt/gipmed_new/Data/Breast/Carmel/Her2/Batch_1/Her2_1'),
-#     Path('/mnt/gipmed_new/Data/Breast/Carmel/Her2/Batch_2/HER2_2'),
-#     Path('/mnt/gipmed_new/Data/Breast/Carmel/Her2/Batch_3/HER2_3'),
-#     Path('/mnt/gipmed_new/Data/Breast/Carmel/Her2/Batch_4/HER2_4'),
-#     Path('/mnt/gipmed_new/Data/Breast/Carmel/Her2/Batch_5/HER2_5'),
-#     Path('/mnt/gipmed_new/Data/Breast/Carmel/Her2/Batch_6/HER2_6'),
+he_base_path = [
+    Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_1/CARMEL1'),
+    Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_2/CARMEL2'),
+    Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_3/CARMEL3'),
+    Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_4/CARMEL4'),
+    Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_5/CARMEL5'),
+    Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_6/CARMEL6'),
+    Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_7/CARMEL7'),
+    Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_8/CARMEL8'),
+    Path('/mnt/gipmed_new/Data/Breast/Carmel/9-11/Batch_9/CARMEL9'),
+    Path('/mnt/gipmed_new/Data/Breast/Carmel/9-11/Batch_10/CARMEL10'),
+    Path('/mnt/gipmed_new/Data/Breast/Carmel/9-11/Batch_11/CARMEL11'),
+    Path('/mnt/gipmed_new/Data/Breast/Carmel/Her2/Batch_1/Her2_1'),
+    Path('/mnt/gipmed_new/Data/Breast/Carmel/Her2/Batch_2/HER2_2'),
+    Path('/mnt/gipmed_new/Data/Breast/Carmel/Her2/Batch_3/HER2_3'),
+    Path('/mnt/gipmed_new/Data/Breast/Carmel/Her2/Batch_4/HER2_4'),
+    Path('/mnt/gipmed_new/Data/Breast/Carmel/Her2/Batch_5/HER2_5'),
+    Path('/mnt/gipmed_new/Data/Breast/Carmel/Her2/Batch_6/HER2_6'),
+]
+
+# base_paths = [
+#     Path('C:/slide_thumbs/IHC'),
+#     Path('C:/slide_thumbs/HE')
 # ]
 
-base_paths = [Path('C:/slide_thumbs/IHC'), Path('C:/slide_thumbs/HE')]
 slide_paths = list_files(paths=base_paths, pattern='thumb', ext='jpg')
 slides_mappings = SlidesMapping(paths=slide_paths)
 slides_mappings.save_dataframe(path=Path('./output.xlsx'))
