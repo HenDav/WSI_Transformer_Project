@@ -7,10 +7,13 @@ import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
 
-
-class SlideType(Enum):
-    HE = 1
-    IHC = 2
+dataset_name_column = 'DatasetName'
+batch_id_column = 'BatchID'
+slide_name_column = 'SlideName'
+slide_id_column = 'SlideID'
+block_id_column = 'BlockID'
+tissue_id_column = 'TissueID'
+sample_id_column = 'SampleID'
 
 
 class SlideData:
@@ -59,13 +62,13 @@ class SlideData:
     @staticmethod
     def get_column_names() -> List[str]:
         return [
-            'DatasetName',
-            'BatchID',
-            'SlideName',
-            'SlideID',
-            'BlockID',
-            'TissueID',
-            'SampleID'
+            dataset_name_column,
+            batch_id_column,
+            slide_name_column,
+            slide_id_column,
+            block_id_column,
+            tissue_id_column,
+            sample_id_column
         ]
 
 
@@ -94,6 +97,8 @@ class SlidesMapping:
             self._block_id_to_paths[block_id].append(path)
             self._slides_data.append(slide_data)
 
+        self._df = self._create_dataframe()
+
     @property
     def block_id_to_slide_ids(self) -> Dict[str, List[str]]:
         return self._block_id_to_slide_ids
@@ -110,7 +115,7 @@ class SlidesMapping:
     def _get_block_id(thumb_id: str) -> str:
         return thumb_id.rsplit('_', 1)[0]
 
-    def get_dataframe(self) -> pd.DataFrame:
+    def _create_dataframe(self) -> pd.DataFrame:
         data = [slide_data.get_row() for slide_data in self._slides_data]
         columns = SlideData.get_column_names()
         df = pd.DataFrame(data, columns=columns)
@@ -118,8 +123,7 @@ class SlidesMapping:
 
     def save_dataframe(self, path: Path):
         path_str = str(path)
-        df = self.get_dataframe()
-        df.to_excel(path_str, index=False, engine='openpyxl')
+        self._df.to_excel(path_str, index=False, engine='openpyxl')
         workbook = load_workbook(path_str)
         sheet = workbook.active
 
@@ -137,6 +141,11 @@ class SlidesMapping:
 
         workbook.save(path_str)
 
+    def get_block_ids_with_multiple_her2(self) -> List[str]:
+        grouped_df = self._df.groupby(block_id_column)
+        bla = grouped_df.apply(lambda x: (x[dataset_name_column] == 'Her2').sum())
+        pass
+
 
 def list_files(paths: List[Path], ext: str) -> List[Path]:
     listed_file_paths = []
@@ -146,63 +155,42 @@ def list_files(paths: List[Path], ext: str) -> List[Path]:
                 if file.endswith(ext):
                     full_path = os.path.normpath(os.path.join(root, file))
                     listed_file_paths.append(Path(full_path))
+            break
     return listed_file_paths
 
 
-def get_thumb_id(path: Path) -> str:
-    parts = path.stem.split('thumb', 1)
-    thumb_id = 'thumb' + parts[1]
-    return thumb_id
+if __name__ == '__main__':
+    base_paths = [
+        Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_1/CARMEL1'),
+        Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_2/CARMEL2'),
+        Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_3/CARMEL3'),
+        Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_4/CARMEL4'),
+        Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_5/CARMEL5'),
+        Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_6/CARMEL6'),
+        Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_7/CARMEL7'),
+        Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_8/CARMEL8'),
+        Path('/mnt/gipmed_new/Data/Breast/Carmel/9-11/Batch_9/CARMEL9'),
+        Path('/mnt/gipmed_new/Data/Breast/Carmel/9-11/Batch_10/CARMEL10'),
+        Path('/mnt/gipmed_new/Data/Breast/Carmel/9-11/Batch_11/CARMEL11'),
+        Path('/mnt/gipmed_new/Data/Breast/Carmel/Her2/Batch_1/Her2_1'),
+        Path('/mnt/gipmed_new/Data/Breast/Carmel/Her2/Batch_2/HER2_2'),
+        Path('/mnt/gipmed_new/Data/Breast/Carmel/Her2/Batch_3/HER2_3'),
+        Path('/mnt/gipmed_new/Data/Breast/Carmel/Her2/Batch_4/HER2_4'),
+        Path('/mnt/gipmed_new/Data/Breast/Carmel/Her2/Batch_5/HER2_5'),
+        Path('/mnt/gipmed_new/Data/Breast/Carmel/Her2/Batch_6/HER2_6'),
+    ]
 
+    # base_paths = [
+    #     Path('C:/slide_thumbs/IHC'),
+    #     Path('C:/slide_thumbs/HE')
+    # ]
 
-def get_block_id(thumb_id: str) -> str:
-    return thumb_id.rsplit('_', 1)[0]
+    slide_paths = list_files(paths=base_paths, ext='jpg')
+    slides_mappings = SlidesMapping(paths=slide_paths)
+    # slides_mappings.save_dataframe(path=Path('./output.xlsx'))
+    block_ids = list(set(list(slides_mappings.block_id_to_slide_ids.keys())))
 
-
-base_paths = [
-    Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_1/CARMEL1'),
-    Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_2/CARMEL2'),
-    Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_3/CARMEL3'),
-    Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_4/CARMEL4'),
-    Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_5/CARMEL5'),
-    Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_6/CARMEL6'),
-    Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_7/CARMEL7'),
-    Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_8/CARMEL8'),
-    Path('/mnt/gipmed_new/Data/Breast/Carmel/9-11/Batch_9/CARMEL9'),
-    Path('/mnt/gipmed_new/Data/Breast/Carmel/9-11/Batch_10/CARMEL10'),
-    Path('/mnt/gipmed_new/Data/Breast/Carmel/9-11/Batch_11/CARMEL11'),
-    Path('/mnt/gipmed_new/Data/Breast/Carmel/Her2/Batch_1/Her2_1'),
-    Path('/mnt/gipmed_new/Data/Breast/Carmel/Her2/Batch_2/HER2_2'),
-    Path('/mnt/gipmed_new/Data/Breast/Carmel/Her2/Batch_3/HER2_3'),
-    Path('/mnt/gipmed_new/Data/Breast/Carmel/Her2/Batch_4/HER2_4'),
-    Path('/mnt/gipmed_new/Data/Breast/Carmel/Her2/Batch_5/HER2_5'),
-    Path('/mnt/gipmed_new/Data/Breast/Carmel/Her2/Batch_6/HER2_6'),
-]
-
-# base_paths = [
-#     Path('C:/slide_thumbs/IHC'),
-#     Path('C:/slide_thumbs/HE')
-# ]
-
-slide_paths = list_files(paths=base_paths, ext='mrxs')
-slides_mappings = SlidesMapping(paths=slide_paths)
-slides_mappings.save_dataframe(path=Path('./output.xlsx'))
-
-
-# block_ids = list(set(list(slides_mappings.block_id_to_slide_ids.keys())))
-# list_of_paths = []
-# for block_id in block_ids:
-#     # he_thumb_ids = he_slides_mappings.block_id_to_thumb_ids[block_id]
-#     # ihc_thumb_ids = ihc_slides_mappings.block_id_to_thumb_ids[block_id]
-#     # current_he_paths = [str(he_slides_mappings.thumb_id_to_path[thumb_id]) for thumb_id in he_thumb_ids]
-#     try:
-#         current_he_paths = he_slides_mappings.block_id_to_paths[block_id]
-#         current_ihc_paths = ihc_slides_mappings.block_id_to_paths[block_id]
-#
-#         current_he_slides = [f'{he_path.stem} (HE)' for he_path in current_he_paths]
-#         current_ihc_slides = [f'{ihc_path.stem} (IHC)' for ihc_path in current_ihc_paths]
-#
-#         current_paths = current_he_slides + current_ihc_slides
-#         list_of_paths.append(current_paths)
-#     except:
-#         pass
+    list_of_paths = []
+    for block_id in block_ids:
+        current_paths = slides_mappings.block_id_to_paths[block_id]
+        list_of_paths.append(current_paths)
