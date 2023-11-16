@@ -182,7 +182,7 @@ base_paths = [
 #     Path('C:/slide_thumbs/HE')
 # ]
 
-slide_paths = list_files(paths=base_paths, pattern='thumb', ext='jpg')
+slide_paths = list_files(paths=base_paths, pattern='thumb', ext='mrxs')
 slides_mappings = SlidesMapping(paths=slide_paths)
 slides_mappings.save_dataframe(path=Path('./output.xlsx'))
 
