@@ -187,10 +187,10 @@ if __name__ == '__main__':
 
     slide_paths = list_files(paths=base_paths, ext='jpg')
     slides_mappings = SlidesMapping(paths=slide_paths)
-    # slides_mappings.save_dataframe(path=Path('./output.xlsx'))
-    block_ids = list(set(list(slides_mappings.block_id_to_slide_ids.keys())))
+    slides_mappings.save_dataframe(path=Path('./output.xlsx'))
 
-    list_of_paths = []
-    for block_id in block_ids:
-        current_paths = slides_mappings.block_id_to_paths[block_id]
-        list_of_paths.append(current_paths)
+    # block_ids = list(set(list(slides_mappings.block_id_to_slide_ids.keys())))
+    # list_of_paths = []
+    # for block_id in block_ids:
+    #     current_paths = slides_mappings.block_id_to_paths[block_id]
+    #     list_of_paths.append(current_paths)
