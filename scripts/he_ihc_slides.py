@@ -157,7 +157,7 @@ def get_block_id(thumb_id: str) -> str:
     return thumb_id.rsplit('_', 1)[0]
 
 
-he_base_path = [
+base_paths = [
     Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_1/CARMEL1'),
     Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_2/CARMEL2'),
     Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_3/CARMEL3'),
