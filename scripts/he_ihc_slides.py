@@ -185,7 +185,7 @@ if __name__ == '__main__':
     #     Path('C:/slide_thumbs/HE')
     # ]
 
-    slide_paths = list_files(paths=base_paths, ext='jpg')
+    slide_paths = list_files(paths=base_paths, ext='mrxs')
     slides_mappings = SlidesMapping(paths=slide_paths)
     slides_mappings.save_dataframe(path=Path('./output.xlsx'))
 
