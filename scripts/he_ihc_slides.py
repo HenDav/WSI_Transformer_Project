@@ -137,12 +137,12 @@ class SlidesMapping:
         workbook.save(path_str)
 
 
-def list_files(paths: List[Path], pattern: str, ext: str) -> List[Path]:
+def list_files(paths: List[Path], ext: str) -> List[Path]:
     listed_file_paths = []
     for path in paths:
         for root, dirs, files in os.walk(path):
             for file in files:
-                if pattern in file and file.endswith(ext):
+                if file.endswith(ext):
                     full_path = os.path.normpath(os.path.join(root, file))
                     listed_file_paths.append(Path(full_path))
     return listed_file_paths
@@ -183,7 +183,7 @@ base_paths = [
 #     Path('C:/slide_thumbs/HE')
 # ]
 
-slide_paths = list_files(paths=base_paths, pattern='thumb', ext='mrxs')
+slide_paths = list_files(paths=base_paths, ext='mrxs')
 slides_mappings = SlidesMapping(paths=slide_paths)
 slides_mappings.save_dataframe(path=Path('./output.xlsx'))
 
