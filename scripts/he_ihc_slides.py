@@ -54,7 +54,7 @@ class SlideData:
             return 'Her2'
 
     def get_row(self) -> List[str]:
-        return [self.dataset_name, self.batch_id, self.slide_name, self.block_id, self.tissue_id, self.sample_id]
+        return [self.dataset_name, self.batch_id, self.slide_name, self.slide_id, self.block_id, self.tissue_id, self.sample_id]
 
     @staticmethod
     def get_column_names() -> List[str]:
@@ -65,6 +65,7 @@ class SlideData:
             'SlideID',
             'BlockID',
             'TissueID',
+            'SampleID'
         ]
 
 
