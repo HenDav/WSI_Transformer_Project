@@ -77,6 +77,7 @@ class SlidesMapping:
         self._block_id_to_paths: Dict[str, List[Path]] = {}
 
         for path in paths:
+            print(path)
             slide_data = SlideData(path=path)
             slide_id = slide_data.slide_id
             block_id = slide_data.block_id
