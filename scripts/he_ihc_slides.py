@@ -266,8 +266,8 @@ if __name__ == '__main__':
         for slide_path in slide_paths:
             slide = openslide.OpenSlide(str(slide_path))
             thumbnail_size = (800, 800)
-            thumbnail = slide.get_thumbnail(thumbnail_size)
-            thumbnail_image = Image.fromarray(thumbnail)
+            thumbnail_image = slide.get_thumbnail(thumbnail_size)
+            # thumbnail_image = Image.fromarray(thumbnail)
             thumbnail_path = block_id_path / Path(f'{slide_path.stem}.png')
             thumbnail_image.save(thumbnail_path)
 
