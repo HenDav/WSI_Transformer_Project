@@ -205,7 +205,7 @@ class SlidesMapping:
         dump(value=array, filename=str(dump_path))
         utils.ProgressParallel(
             use_tqdm=False,
-            n_jobs=1,
+            n_jobs=15,
             total=len(block_ids))(
             delayed(self._save_thumbnails_for_block_id)(
                 block_id=block_id,
