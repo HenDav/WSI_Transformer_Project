@@ -269,6 +269,7 @@ if __name__ == '__main__':
             thumbnail_image = slide.get_thumbnail(thumbnail_size)
             # thumbnail_image = Image.fromarray(thumbnail)
             thumbnail_path = block_id_path / Path(f'{slide_path.stem}.png')
+            print(f'Saving thumbnail: {thumbnail_path}')
             thumbnail_image.save(thumbnail_path)
 
 
