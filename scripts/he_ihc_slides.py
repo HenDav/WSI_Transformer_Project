@@ -160,7 +160,7 @@ class SlidesMapping:
         return listed_file_paths
 
     @staticmethod
-    def _save_thumbnails_for_block_id(block_id: str, size: Tuple[int, int], output_path: Path, dump_path: Path):
+    def _save_thumbnails_for_block_id(block_id: str, size: Tuple[int, int], input_path: Path, output_path: Path, dump_path: Path):
         df = load(str(dump_path))
         slide_mapping = SlidesMapping(df=df)
         block_id_path = output_path / Path(block_id)
@@ -197,10 +197,10 @@ class SlidesMapping:
     def get_block_ids(self) -> List[str]:
         return self._df[block_id_column].unique().tolist()
 
-    def save_thumbnails(self, path: Path, size: Tuple[int, int]):
+    def save_thumbnails(self, input_path: Path, output_path: Path, size: Tuple[int, int]):
         block_ids = self.get_block_ids()
         array = self._df.values
-        dump_path = path / 'self.joblib'
+        dump_path = output_path / 'dataframe.joblib'
         dump(value=array, filename=str(dump_path))
         utils.ProgressParallel(
             use_tqdm=False,
@@ -209,6 +209,7 @@ class SlidesMapping:
             delayed(self._save_thumbnails_for_block_id)(
                 block_id=block_id,
                 size=size,
+                input_path=input_path,
                 output_path=output_path,
                 dump_path=dump_path) for block_id in block_ids)
 
@@ -291,4 +292,4 @@ if __name__ == '__main__':
     # slide_mapping = SlidesMapping.from_excel(path=Path('./scripts/output.xlsx'))
     slide_mapping = SlidesMapping.from_file_paths(paths=base_paths)
     slide_mapping.save_dataframe(path=Path('./output.xlsx'))
-    slide_mapping.save_thumbnails(path=output_path, size=(800, 800))
+    slide_mapping.save_thumbnails(input_path=input_path, output_path=output_path, size=(800, 800))
