@@ -5,9 +5,13 @@ import os
 from pathlib import Path
 from typing import List, Type, TypeVar, cast
 import pickle
+from tqdm import tqdm
 
 import numpy
 import torch
+
+# joblib
+from joblib import Parallel
 
 # from tap import Tap
 
@@ -221,3 +225,21 @@ def load_segmentation_data(dataset_path: Path, desired_magnification: int, image
         pixels = numpy.array(pickle.load(file_handle))
 
     return pixels
+
+
+# https://stackoverflow.com/questions/37804279/how-can-we-use-tqdm-in-a-parallel-execution-with-joblib
+class ProgressParallel(Parallel):
+    def __init__(self, use_tqdm=True, total=None, *args, **kwargs):
+        self._use_tqdm = use_tqdm
+        self._total = total
+        super().__init__(*args, **kwargs)
+
+    def __call__(self, *args, **kwargs):
+        with tqdm(disable=not self._use_tqdm, total=self._total) as self._pbar:
+            return Parallel.__call__(self, *args, **kwargs)
+
+    def print_progress(self):
+        if self._total is None:
+            self._pbar.total = self.n_dispatched_tasks
+        self._pbar.n = self.n_completed_tasks
+        self._pbar.refresh()

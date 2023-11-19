@@ -2,7 +2,7 @@
 from __future__ import annotations
 import os
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Tuple
 
 # pandas
 import pandas as pd
@@ -13,9 +13,13 @@ from openpyxl.utils import get_column_letter
 
 # wsi
 from core import constants
+from core import utils
 
 # PIL
 from PIL import Image
+
+# joblib
+from joblib import delayed, dump, load
 
 # openslide
 if hasattr(os, 'add_dll_directory'):
@@ -155,6 +159,20 @@ class SlidesMapping:
                 break
         return listed_file_paths
 
+    @staticmethod
+    def _save_thumbnails_for_block_id(block_id: str, size: Tuple[int, int], output_path: Path, dump_path: Path):
+        df = load(str(dump_path))
+        slide_mapping = SlidesMapping(df=df)
+        block_id_path = output_path / Path(block_id)
+        block_id_path.mkdir(parents=True, exist_ok=True)
+        slide_paths = slide_mapping.get_slide_paths_by_block_id(block_id=block_id, base_path=input_path)
+        for slide_path in slide_paths:
+            slide = openslide.OpenSlide(str(slide_path))
+            thumbnail_image = slide.get_thumbnail(size=size)
+            thumbnail_path = block_id_path / Path(f'{slide_path.stem}.png')
+            print(f'Saving thumbnail: {thumbnail_path}')
+            thumbnail_image.save(thumbnail_path)
+
     def get_slide_paths_by_block_id(self, block_id: str, base_path: Path) -> List[Path]:
         mask = self._df[block_id_column] == block_id
         filtered_df = self._df[mask]
@@ -178,6 +196,21 @@ class SlidesMapping:
 
     def get_block_ids(self) -> List[str]:
         return self._df[block_id_column].unique().tolist()
+
+    def save_thumbnails(self, path: Path, size: Tuple[int, int]):
+        block_ids = self.get_block_ids()
+        array = self._df.values
+        dump_path = path / 'self.joblib'
+        dump(value=array, filename=str(dump_path))
+        utils.ProgressParallel(
+            use_tqdm=False,
+            n_jobs=1,
+            total=len(block_ids))(
+            delayed(self._save_thumbnails_for_block_id)(
+                block_id=block_id,
+                size=size,
+                output_path=output_path,
+                dump_path=dump_path) for block_id in block_ids)
 
     @property
     def block_id_to_slide_ids(self) -> Dict[str, List[str]]:
@@ -233,6 +266,7 @@ class SlidesMapping:
 if __name__ == '__main__':
     input_path = Path('/mnt/gipmed_new/Data/Breast/Carmel')
     output_path = Path('/mnt/gipmed_new/Data/Breast/Carmel/HE_IHC')
+    # output_path = Path('C:\\out_test')
 
     base_paths = [
         Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_1/CARMEL1'),
@@ -257,24 +291,4 @@ if __name__ == '__main__':
     # slide_mapping = SlidesMapping.from_excel(path=Path('./scripts/output.xlsx'))
     slide_mapping = SlidesMapping.from_file_paths(paths=base_paths)
     slide_mapping.save_dataframe(path=Path('./output.xlsx'))
-
-    block_ids = slide_mapping.get_block_ids()
-    for block_id in block_ids:
-        block_id_path = output_path / Path(block_id)
-        block_id_path.mkdir(parents=True, exist_ok=True)
-        slide_paths = slide_mapping.get_slide_paths_by_block_id(block_id=block_id, base_path=input_path)
-        for slide_path in slide_paths:
-            slide = openslide.OpenSlide(str(slide_path))
-            thumbnail_size = (800, 800)
-            thumbnail_image = slide.get_thumbnail(thumbnail_size)
-            # thumbnail_image = Image.fromarray(thumbnail)
-            thumbnail_path = block_id_path / Path(f'{slide_path.stem}.png')
-            print(f'Saving thumbnail: {thumbnail_path}')
-            thumbnail_image.save(thumbnail_path)
-
-
-    # block_ids = list(set(list(slides_mappings.block_id_to_slide_ids.keys())))
-    # list_of_paths = []
-    # for block_id in block_ids:
-    #     current_paths = slides_mappings.block_id_to_paths[block_id]
-    #     list_of_paths.append(current_paths)
+    slide_mapping.save_thumbnails(path=output_path, size=(800, 800))
