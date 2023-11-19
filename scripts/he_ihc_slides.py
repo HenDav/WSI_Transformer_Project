@@ -164,7 +164,7 @@ class SlidesMapping:
         data = load(str(dump_path))
         df = pd.DataFrame(data=data, columns=SlideData.get_column_names())
         slide_mapping = SlidesMapping(df=df)
-        block_id_path = output_path / Path(block_id)
+        block_id_path = output_path / Path(block_id.replace("/", "_"))
         block_id_path.mkdir(parents=True, exist_ok=True)
         slide_paths = slide_mapping.get_slide_paths_by_block_id(block_id=block_id, base_path=input_path)
         for slide_path in slide_paths:
