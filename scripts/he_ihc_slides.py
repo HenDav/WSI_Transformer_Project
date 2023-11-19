@@ -161,7 +161,8 @@ class SlidesMapping:
 
     @staticmethod
     def _save_thumbnails_for_block_id(block_id: str, size: Tuple[int, int], input_path: Path, output_path: Path, dump_path: Path):
-        df = load(str(dump_path))
+        data = load(str(dump_path))
+        df = pd.DataFrame(data=data, columns=SlideData.get_column_names())
         slide_mapping = SlidesMapping(df=df)
         block_id_path = output_path / Path(block_id)
         block_id_path.mkdir(parents=True, exist_ok=True)
@@ -174,7 +175,6 @@ class SlidesMapping:
             thumbnail_image.save(thumbnail_path)
 
     def get_slide_paths_by_block_id(self, block_id: str, base_path: Path) -> List[Path]:
-        print(block_id_column)
         mask = self._df[block_id_column] == block_id
         filtered_df = self._df[mask]
 
