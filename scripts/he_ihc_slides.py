@@ -258,18 +258,18 @@ if __name__ == '__main__':
     slide_mapping = SlidesMapping.from_file_paths(paths=base_paths)
     slide_mapping.save_dataframe(path=Path('./output.xlsx'))
 
-    # block_ids = slide_mapping.get_block_ids()
-    # for block_id in block_ids:
-    #     block_id_path = output_path / Path(block_id)
-    #     block_id_path.mkdir(parents=True, exist_ok=True)
-    #     slide_paths = slide_mapping.get_slide_paths_by_block_id(block_id=block_id, base_path=input_path)
-    #     for slide_path in slide_paths:
-    #         slide = openslide.OpenSlide(str(slide_path))
-    #         thumbnail_size = (800, 800)
-    #         thumbnail = slide.get_thumbnail(thumbnail_size)
-    #         thumbnail_image = Image.fromarray(thumbnail)
-    #         thumbnail_path = block_id_path / Path(f'{slide_path.stem}.png')
-    #         thumbnail_image.save(thumbnail_path)
+    block_ids = slide_mapping.get_block_ids()
+    for block_id in block_ids:
+        block_id_path = output_path / Path(block_id)
+        block_id_path.mkdir(parents=True, exist_ok=True)
+        slide_paths = slide_mapping.get_slide_paths_by_block_id(block_id=block_id, base_path=input_path)
+        for slide_path in slide_paths:
+            slide = openslide.OpenSlide(str(slide_path))
+            thumbnail_size = (800, 800)
+            thumbnail = slide.get_thumbnail(thumbnail_size)
+            thumbnail_image = Image.fromarray(thumbnail)
+            thumbnail_path = block_id_path / Path(f'{slide_path.stem}.png')
+            thumbnail_image.save(thumbnail_path)
 
 
     # block_ids = list(set(list(slides_mappings.block_id_to_slide_ids.keys())))
