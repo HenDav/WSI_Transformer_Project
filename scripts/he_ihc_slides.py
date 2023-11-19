@@ -1,11 +1,30 @@
+# standard library
+from __future__ import annotations
 import os
 from pathlib import Path
 from typing import List, Dict
-from enum import Enum
-from dataclasses import dataclass
+
+# pandas
 import pandas as pd
+
+# openpyxl
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
+
+# wsi
+from core import constants
+
+# PIL
+from PIL import Image
+
+# openslide
+if hasattr(os, 'add_dll_directory'):
+    # Python >= 3.8 on Windows
+    with os.add_dll_directory(constants.openslide_path):
+        import openslide
+else:
+    import openslide
+
 
 dataset_name_column = 'DatasetName'
 batch_id_column = 'BatchID'
@@ -73,31 +92,92 @@ class SlideData:
 
 
 class SlidesMapping:
-    def __init__(self, paths: List[Path]):
-        self._paths = paths
-        self._slides_data: List[SlideData] = []
-        self._block_id_to_slide_ids: Dict[str, List[str]] = {}
-        self._slide_id_to_path: Dict[str, Path] = {}
-        self._block_id_to_paths: Dict[str, List[Path]] = {}
+    # def __init__(self, paths: List[Path]):
+    #     self._paths = paths
+    #     self._slides_data: List[SlideData] = []
+    #     self._block_id_to_slide_ids: Dict[str, List[str]] = {}
+    #     self._slide_id_to_path: Dict[str, Path] = {}
+    #     self._block_id_to_paths: Dict[str, List[Path]] = {}
+    #
+    #     for path in paths:
+    #         print(path)
+    #         slide_data = SlideData(path=path)
+    #         slide_id = slide_data.slide_id
+    #         block_id = slide_data.block_id
+    #
+    #         if block_id not in self._block_id_to_slide_ids:
+    #             self._block_id_to_slide_ids[block_id] = []
+    #
+    #         self._block_id_to_slide_ids[block_id].append(slide_id)
+    #         self._slide_id_to_path[slide_id] = path
+    #
+    #         if block_id not in self._block_id_to_paths:
+    #             self._block_id_to_paths[block_id] = []
+    #         self._block_id_to_paths[block_id].append(path)
+    #         self._slides_data.append(slide_data)
+    #
+    #     self._df = self._create_dataframe()
 
+    def __init__(self, df: pd.DataFrame):
+        self._df = df
+
+    @staticmethod
+    def from_file_paths(paths: List[Path]) -> SlidesMapping:
+        slide_paths = SlidesMapping._list_files(paths=paths, ext='mrxs')
+        slides_data: List[SlideData] = []
+        for slide_path in slide_paths:
+            slide_data = SlideData(path=slide_path)
+            slides_data.append(slide_data)
+
+        data = [slide_data.get_row() for slide_data in slides_data]
+        columns = SlideData.get_column_names()
+        df = pd.DataFrame(data, columns=columns)
+        return SlidesMapping(df=df)
+
+    @staticmethod
+    def from_excel(path: Path) -> SlidesMapping:
+        df = pd.read_excel(io=path)
+        return SlidesMapping(df=df)
+
+    @staticmethod
+    def _remove_non_digits(s: str) -> str:
+        return ''.join(char for char in s if char.isdigit())
+
+    @staticmethod
+    def _list_files(paths: List[Path], ext: str) -> List[Path]:
+        listed_file_paths = []
         for path in paths:
-            print(path)
-            slide_data = SlideData(path=path)
-            slide_id = slide_data.slide_id
-            block_id = slide_data.block_id
+            for root, dirs, files in os.walk(path):
+                for file in files:
+                    if file.endswith(ext):
+                        full_path = os.path.normpath(os.path.join(root, file))
+                        listed_file_paths.append(Path(full_path))
+                break
+        return listed_file_paths
 
-            if block_id not in self._block_id_to_slide_ids:
-                self._block_id_to_slide_ids[block_id] = []
+    def get_slide_paths_by_block_id(self, block_id: str, base_path: Path) -> List[Path]:
+        mask = self._df[block_id_column] == block_id
+        filtered_df = self._df[mask]
 
-            self._block_id_to_slide_ids[block_id].append(slide_id)
-            self._slide_id_to_path[slide_id] = path
+        def row_to_path(row: pd.Series) -> Path:
+            if row[dataset_name_column] == 'Carmel':
+                batch_number = int(SlidesMapping._remove_non_digits(s=row[batch_id_column]))
+                if 1 <= batch_number <= 8:
+                    subfolder = '1-8'
+                elif batch_number > 8:
+                    subfolder = '9-11'
+            elif row[dataset_name_column] == 'Her2':
+                batch_number = int(row[batch_id_column].rsplit('_', 1)[1])
+                subfolder = 'Her2'
 
-            if block_id not in self._block_id_to_paths:
-                self._block_id_to_paths[block_id] = []
-            self._block_id_to_paths[block_id].append(path)
-            self._slides_data.append(slide_data)
+            path = Path(f'{base_path}/{subfolder}/Batch_{batch_number}/{row[batch_id_column].upper()}/{row[slide_name_column]}.mrxs')
+            return path
 
-        self._df = self._create_dataframe()
+        slide_paths = filtered_df.apply(row_to_path, axis=1).tolist()
+        return slide_paths
+
+    def get_block_ids(self) -> List[str]:
+        return self._df[block_id_column].unique().tolist()
 
     @property
     def block_id_to_slide_ids(self) -> Dict[str, List[str]]:
@@ -141,25 +221,19 @@ class SlidesMapping:
 
         workbook.save(path_str)
 
+    def load_dataframe(self, path: Path):
+        self._df = pd.read_excel(io=path)
+
     def get_block_ids_with_multiple_her2(self) -> List[str]:
         grouped_df = self._df.groupby(block_id_column)
         bla = grouped_df.apply(lambda x: (x[dataset_name_column] == 'Her2').sum())
         pass
 
 
-def list_files(paths: List[Path], ext: str) -> List[Path]:
-    listed_file_paths = []
-    for path in paths:
-        for root, dirs, files in os.walk(path):
-            for file in files:
-                if file.endswith(ext):
-                    full_path = os.path.normpath(os.path.join(root, file))
-                    listed_file_paths.append(Path(full_path))
-            break
-    return listed_file_paths
-
-
 if __name__ == '__main__':
+    input_path = Path('/mnt/gipmed_new/Data/Breast/Carmel')
+    output_path = Path('/mnt/gipmed_new/Data/Breast/Carmel/HE_IHC')
+
     base_paths = [
         Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_1/CARMEL1'),
         Path('/mnt/gipmed_new/Data/Breast/Carmel/1-8/Batch_2/CARMEL2'),
@@ -180,14 +254,23 @@ if __name__ == '__main__':
         Path('/mnt/gipmed_new/Data/Breast/Carmel/Her2/Batch_6/HER2_6'),
     ]
 
-    # base_paths = [
-    #     Path('C:/slide_thumbs/IHC'),
-    #     Path('C:/slide_thumbs/HE')
-    # ]
+    # slide_mapping = SlidesMapping.from_excel(path=Path('./scripts/output.xlsx'))
+    slide_mapping = SlidesMapping.from_file_paths(paths=base_paths)
+    slide_mapping.save_dataframe(path=Path('./output.xlsx'))
 
-    slide_paths = list_files(paths=base_paths, ext='mrxs')
-    slides_mappings = SlidesMapping(paths=slide_paths)
-    slides_mappings.save_dataframe(path=Path('./output.xlsx'))
+    block_ids = slide_mapping.get_block_ids()
+    for block_id in block_ids:
+        block_id_path = output_path / Path(block_id)
+        block_id_path.mkdir(parents=True, exist_ok=True)
+        slide_paths = slide_mapping.get_slide_paths_by_block_id(block_id=block_id, base_path=input_path)
+        for slide_path in slide_paths:
+            slide = openslide.OpenSlide(str(slide_path))
+            thumbnail_size = (800, 800)
+            thumbnail = slide.get_thumbnail(thumbnail_size)
+            thumbnail_image = Image.fromarray(thumbnail)
+            thumbnail_path = block_id_path / Path(f'{slide_path.stem}.png')
+            thumbnail_image.save(thumbnail_path)
+
 
     # block_ids = list(set(list(slides_mappings.block_id_to_slide_ids.keys())))
     # list_of_paths = []
