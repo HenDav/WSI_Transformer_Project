@@ -174,6 +174,7 @@ class SlidesMapping:
             thumbnail_image.save(thumbnail_path)
 
     def get_slide_paths_by_block_id(self, block_id: str, base_path: Path) -> List[Path]:
+        print(block_id_column)
         mask = self._df[block_id_column] == block_id
         filtered_df = self._df[mask]
 
