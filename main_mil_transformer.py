@@ -5,13 +5,14 @@ from pytorch_lightning.callbacks import LearningRateMonitor
 from pytorch_lightning.cli import ArgsType, LightningCLI
 from pytorch_lightning.loggers.wandb import WandbLogger
 
-from datasets.mil_transformer_datamodules import WsiGridFeaturesDataModule
-from mil_transformer_classifier import MilTransformerClassifier
+from wsi.datasets.mil_transformer_datamodules import WsiGridFeaturesDataModule, WsiGridDataModule, WsiRandomFeaturesDataModule
+from wsi.mil_transformer_classifier import MilTransformerClassifier
 
 
 class WsiLightningCLI(LightningCLI):
     def add_arguments_to_parser(self, parser):
         parser.link_arguments("data.batch_size", "model.batch_size")
+        parser.link_arguments("data.bag_size", "model.bag_size")
         # allow specifying wandb checkpoint paths in the form of "USER/PROJECT/MODEL-RUN_ID:VERSION"
         # reference can be retrieved in artifacts panel
         # "VERSION" can be a version (ex: "v2") or an alias ("latest or "best_k")
@@ -55,7 +56,9 @@ def cli_main(args: ArgsType = None):
     # follow https://github.com/Lightning-AI/lightning/issues/14188 for the fix
     cli = WsiLightningCLI(  # noqa: F841
         MilTransformerClassifier,
-        WsiGridFeaturesDataModule,
+        WsiRandomFeaturesDataModule,
+        # WsiGridFeaturesDataModule, //change to grip training regiment
+        # WsiGridDataModule,
         trainer_defaults=trainer_defaults,
         seed_everything_default=True,
         parser_kwargs={

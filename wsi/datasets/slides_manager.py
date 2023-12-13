@@ -31,14 +31,15 @@ def default_predicate( #TODO: add as parameter list of columns_used
     min_tiles_indices = df.index[
         df[constants.legitimate_tiles_column_name] > min_tiles
     ]
+    target_indices = df.index[
+        df[target].notna() & df[target].isin([0,1,'0','1'])
+    ]
     if secondary_target:
-        target_indices = df.index[
-            df[target].notna() & df[secondary_target].notna()
+        secondary_indices = df.index[
+            df[secondary_target].notna() & df[secondary_target].isin([0,1,'0','1'])
         ]  # TODO: review this and check possible column values
-    else:
-        target_indices = df.index[
-            df[target].notna()
-        ]
+        target_indices = target_indices.intersection(secondary_indices)
+        
     
     filtered_target = matching_indices.intersection(target_indices)
     filtered_min_tiles = filtered_target.intersection(min_tiles_indices)

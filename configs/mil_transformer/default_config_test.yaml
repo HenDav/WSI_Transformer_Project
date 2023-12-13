@@ -30,14 +30,11 @@ model:
   feature_extractor_backbone: null
 data:
   features_dir: features/1v68rmq3/cat
-  grid_side_length: 8
+  bag_size: 64
   test_features_dir: null
-  dataset: CAT
-  target: ER
-  val_fold: 1
-  test_grids_per_slide: 1
+  target: er_status
+  bags_per_slide: 1
   min_tiles_train: 100
   min_tiles_eval: 100
-  metadata_file_path: null
   batch_size: 128
   num_workers: 8

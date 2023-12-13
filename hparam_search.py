@@ -13,8 +13,8 @@ from ray.tune.integration.pytorch_lightning import TuneReportCallback, TuneRepor
 from ray.tune.schedulers import ASHAScheduler
 from ray import tune
 
-from datasets.datamodules import WsiDataModule  # , LegacyWsiDataModule
-from utils.features_writer import FeaturesWriter  # noqa: F401
+from wsi.datasets.datamodules import WsiDataModule  # , LegacyWsiDataModule
+from wsi.utils.features_writer import FeaturesWriter  # noqa: F401
 from wsi.wsi_classifier import WsiClassifier
 
 
@@ -32,15 +32,15 @@ def train_wsi(config, num_epochs=100):
         max_epochs=num_epochs,
         accelerator="gpu" if torch.cuda.is_available() else "cpu",
         devices="auto",
-        strategy="ddp",
+        strategy="ddp_find_unused_parameters_false",
         callbacks=[TuneReportCallback(metrics, on="validation_epoch_end")],
         enable_progress_bar = False)
     trainer.fit(model, dm)
 
 if __name__ == "__main__":
 
-    num_samples = 100
-    num_epochs = 20
+    num_samples = 20
+    num_epochs = 300
     gpus_per_trial = 1
     cpus_pre_run = 12
 
@@ -50,11 +50,9 @@ if __name__ == "__main__":
         reduction_factor=2)
 
     config = {
-        "lr": tune.loguniform(1e-4, 5e-2),
-        # "lr_scheduler": tune.choice([True, False]),
-        "weight_decay": tune.loguniform(1e-4, 1e-2),
-        "autoaug": tune.choice(["imagenet", "wsi_ron"]),
-        "model": tune.choice(["resnet50", "resnet101", "densenet121"]),
+        "lr": tune.loguniform(1e-5, 1e-2),
+        "weight_decay": tune.loguniform(1e-5, 1e-4),
+        "lr_scheduler": tune.choice([True, False])
     }
 
     reporter = CLIReporter(

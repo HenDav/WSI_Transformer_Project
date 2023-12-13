@@ -1,4 +1,4 @@
-from typing import Callable, Literal, Optional, Tuple, Dict
+from typing import Callable, Literal, Optional, Tuple
 
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
@@ -36,8 +36,8 @@ NORMALIZATIONS = {
 class WsiDataModule(LightningDataModule):
     def __init__(
         self,
-        datasets_folds: Dict = {'CAT':[2,3,4,5]},
-        datasets_folds_val: Dict = {'CAT':[1]},
+        datasets_folds: dict = {'CAT':[2,3,4,5]},
+        datasets_folds_val: dict = {'CAT':[1]},
         target: str = "er_status",
         secondary_target: str = None,
         patches_per_slide_train: int = 10,
@@ -180,10 +180,9 @@ class WsiDataModule(LightningDataModule):
             
         elif stage == "predict":
             self.predict_dataset = SerialPatchDataset(
-                dataset=self.dataset,
+                datasets_folds=self.datasets_folds,
                 target=self.target,
                 secondary_target=self.secondary_target,
-                val_fold=self.val_fold,
                 min_tiles=self.min_tiles_eval,
                 transform=self.eval_transforms,
                 datasets_base_dir_path=(

@@ -38,6 +38,8 @@ class WSIDataset(ABC, Dataset):
         slides_manager: SlidesManager = None,
         **kw: object,
     ):
+        if kw:
+            print(kw)
         super().__init__(**kw)
         self._target = target
         self._secondary_target = secondary_target
@@ -72,6 +74,7 @@ class WSIDataset(ABC, Dataset):
             )
         self._slides_manager = slides_manager
         self.num_slides = len(slides_manager)
+        self._instances_per_slide = instances_per_slide
         self._dataset_size = instances_per_slide * self.num_slides
 
     def __len__(self):
@@ -113,7 +116,7 @@ class RandomPatchDataset(WSIDataset):
         self._transform = transform
 
     def __getitem__(self, item: int):
-        slide = self._slides_manager.get_slide(item % self.num_slides)
+        slide = self._slides_manager.get_slide(item // self._instances_per_slide)
 
         slide_name = slide.slide_context.image_file_name
         dataset_id = self.datasets_keys.index(slide.slide_context.dataset_id)
@@ -239,7 +242,7 @@ class SlideDataset(WSIDataset):
         pass
 
     def get_bag(self, item: int):
-        slide = self._slides_manager.get_slide(item % self.num_slides)
+        slide = self._slides_manager.get_slide(item // self._instances_per_slide)
         slide_name = slide.slide_context.image_file_name
         dataset_id = self.datasets_keys.index(slide.slide_context.dataset_id)
         self.patch_extractor = self.patch_extractor_constructor(slide=slide)

@@ -13,13 +13,35 @@ from pytorch_lightning.loggers import WandbLogger
 from torch import nn
 from torchmetrics.functional.classification import accuracy, auroc
 
-from cleanlab.filter import find_label_issues
+# from cleanlab.filter import find_label_issues
 
+import sys
+sys.path.append("../wsi-ssl")
+import wsi_ssl # circular import here for ssl model loading. needs to be taken care of at some point.
 from .models.preact_resnet import PreActResNet50
 from .core import constants
 
 
 class WsiClassifier(LightningModule):
+    """
+    WsiClassifier is a PyTorch Lightning module for Whole Slide Image classification tasks. 
+    The classifier uses a specified model architecture and applies specific learning rate, 
+    weight decay, and other training configurations. It supports multi-class classification 
+    and allows for fine-tuning and checkpoint loading.
+
+    Attributes:
+        backbone: The backbone of the model.
+        classifier: The classifier part of the model.
+        criterion: The criterion or loss function used by the model.    
+        num_classes: The number of classes for classification.
+        log_params: A flag indicating whether to log parameters.
+        debug: A flag indicating whether the model is in debug mode.    
+
+    Example:
+        model = WsiClassifier(model="resnet101", num_classes=3)
+        trainer = Trainer(max_epochs=10)
+        trainer.fit(model, train_dataloader, val_dataloader)
+    """
     def __init__(
         self,
         model: str = "resnet101",
@@ -36,32 +58,33 @@ class WsiClassifier(LightningModule):
         train_classifier_from_scratch: bool = False,
         debug: bool = False,
         drop_rate: float = 0.0,
-        datasets_folds: Dict = {},
-        datasets_folds_val: Dict = {},
         log_scores: bool = False,
         **kwargs,
     ):
         """
+        Initializes the WsiClassifier object.
+
         Args:
-            model: backbone model, either a timm model or "preact_resnet50"
-            lr: learning rate
-            num_classes: number of target classes
-            ckpt_path: path to pretrained backbone checkpoint
-            imagenet_pretrained: use imagenet pretrained weights for the backbone
-            finetune: whether or not to finetune the backbone
-            criterion: loss function to use
-            log_params: debug: log model parameters and gradients to wandb
-            batch_size: batch size
+            model (str, optional): Backbone model, either a timm model or "preact_resnet50". Defaults to "resnet101".
+            lr (float, optional): Learning rate for the optimizer. Defaults to 0.001.
+            weight_decay (float, optional): Weight decay for the optimizer. Defaults to 1e-4.
+            lr_scheduler (bool, optional): Whether to use a learning rate scheduler. Defaults to False.
+            num_classes (int, optional): Number of target classes. Defaults to 2.
+            ckpt_path (Optional[str], optional): Path to pretrained backbone checkpoint. If not provided, defaults to None.
+            imagenet_pretrained (bool, optional): Whether to use ImageNet pretrained weights for the backbone. Defaults to False.
+            finetune (bool, optional): Whether to finetune the backbone. Defaults to False.
+            criterion (Literal["crossentropy"], optional): Loss function to use. Defaults to "crossentropy".
+            log_params (bool, optional): Whether to log model parameters and gradients to wandb. Defaults to False.
+            batch_size (int, optional): Batch size for data loading. Defaults to 256.
+            train_classifier_from_scratch (bool, optional): Whether to train the classifier from scratch. Defaults to False.
+            debug (bool, optional): Whether to run in debug mode. Defaults to False.
+            drop_rate (float, optional): Dropout rate. Defaults to 0.0.
+            log_scores (bool, optional): Whether to log scores. Defaults to False.
+            **kwargs: Additional keyword arguments.
         """
         super().__init__()
 
         self.save_hyperparameters()
-
-        datasets_folds = constants.get_datasets_folds(datasets_folds)
-        datasets_folds_val = constants.get_datasets_folds(datasets_folds_val)
-
-        self.datasets_keys = list(datasets_folds.keys())
-        # self.datasets_keys_val = list(datasets_folds_val.keys())
 
         self.backbone, self.classifier = self._init_model(
             model, num_classes, ckpt_path, imagenet_pretrained, finetune, train_classifier_from_scratch, drop_rate
@@ -113,10 +136,6 @@ class WsiClassifier(LightningModule):
             sync_dist=True,
         )
 
-        # if self.debug:
-        #     return_tup = {"loss": loss, "patch_preds": preds, "patch_scores": scores, "y": y, "slide_names": slide_name, "center_pixels": center_pixel}
-        # else:
-        #     return_tup = {"loss": loss, "patch_preds": preds, "patch_scores": scores, "y": y}
         return {"loss": loss, "patch_preds": preds, "patch_scores": scores, "y": y}
 
     def training_epoch_end(self, outputs):
@@ -390,18 +409,6 @@ class WsiClassifier(LightningModule):
             logger=True,
         )
 
-        # ranked_label_issues = find_label_issues(
-        #     patch_labels.numpy(),
-        #     patch_scores.numpy(),
-        #     return_indices_ranked_by="self_confidence",
-        # )
-
-        # print(ranked_label_issues[:15])
-
-        # print(f"Cleanlab found {len(ranked_label_issues)} label issues.")
-        # print(f"Top 15 most likely label errors: \n {pd.Series(slide_names)[ranked_label_issues][:15]}")
-        # print(f"Top 15 most likely label errors coords: \n {pd.Series(center_pixels)[ranked_label_issues][:15]}")
-
         # from this point on, we only support binary classification for now
         if self.num_classes > 2:
             return
@@ -423,7 +430,7 @@ class WsiClassifier(LightningModule):
 
         df = pd.concat([df_slides, df_patches], axis=1)
         
-        df.to_csv(f"{self.logger.experiment.name}_scores")
+        df.to_csv(f"{self.logger.experiment.name}_scores.csv")
 
         if not isinstance(self.logger, WandbLogger):
             df.to_csv(Path(self.logger.log_dir) / "slide_scores.csv")
@@ -490,11 +497,6 @@ class WsiClassifier(LightningModule):
             backbone = PreActResNet50()
             num_features = backbone.linear.in_features
             backbone.linear = nn.Identity()
-        # elif model == "resnet50":
-        #     # torchvision resnet
-        #     backbone = resnet50(weights="DEFAULT" if imagenet_pretrained else None)
-        #     num_features = backbone.fc.in_features
-        #     backbone.fc = nn.Identity()
         else:
             # timm model
             backbone = timm.create_model(model, pretrained=imagenet_pretrained, drop_rate=drop_rate)
@@ -528,8 +530,11 @@ class WsiClassifier(LightningModule):
                     elif "classifier" in k:
                         state_dict[k.replace("classifier.", "")] = state_dict[k]
                     del state_dict[k]
-                incompatible_keys_classifier = classifier.load_state_dict(state_dict, strict=True)
-                
+                incompatible_keys_classifier = classifier.load_state_dict(state_dict, strict=False)
+                if incompatible_keys_classifier.missing_keys or incompatible_keys_classifier.unexpected_keys:
+                    print(
+                        f"Incompatible keys when loading classifier from checkpoint: {incompatible_keys_classifier}"
+                    )
 
         if (imagenet_pretrained or ckpt_path is not None) and not finetune:
             for child in list(backbone.children()):

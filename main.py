@@ -8,7 +8,7 @@ from pytorch_lightning.loggers.wandb import WandbLogger
 from pytorch_lightning.profilers import AdvancedProfiler
 
 from wsi.datasets.datamodules import WsiDataModule  # , LegacyWsiDataModule
-from wsi.utils.features_writer import FeaturesWriter  # noqa: F401
+from wsi import utils  # noqa: F401
 from wsi.wsi_classifier import WsiClassifier
 
 torch.set_float32_matmul_precision("high")
@@ -16,13 +16,14 @@ torch.set_float32_matmul_precision("high")
 class WsiLightningCLI(LightningCLI):
     def add_arguments_to_parser(self, parser):
         parser.link_arguments("data.batch_size", "model.batch_size")
-        parser.link_arguments("data.datasets_folds", "model.datasets_folds")
-        parser.link_arguments("data.datasets_folds_val", "model.datasets_folds_val")
+        # parser.link_arguments("data.datasets_folds", "model.datasets_folds")
+        # parser.link_arguments("data.datasets_folds_val", "model.datasets_folds_val")
         # allow specifying wandb checkpoint paths in the form of "USER/PROJECT/MODEL-RUN_ID:VERSION"
         # reference can be retrieved in artifacts panel
         # "VERSION" can be a version (ex: "v2") or an alias ("latest or "best_k")
         # the file is downloaded to "./artifacts/model-RUN_ID:VERSION/model.ckpt"
         parser.add_argument("--wandb_ckpt_path", type=str)
+        # parser.add_argument("--data.datasets_folds", type=dict)
 
     def before_fit(self):
         wandb_ckpt_path = vars(self.config["fit"]).get("wandb_ckpt_path")

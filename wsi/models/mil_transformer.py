@@ -28,7 +28,7 @@ class MilTransformer(nn.Module):
     def __init__(
         self,
         variant: Literal["vit", "simple"] = "vit",
-        pos_encode: Literal["sincos", "learned"] = "sincos",
+        pos_encode: Literal["sincos", "learned", "None"] = "sincos",
         bag_size: int = 100,
         input_dim: int = 512,
         num_classes: int = 2,
@@ -76,10 +76,9 @@ class MilTransformer(nn.Module):
         x = self.to_patch_embedding(bag)
 
         if self.pos_encode == "sincos":
-            pe = posemb_sincos_2d(x)
+            x += posemb_sincos_2d(x)
         elif self.pos_encode == "learned":
-            pe = self.pos_embedding[:, : (self.bag_size + 1)]
-        x += pe
+            x += self.pos_embedding[:, : (self.bag_size + 1)]
         x = self.emb_dropout(x)
 
         x = self.transformer(x)

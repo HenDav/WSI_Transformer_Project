@@ -13,6 +13,18 @@ slurm*
 config.yaml
 patch_*
 test_*
+CAT_auc_calc.ipynb
+ER_scores_per_slide.xlsx
+ResNet50.ipynb
+WSI
+Hormonal*
+model_auc_recovery
+TaylorX_exploration.ipynb
+conda_master_pytorch2*
+outputs/*
+*inference*.csv
+*.xlsx
+*/legacy/*
 
 # Byte-compiled / optimized / DLL files
 *.ipynb_checkpoints*
