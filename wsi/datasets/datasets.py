@@ -3,7 +3,10 @@ from abc import ABC, abstractmethod
 from typing import List, Optional, Dict
 from datetime import datetime
 
+import numpy as np
 import pandas
+from PIL import Image
+from einops import rearrange
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
@@ -242,26 +245,29 @@ class SlideDataset(WSIDataset):
         pass
 
     def get_bag(self, item: int):
+        assert (self._bag_size ** 0.5).is_integer(), "sqrt of bag size must be integer for transformations to work in current version."
         slide = self._slides_manager.get_slide(item // self._instances_per_slide)
         slide_name = slide.slide_context.image_file_name
         dataset_id = self.datasets_keys.index(slide.slide_context.dataset_id)
         self.patch_extractor = self.patch_extractor_constructor(slide=slide)
         patch, center_pixel = self.patch_extractor.extract_patch(patch_validators=[])
-        bag_item = to_tensor(patch.image)
-        bag_shape = (self._bag_size, *bag_item.shape)
-        bag = torch.zeros(bag_shape)
+        bag_size_root = int(self._bag_size ** 0.5)
+        bag_item = patch.image  # No tensor conversion
+        bag = np.zeros((self._bag_size, *bag_item.size, 3))
         center_pixels = []
-        bag[0] = self._transform(patch.image)
         center_pixels.append(center_pixel)
+        bag[0] = np.array(bag_item)  # Convert to NumPy array for assignment
         for idx in range(1, self._bag_size):
-            patch, center_pixel = self.patch_extractor.extract_patch(
-                patch_validators=[]
-            )
+            patch, center_pixel = self.patch_extractor.extract_patch(patch_validators=[])
             center_pixels.append(center_pixel)
-            bag_item = self._transform(patch.image)
+            bag_item = patch.image  # No tensor conversion
+            bag[idx] = np.array(bag_item)  # Convert to NumPy array for assignment
 
-            bag[idx] = bag_item
-
+        # Convert the NumPy array back to a PIL image before applying the transform
+        bag = rearrange(bag, '(p1 p2) x y z -> (p1 x) (p2 y) z', p1=bag_size_root, p2=bag_size_root)
+        bag = Image.fromarray(bag.astype('uint8'))
+        bag = self._transform(bag)
+        bag = rearrange(bag, 'z (p1 x) (p2 y) -> (p1 p2) z x y', p1=bag_size_root, p2=bag_size_root)
         label = slide.slide_context.get_biomarker_value(bio_marker=self._target)
         label = torch.tensor(label).expand(self._bag_size).clone()
         dataset_id = torch.tensor(dataset_id)

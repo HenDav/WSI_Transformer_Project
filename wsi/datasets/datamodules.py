@@ -11,7 +11,7 @@ from .datasets import (
     SlideRandomDataset,
 )
 
-from ..legacy.transformations import MyGaussianNoiseTransform, MyRotation
+from ..transformations import MyGaussianNoiseTransform, MyRotation
 # from legacy.datasets_legacy import WSI_REGdataset
 
 NORMALIZATIONS = {

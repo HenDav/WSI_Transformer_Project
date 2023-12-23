@@ -5,7 +5,7 @@ from pytorch_lightning.callbacks import LearningRateMonitor
 from pytorch_lightning.cli import ArgsType, LightningCLI
 from pytorch_lightning.loggers.wandb import WandbLogger
 
-from wsi.datasets.mil_transformer_datamodules import WsiGridFeaturesDataModule, WsiGridDataModule, WsiRandomFeaturesDataModule
+from wsi.datasets.mil_transformer_datamodules import WsiGridFeaturesDataModule, WsiGridDataModule, WsiRandomFeaturesDataModule, WsiRandomDataModule
 from wsi.mil_transformer_classifier import MilTransformerClassifier
 
 
@@ -56,9 +56,10 @@ def cli_main(args: ArgsType = None):
     # follow https://github.com/Lightning-AI/lightning/issues/14188 for the fix
     cli = WsiLightningCLI(  # noqa: F841
         MilTransformerClassifier,
-        WsiRandomFeaturesDataModule,
-        # WsiGridFeaturesDataModule, //change to grip training regiment
-        # WsiGridDataModule,
+        # WsiRandomFeaturesDataModule,
+        # WsiGridFeaturesDataModule,
+        WsiGridDataModule,
+        # WsiRandomDataModule,
         trainer_defaults=trainer_defaults,
         seed_everything_default=True,
         parser_kwargs={
