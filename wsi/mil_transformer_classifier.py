@@ -268,17 +268,8 @@ class MilTransformerClassifier(LightningModule):
         return self.model(x)
 
     def configure_optimizers(self):
-        params = list(self.model.named_parameters())
-
-        def is_backbone(n): return 'backbone' in n
-
-        grouped_parameters = [
-            {"params": [p for n, p in params if is_backbone(n)], 'lr': self.hparams.lr},
-            {"params": [p for n, p in params if not is_backbone(n)], 'lr': self.hparams.lr},
-        ]
-        
         optimizer = optim.AdamW(
-            grouped_parameters, lr=self.hparams.lr, weight_decay=self.hparams.weight_decay
+            self.model.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay
         )
 
         lr_scheduler = {
