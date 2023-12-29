@@ -25,6 +25,7 @@ outputs/*
 *inference*.csv
 *.xlsx
 */legacy/*
+Summary_data_per_slide_With_HL_noisy.xlsx
 
 # Byte-compiled / optimized / DLL files
 *.ipynb_checkpoints*
