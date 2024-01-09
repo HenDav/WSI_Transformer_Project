@@ -25,6 +25,7 @@ trainer:
   #     min_delta: 0.0
   #     patience: 20
   #     mode: max
+  stratagy: ddp_find_unused_parameters_false
   devices: auto
   check_val_every_n_epoch: 5
   fast_dev_run: false
@@ -38,7 +39,9 @@ trainer:
   auto_scale_batch_size: false
 model:
   model: resnet50
-  lr: 0.006
+  lr: 2e-3
+  lr_scheduler: true
+  weight_decay: 2e-5
   num_classes: 2
   ckpt_path: null # for transfer learning
   imagenet_pretrained: false
