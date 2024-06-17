@@ -36,3 +36,5 @@ To use this project, follow these steps:
     ```bash
     python main_mil_transformer.py test --ckpt_path <our checkpoint for the model trained> --data.datasets_folds "{TCGA: [6]}" --model.variant simple --trainer.logger.init_args.name <wandb run name> --trainer.logger.init_args.project <wandb project name> --data.features_dir <patch features dir> --model.feature_dim <feature dimention> --data.test_features_dir <test patch features dir> --trainer.max_epochs 20 --data.bag_size 100 --patch_sampling <patch sampling stratagy> --model.pos_encode <positional encoding> (if model.pos_encode==multi_grid, you'll also need to include --data.num_grids 25 --model.num_grids_pos_encode 25)
     ```
+
+For the features used in training and testing contact dahen@cs.technion.ac.il
