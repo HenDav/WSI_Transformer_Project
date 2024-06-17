@@ -281,7 +281,7 @@ class SlideContext:
         return Image.fromarray(np.uint8(image), mode="RGB")
 
     def get_biomarker_value(self, bio_marker) -> bool:
-        return int(self._row[bio_marker].item())
+        return self._row[bio_marker].item()
 
     def _get_best_level_for_downsample(self, slide: openslide.OpenSlide):
         level = 0
@@ -688,6 +688,36 @@ class GridPatchExtractor(PatchExtractor):
                     + tile._slide_context.zero_level_tile_size_x_offset * j
                     + tile._slide_context.zero_level_tile_size_y_offset * i
                 )
+
+    def _extract_center_pixel(self) -> np.ndarray:
+        if self._patches_so_far >= self._num_patches:
+            raise Exception
+        self._patches_so_far += 1
+        return self._pixels_to_extract[self._patches_so_far - 1]
+
+class MultiGridPatchExtractor(PatchExtractor):
+    def __init__(self, slide: Slide, side_length, num_grids):
+        super().__init__(slide=slide)
+        self._num_patches = side_length**2 * num_grids
+        self._side_length = side_length
+        self._num_grids = num_grids
+        self._patches_so_far = 0
+        self._pixels_to_extract = np.zeros((self._num_patches, 2))
+        for grid in range(self._num_grids):
+            tile = self._slide.get_random_tile()
+            center_pixel = tile.center_pixel
+            top_left_tile_center_pixel = center_pixel - (
+                tile._slide_context.zero_level_tile_size
+                * (self._side_length - int(side_length % 2 != 0))
+                // 2
+            )
+            for i in range(self._side_length):
+                for j in range(self._side_length):
+                    self._pixels_to_extract[grid * (self._side_length ** 2) + j * self._side_length + i] = (
+                        top_left_tile_center_pixel
+                        + tile._slide_context.zero_level_tile_size_x_offset * j
+                        + tile._slide_context.zero_level_tile_size_y_offset * i
+                    )
 
     def _extract_center_pixel(self) -> np.ndarray:
         if self._patches_so_far >= self._num_patches:

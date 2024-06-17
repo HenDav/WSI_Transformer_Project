@@ -15,7 +15,7 @@ trainer:
       monitor: val/slide_auc
       filename: epoch={epoch}-val_auc={val/slide_auc:.3f}
       save_last: true
-      save_top_k: 3
+      save_top_k: 1
       mode: max
       auto_insert_metric_name: false
   # - class_path: pytorch_lightning.callbacks.EarlyStopping
@@ -40,7 +40,6 @@ model:
   pos_encode: sincos
   bag_size: 64
   feature_dim: 512
-  num_classes: 2
   dim: 1024
   depth: 6
   heads: 16
@@ -48,7 +47,7 @@ model:
   dim_head: 64
   dropout: 0.1
   emb_dropout: 0.1
-  lr: 0.001
+  lr: 0.0002
   feature_extractor_ckpt: null
   feature_extractor_backbone: null
 data:
@@ -60,15 +59,3 @@ data:
   num_workers: 8
 wandb_ckpt_path: null
 ckpt_path: null
-# override default optimizer and lr scheduler
-optimizer:
-  class_path: torch.optim.SGD
-  init_args:
-    lr: 1e-3
-    momentum: 0.9
-    weight_decay: 1e-2
-lr_scheduler:
-  class_path: torch.optim.lr_scheduler.StepLR
-  init_args:
-    step_size: 30
-    gamma: 0.1

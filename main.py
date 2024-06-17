@@ -1,5 +1,7 @@
+import argparse
 from pathlib import Path
 import os
+import sys
 
 import torch
 from pytorch_lightning.callbacks import LearningRateMonitor
@@ -65,14 +67,13 @@ def cli_main(args: ArgsType = None):
     cli = WsiLightningCLI(  # noqa: F841
         WsiClassifier,
         WsiDataModule,
-        # LegacyWsiDataModule,
         trainer_defaults=trainer_defaults,
         seed_everything_default=True,
         parser_kwargs={
-            "fit": {"default_config_files": ["configs/default_config_fit.yaml"]},
-            "test": {"default_config_files": ["configs/default_config_test.yaml"]},
+            "fit": {"default_config_files": ["configs/classifier/default_config_fit.yaml"]},
+            "test": {"default_config_files": ["configs/classifier/default_config_test.yaml"]},
             "predict": {
-                "default_config_files": ["configs/default_config_predict.yaml"]
+                "default_config_files": ["configs/classifier/default_config_predict.yaml"]
             },
         },
         save_config_kwargs={"overwrite": True},

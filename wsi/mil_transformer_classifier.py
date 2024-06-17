@@ -22,6 +22,7 @@ class MilTransformerClassifier(LightningModule):
         variant: Literal["vit", "simple"] = "vit",
         pos_encode: Literal["sincos", "learned", "None"] = "sincos",
         bag_size: int = 64,
+        num_grids_pos_encode: int = 1,
         feature_dim: int = 512,
         num_classes: int = 2,
         dim: int = 1024,
@@ -31,7 +32,7 @@ class MilTransformerClassifier(LightningModule):
         dim_head: int = 64,
         dropout: float = 0.1,
         emb_dropout: float = 0.1,
-        lr: float = 1e-3,
+        lr: float = 2e-4,
         weight_decay: float = 1e-5,
         feature_extractor_ckpt: Optional[str] = None,
         feature_extractor_backbone: Optional[str] = None,
@@ -76,6 +77,7 @@ class MilTransformerClassifier(LightningModule):
         self.model = MilTransformer(
             variant=variant,
             pos_encode=pos_encode,
+            num_grids=num_grids_pos_encode,
             bag_size=bag_size,
             input_dim=feature_dim,
             num_classes=num_classes,
@@ -255,7 +257,6 @@ class MilTransformerClassifier(LightningModule):
                 x = self.feature_extractor.forward_features(bag)
                 x = rearrange(x, "(b1 b2) e -> b1 b2 e", b2=self.hparams.bag_size)
 
-        y = y[:, 0]
         logits = self.model(x)
 
         preds = torch.argmax(logits, dim=1)
@@ -268,22 +269,28 @@ class MilTransformerClassifier(LightningModule):
         return self.model(x)
 
     def configure_optimizers(self):
-        optimizer = optim.AdamW(
-            self.model.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay
+        optimizer = torch.optim.AdamW(
+            params=[p for p in self.parameters() if p.requires_grad],
+            lr=self.hparams.lr,
+            weight_decay=self.hparams.weight_decay,
         )
 
-        lr_scheduler = {
-            "scheduler": torch.optim.lr_scheduler.MultiStepLR(
-                optimizer,
-                milestones=[
-                    int(0.5 * self.trainer.max_epochs),
-                    int(0.7 * self.trainer.max_epochs),
-                ],
-                gamma=0.1,
-            ),
-            "interval": "epoch",
-        }
-        return [optimizer], [lr_scheduler]
+        lr_scheduler = torch.optim.lr_scheduler.SequentialLR(
+            optimizer, 
+            [
+                torch.optim.lr_scheduler.LinearLR(
+                    optimizer, 
+                    start_factor=0.25, 
+                    total_iters=20),
+                torch.optim.lr_scheduler.MultiStepLR(
+                    optimizer, 
+                    milestones=[0.5 * self.trainer.max_epochs,
+                                0.7 * self.trainer.max_epochs], 
+                    gamma=0.1)
+            ], 
+            milestones=[20])
+
+        return ([optimizer], [lr_scheduler])
 
     def _init_feature_extractor(self, model, ckpt_path):
         feature_extractor = WsiClassifier.load_from_checkpoint(ckpt_path, model=model)

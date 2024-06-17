@@ -13,13 +13,13 @@ from .slides_manager import SlidesManager, default_predicate
 from ..core import constants
 from ..core.wsi import (
     GridPatchExtractor,
+    MultiGridPatchExtractor,
     RandomPatchExtractor,
     SinglePatchExtractor,
     Slide,
     StridedPatchExtractor,
     Patch
 )
-
 
 class WSIDataset(ABC, Dataset):
     def __init__(
@@ -263,7 +263,8 @@ class SlideDataset(WSIDataset):
             bag[idx] = bag_item
 
         label = slide.slide_context.get_biomarker_value(bio_marker=self._target)
-        label = torch.tensor(label).expand(self._bag_size).clone()
+        label = torch.tensor(label)
+        label = label.expand((self._bag_size, *label.shape)).clone()
         dataset_id = torch.tensor(dataset_id)
 
         # TODO: add patch locations/coords
@@ -404,3 +405,52 @@ class SlideGridDataset(SlideDataset):
 
     def patch_extractor_constructor(self, slide: Slide = None):
         return GridPatchExtractor(slide, self._side_length)
+
+class SlideMultiGridDataset(SlideDataset):
+    """
+    A dataset which instead of sampling a grid samples multiple grids in a bag, while
+    resulting in an overall square grid.
+    """
+    def __init__(
+        self,
+        bags_per_slide: int = 1,
+        side_length: int=5,
+        num_grids: int=4,
+        target: str = "ER",
+        tile_size: int = 256,  # TODO: make this useful through patch extraction
+        desired_mpp: float = 1.0,  # TODO: make this useful through patch extraction
+        metadata_at_magnification: int = 10,
+        min_tiles: int = 100,
+        datasets_folds: Dict = {"CAT": [2,3,4,5]},
+        metadata_file_path: str = None,
+        datasets_base_dir_path: str = None,
+        transform=transforms.Compose([]),
+        slides_manager: SlidesManager = None,
+        **kw: object,
+    ):
+        # Assert that num_grids is a square of an int.
+        assert num_grids == int(num_grids**0.5)**2, f"num_grids is {num_grids}. It must be a square of an int."
+        super().__init__(
+            bags_per_slide=bags_per_slide,
+            slides_manager=slides_manager,
+            target=target,
+            tile_size=tile_size,  # TODO: make this useful through patch extraction
+            desired_mpp=desired_mpp,  # TODO: make this useful through patch extraction
+            bag_size=side_length**2,
+            metadata_at_magnification=metadata_at_magnification,
+            min_tiles=min_tiles,
+            datasets_folds=datasets_folds,
+            metadata_file_path=metadata_file_path,
+            datasets_base_dir_path=datasets_base_dir_path,
+            transform=transform,
+            **kw,
+        )
+        self._transform = transform
+        self._side_length = side_length
+        self._num_grids = num_grids
+
+    def __getitem__(self, item: int):
+        return self.get_bag(item)
+
+    def patch_extractor_constructor(self, slide: Slide = None):
+        return MultiGridPatchExtractor(slide, self._side_length, self._num_grids)

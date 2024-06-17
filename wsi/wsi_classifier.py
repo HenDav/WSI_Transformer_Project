@@ -17,7 +17,8 @@ from torchmetrics.functional.classification import accuracy, auroc
 
 import sys
 sys.path.append("../wsi-ssl")
-import wsi_ssl # circular import here for ssl model loading. needs to be taken care of at some point.
+from wsi.models.resnet_custom import resnet50_baseline
+# import wsi_ssl # circular import here for ssl model loading. needs to be taken care of at some point.
 from .models.preact_resnet import PreActResNet50
 from .core import constants
 
@@ -497,11 +498,13 @@ class WsiClassifier(LightningModule):
             backbone = PreActResNet50()
             num_features = backbone.linear.in_features
             backbone.linear = nn.Identity()
+        elif model == "resnet50_baseline":
+            backbone = resnet50_baseline(pretrained=imagenet_pretrained)
+            num_features = 1024
         else:
             # timm model
             backbone = timm.create_model(model, pretrained=imagenet_pretrained, drop_rate=drop_rate)
-            num_features = backbone.get_classifier().in_features
-            backbone.reset_classifier(0)
+            num_features = backbone.get_classifier().out_features
 
         classifier = nn.Linear(num_features, num_classes)
 

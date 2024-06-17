@@ -1,11 +1,13 @@
+import argparse
 from pathlib import Path
+import sys
 
 import torch
 from pytorch_lightning.callbacks import LearningRateMonitor
 from pytorch_lightning.cli import ArgsType, LightningCLI
 from pytorch_lightning.loggers.wandb import WandbLogger
 
-from wsi.datasets.mil_transformer_datamodules import WsiGridFeaturesDataModule, WsiGridDataModule, WsiRandomFeaturesDataModule
+from wsi.datasets.mil_transformer_datamodules import WsiGridFeaturesDataModule, WsiGridDataModule, WsiRandomFeaturesDataModule, WsiMultiGridFeaturesDataModule
 from wsi.mil_transformer_classifier import MilTransformerClassifier
 
 
@@ -43,6 +45,7 @@ class WsiLightningCLI(LightningCLI):
         return artifact_path
 
 
+
 def cli_main(args: ArgsType = None):
     lr_monitor = LearningRateMonitor()
     trainer_defaults = {
@@ -52,12 +55,18 @@ def cli_main(args: ArgsType = None):
         "callbacks": [lr_monitor],
     }
 
+    if patch_sampling=="random":
+        DataModule = WsiRandomFeaturesDataModule
+    elif patch_sampling=="multi_grid":
+        DataModule = WsiMultiGridFeaturesDataModule
+    elif patch_sampling=="grid":
+        DataModule = WsiGridFeaturesDataModule
+
     # note the current run's generated config.yaml file is saved in the cwd and not logged to wandb atm, it is overwritten every run
     # follow https://github.com/Lightning-AI/lightning/issues/14188 for the fix
     cli = WsiLightningCLI(  # noqa: F841
         MilTransformerClassifier,
-        WsiRandomFeaturesDataModule,
-        # WsiGridFeaturesDataModule, //change to grip training regiment
+        DataModule,
         # WsiGridDataModule,
         trainer_defaults=trainer_defaults,
         seed_everything_default=True,
@@ -79,4 +88,16 @@ def cli_main(args: ArgsType = None):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Top script arguments")
+    parser.add_argument('--patch_sampling', type=str, default="none", help='Patch Sampling Strategy')
+
+    # Parse only the known arguments (those for the script)
+    args, unknown = parser.parse_known_args()
+
+    # Extract the value of the flag
+    patch_sampling = args.patch_sampling
+    
+    # Now pass the remaining arguments to LightningCLI
+    sys.argv = [sys.argv[0]] + unknown
+    
     cli_main()

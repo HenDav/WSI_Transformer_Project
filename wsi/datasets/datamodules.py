@@ -55,6 +55,7 @@ class WsiDataModule(LightningDataModule):
         transforms: Optional[Tuple[Callable, Callable]] = None,
         openslide: bool = False,
         ssd: bool = True,
+        metadata_file_path = None,
         **kwargs
     ):
         """
@@ -91,6 +92,7 @@ class WsiDataModule(LightningDataModule):
         self.normalization = normalization
         self.autoaug = autoaug
         self.openslide = openslide
+        self.metadata_file_path = metadata_file_path
 
         self.GIPDEEP10_OPENSLIDE_ROOT = "/data"
         self.GIPDEEP10_H5_ROOT = "/data/unsynced_data/h5"
@@ -121,6 +123,7 @@ class WsiDataModule(LightningDataModule):
                 datasets_base_dir_path=(
                     self.GIPDEEP10_OPENSLIDE_ROOT if self.openslide else self.GIPDEEP10_H5_ROOT
                 ),
+                metadata_file_path=self.metadata_file_path
             )
 
             self.val_dataset = SlideStridedDataset(
@@ -133,6 +136,7 @@ class WsiDataModule(LightningDataModule):
                 datasets_base_dir_path=(
                     self.GIPDEEP10_OPENSLIDE_ROOT if self.openslide else self.GIPDEEP10_H5_ROOT
                 ),
+                metadata_file_path=self.metadata_file_path
             )
             
             self.train_dloader = DataLoader(
@@ -168,6 +172,7 @@ class WsiDataModule(LightningDataModule):
                 datasets_base_dir_path=(
                     self.GIPDEEP10_OPENSLIDE_ROOT if self.openslide else self.GIPDEEP10_H5_ROOT
                 ),
+                metadata_file_path=self.metadata_file_path
             )
             self.test_dloader = DataLoader(
                     self.test_dataset,
@@ -188,6 +193,7 @@ class WsiDataModule(LightningDataModule):
                 datasets_base_dir_path=(
                     self.GIPDEEP10_OPENSLIDE_ROOT if self.openslide else self.GIPDEEP10_H5_ROOT
                 ),
+                metadata_file_path=self.metadata_file_path
             )
             
             self.predict_dloader = DataLoader(

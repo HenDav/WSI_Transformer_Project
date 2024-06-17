@@ -7,8 +7,10 @@ from vit_pytorch.simple_vit import Transformer as SimpleTransfomer
 from vit_pytorch.vit import Transformer
 
 
-def posemb_sincos_2d(x, temperature=10000, dtype=torch.float32):
+def posemb_sincos_2d(x, num_grids=1, temperature=10000, dtype=torch.float32):
     _, n, dim, device, dtype = *x.shape, x.device, x.dtype
+    assert dim > num_grids, "feature dimension must be larger than num_grids for 2d posemb"
+    n = n//num_grids
     h, w = int(math.sqrt(n)), int(math.sqrt(n))
 
     y, x = torch.meshgrid(
@@ -21,7 +23,12 @@ def posemb_sincos_2d(x, temperature=10000, dtype=torch.float32):
     y = y.flatten()[:, None] * omega[None, :]
     x = x.flatten()[:, None] * omega[None, :]
     pe = torch.cat((x.sin(), x.cos(), y.sin(), y.cos()), dim=1)
-    return pe.type(dtype)
+    
+    # Make a tensor with the same dim as x, but with its rows being [ 1, 0, 0,...],
+    # [ 0, 1, 0,...], [ 0, 0, 1,...], up to the number of grids.
+    grids_base = torch.eye(num_grids, dim, device=device, dtype=dtype)
+
+    return pe.type(dtype).repeat(1, num_grids, 1) + grids_base.repeat_interleave(n, 0)
 
 
 class MilTransformer(nn.Module):
@@ -30,6 +37,7 @@ class MilTransformer(nn.Module):
         variant: Literal["vit", "simple"] = "vit",
         pos_encode: Literal["sincos", "learned", "None"] = "sincos",
         bag_size: int = 100,
+        num_grids: int = 1,
         input_dim: int = 512,
         num_classes: int = 2,
         dim: int = 1024,
@@ -44,6 +52,7 @@ class MilTransformer(nn.Module):
 
         self.bag_size = bag_size
         self.pos_encode = pos_encode
+        self.num_grids = num_grids
 
         if pos_encode == "learned":
             self.pos_embedding = nn.Parameter(torch.randn(1, bag_size, dim))
@@ -76,7 +85,7 @@ class MilTransformer(nn.Module):
         x = self.to_patch_embedding(bag)
 
         if self.pos_encode == "sincos":
-            x += posemb_sincos_2d(x)
+            x += posemb_sincos_2d(x, self.num_grids)
         elif self.pos_encode == "learned":
             x += self.pos_embedding[:, : (self.bag_size + 1)]
         x = self.emb_dropout(x)

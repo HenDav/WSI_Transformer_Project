@@ -4,9 +4,9 @@ from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 
 from wsi.datasets.datasets import SlideGridDataset
-from wsi.datasets.features_datasets import SlideGridFeaturesDataset, SlideRandomFeaturesDataset, SlideStridedFeaturesDataset
+from wsi.datasets.features_datasets import SlideGridFeaturesDataset, SlideRandomFeaturesDataset, SlideStridedFeaturesDataset, SlideMultiGridFeaturesDataset
 from torchvision import transforms
-from wsi.legacy.transformations import MyGaussianNoiseTransform, MyRotation
+from wsi.datasets.transformations import MyGaussianNoiseTransform, MyRotation
 from wsi.datasets.datamodules import NORMALIZATIONS
 
 class WsiMILDataModule(LightningDataModule):
@@ -20,6 +20,7 @@ class WsiMILDataModule(LightningDataModule):
         min_tiles_eval: int,
         batch_size: int,
         num_workers: int,
+        metadata_file_path = None,
         **kwargs
     ):
         """
@@ -37,6 +38,7 @@ class WsiMILDataModule(LightningDataModule):
 
         self.save_hyperparameters()
 
+        self.metadata_file_path = metadata_file_path
         self.datasets_folds = datasets_folds
         self.datasets_folds_val = datasets_folds_val
         self.target = target
@@ -58,6 +60,7 @@ class WsiMILDataModule(LightningDataModule):
             num_workers=self.num_workers,
             pin_memory=True,
             drop_last=True,
+            persistent_workers=True
         )
 
     def val_dataloader(self):
@@ -67,6 +70,7 @@ class WsiMILDataModule(LightningDataModule):
             shuffle=False,
             num_workers=self.num_workers,
             pin_memory=True,
+            persistent_workers=True
         )
 
     def test_dataloader(self):
@@ -76,12 +80,12 @@ class WsiMILDataModule(LightningDataModule):
             shuffle=False,
             num_workers=self.num_workers,
             pin_memory=True,
+            persistent_workers=True
         )
     
 class WsiFeaturesDataModule(WsiMILDataModule):
     def __init__(
         self,
-        
         features_dir: str,
         bag_size: int = 64,
         test_features_dir: Optional[str] = None,
@@ -93,6 +97,7 @@ class WsiFeaturesDataModule(WsiMILDataModule):
         min_tiles_eval: int = 100,
         batch_size: int = 128,
         num_workers: int = 8,
+        metadata_file_path: str = None,
         **kwargs
     ):
         """
@@ -117,6 +122,7 @@ class WsiFeaturesDataModule(WsiMILDataModule):
             min_tiles_train = min_tiles_train,
             min_tiles_eval = min_tiles_eval,
             batch_size = batch_size,
+            metadata_file_path = metadata_file_path,
             num_workers = num_workers
         )
 
@@ -139,6 +145,7 @@ class WsiFeaturesDataModule(WsiMILDataModule):
                 target=self.target,
                 min_tiles=self.min_tiles_train,
                 datasets_folds=self.datasets_folds,
+                metadata_file_path=self.metadata_file_path
             )
 
             self.val_dataset = SlideGridFeaturesDataset(
@@ -147,6 +154,7 @@ class WsiFeaturesDataModule(WsiMILDataModule):
                 target=self.target,
                 min_tiles=self.min_tiles_eval,
                 datasets_folds=self.datasets_folds_val,
+                metadata_file_path=self.metadata_file_path
             )
         elif stage == "test":
             self.test_dataset = SlideGridFeaturesDataset(
@@ -156,6 +164,7 @@ class WsiFeaturesDataModule(WsiMILDataModule):
                 target=self.target,
                 min_tiles=self.min_tiles_eval,
                 datasets_folds=self.datasets_folds,
+                metadata_file_path=self.metadata_file_path
             )
 
 class WsiGridFeaturesDataModule(WsiMILDataModule):
@@ -172,6 +181,7 @@ class WsiGridFeaturesDataModule(WsiMILDataModule):
         min_tiles_eval: int = 100,
         batch_size: int = 128,
         num_workers: int = 8,
+        metadata_file_path: str = None,
         **kwargs
     ):
         """
@@ -199,6 +209,7 @@ class WsiGridFeaturesDataModule(WsiMILDataModule):
             min_tiles_train = min_tiles_train,
             min_tiles_eval = min_tiles_eval,
             batch_size = batch_size,
+            metadata_file_path = metadata_file_path,
             num_workers = num_workers
         )
 
@@ -221,6 +232,7 @@ class WsiGridFeaturesDataModule(WsiMILDataModule):
                 target=self.target,
                 min_tiles=self.min_tiles_train,
                 datasets_folds=self.datasets_folds,
+                metadata_file_path=self.metadata_file_path
             )
 
             self.val_dataset = SlideGridFeaturesDataset(
@@ -229,6 +241,7 @@ class WsiGridFeaturesDataModule(WsiMILDataModule):
                 target=self.target,
                 min_tiles=self.min_tiles_eval,
                 datasets_folds=self.datasets_folds_val,
+                metadata_file_path=self.metadata_file_path
             )
         elif stage == "test":
             self.test_dataset = SlideGridFeaturesDataset(
@@ -238,6 +251,96 @@ class WsiGridFeaturesDataModule(WsiMILDataModule):
                 target=self.target,
                 min_tiles=self.min_tiles_eval,
                 datasets_folds=self.datasets_folds,
+                metadata_file_path=self.metadata_file_path
+            )
+
+class WsiMultiGridFeaturesDataModule(WsiMILDataModule):
+    def __init__(
+        self,
+        features_dir: str,
+        test_features_dir: Optional[str] = None,
+        bag_size: int = 100,
+        num_grids: int = 4,
+        datasets_folds: Dict = {'CAT':[2,3,4,5]},
+        datasets_folds_val: Dict = {'CAT':[1]},
+        target: str = "er_status",
+        bags_per_slide: int = 1,
+        min_tiles_train: int = 100,
+        min_tiles_eval: int = 100,
+        batch_size: int = 128,
+        num_workers: int = 8,
+        metadata_file_path: str = None,
+        **kwargs
+    ):
+        """
+        Args:
+            features_dir: Path to the features directory
+            test_features_dir: Path to the test features directory
+            bag_size: Number of elements in each bag, the side length of the grid is the square root of this value
+            num_grids: Number of grids to sample from each slide
+            datasets_folds: A dictionary with dataset names as keys and a list of folds for training as values
+            datasets_folds_val: A dictionary with dataset names as keys and a list of folds for validation as values
+            target: Name of the target to predict
+            bags_per_slide: Number of bags to sample from each slide during training
+            min_tiles_train: Minimum number of tiles per slide during training
+            min_tiles_eval: Minimum number of tiles per slide during validation and testing
+            batch_size: Batch size for the DataLoader
+            num_workers: Number of DataLoader workers
+        """
+        super().__init__(
+            datasets_folds = datasets_folds,
+            datasets_folds_val = datasets_folds_val,
+            target = target,
+            bags_per_slide = bags_per_slide,
+            min_tiles_train = min_tiles_train,
+            min_tiles_eval = min_tiles_eval,
+            batch_size = batch_size,
+            metadata_file_path = metadata_file_path,
+            num_workers = num_workers
+        )
+
+        self.save_hyperparameters()
+
+        self.features_dir = features_dir
+        self.grid_side_length = (bag_size // num_grids) ** 0.5
+        assert self.grid_side_length.is_integer(), f"The square root of the grid size {bag_size} is not a whole number."
+        self.grid_side_length = int(self.grid_side_length)
+        self.grid_size = bag_size
+        self.test_features_dir = test_features_dir
+        self.num_grids = num_grids
+
+    def setup(self, stage=None):
+        """Initialize datasets / splits and transforms, called on every process in ddp"""
+
+        if stage == "fit":
+            self.train_dataset = SlideMultiGridFeaturesDataset(
+                features_dir=self.features_dir,
+                num_grids=self.num_grids,
+                side_length=self.grid_side_length,
+                target=self.target,
+                min_tiles=self.min_tiles_train,
+                datasets_folds=self.datasets_folds,
+                metadata_file_path=self.metadata_file_path
+            )
+
+            self.val_dataset = SlideMultiGridFeaturesDataset(
+                features_dir=self.features_dir,
+                num_grids=self.num_grids,
+                side_length=self.grid_side_length,
+                target=self.target,
+                min_tiles=self.min_tiles_eval,
+                datasets_folds=self.datasets_folds_val,
+                metadata_file_path=self.metadata_file_path
+            )
+        elif stage == "test":
+            self.test_dataset = SlideMultiGridFeaturesDataset(
+                features_dir=self.test_features_dir,
+                num_grids=self.num_grids,
+                side_length=self.grid_side_length,
+                target=self.target,
+                min_tiles=self.min_tiles_eval,
+                datasets_folds=self.datasets_folds,
+                metadata_file_path=self.metadata_file_path
             )
 
 
@@ -255,6 +358,7 @@ class WsiRandomFeaturesDataModule(WsiMILDataModule):
         min_tiles_eval: int = 100,
         batch_size: int = 128,
         num_workers: int = 8,
+        metadata_file_path: str = None,
         **kwargs
     ):
         """
@@ -279,7 +383,8 @@ class WsiRandomFeaturesDataModule(WsiMILDataModule):
             min_tiles_train = min_tiles_train,
             min_tiles_eval = min_tiles_eval,
             batch_size = batch_size,
-            num_workers = num_workers
+            num_workers = num_workers,
+            metadata_file_path = metadata_file_path
         )
 
         self.save_hyperparameters()
@@ -298,6 +403,7 @@ class WsiRandomFeaturesDataModule(WsiMILDataModule):
                 target=self.target,
                 min_tiles=self.min_tiles_train,
                 datasets_folds=self.datasets_folds,
+                metadata_file_path=self.metadata_file_path
             )
 
             self.val_dataset = SlideRandomFeaturesDataset(
@@ -307,6 +413,7 @@ class WsiRandomFeaturesDataModule(WsiMILDataModule):
                 target=self.target,
                 min_tiles=self.min_tiles_eval,
                 datasets_folds=self.datasets_folds_val,
+                metadata_file_path=self.metadata_file_path
             )
         elif stage == "test":
             self.test_dataset = SlideRandomFeaturesDataset(
@@ -316,6 +423,7 @@ class WsiRandomFeaturesDataModule(WsiMILDataModule):
                 target=self.target,
                 min_tiles=self.min_tiles_eval,
                 datasets_folds=self.datasets_folds,
+                metadata_file_path=self.metadata_file_path
             )
 
 class WsiGridDataModule(WsiMILDataModule):
@@ -341,6 +449,7 @@ class WsiGridDataModule(WsiMILDataModule):
         transforms: Optional[Tuple[Callable, Callable]] = None,
         openslide: bool = False,
         ssd: bool = True,
+        metadata_file_path: str = None,
         **kwargs
     ):
         """
@@ -362,7 +471,8 @@ class WsiGridDataModule(WsiMILDataModule):
             min_tiles_train = min_tiles_train,
             min_tiles_eval = min_tiles_eval,
             batch_size = batch_size,
-            num_workers = num_workers
+            num_workers = num_workers,
+            metadata_file_path = metadata_file_path
         )
         
         self.save_hyperparameters()
@@ -400,6 +510,7 @@ class WsiGridDataModule(WsiMILDataModule):
                 datasets_base_dir_path=(
                     self.GIPDEEP10_OPENSLIDE_ROOT if self.openslide else self.GIPDEEP10_H5_ROOT
                 ),
+                metadata_file_path=self.metadata_file_path
             )
 
             self.val_dataset = SlideGridDataset(
@@ -412,6 +523,7 @@ class WsiGridDataModule(WsiMILDataModule):
                 datasets_base_dir_path=(
                     self.GIPDEEP10_OPENSLIDE_ROOT if self.openslide else self.GIPDEEP10_H5_ROOT
                 ),
+                metadata_file_path=self.metadata_file_path
             )
         elif stage == "test":
             self.test_dataset = SlideGridDataset(
@@ -424,6 +536,7 @@ class WsiGridDataModule(WsiMILDataModule):
                 datasets_base_dir_path=(
                     self.GIPDEEP10_OPENSLIDE_ROOT if self.openslide else self.GIPDEEP10_H5_ROOT
                 ),
+                metadata_file_path=self.metadata_file_path
             )
 
     def define_transforms(self):

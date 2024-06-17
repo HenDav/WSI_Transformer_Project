@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
 import pandas
+import numpy as np
 from tqdm import tqdm
 
 from ..core import constants
@@ -20,6 +21,8 @@ def default_predicate( #TODO: add as parameter list of columns_used
     target: str,
     secondary_target: str
 ) -> pandas.Index:
+    if target == "none":
+        df[target] = 1
     matching_indices = pandas.Index([])
     for ds in datasets_folds:
         fold_indices = df.index[df[constants.fold_column_name].isin(datasets_folds[ds])]
@@ -32,11 +35,11 @@ def default_predicate( #TODO: add as parameter list of columns_used
         df[constants.legitimate_tiles_column_name] > min_tiles
     ]
     target_indices = df.index[
-        df[target].notna() & df[target].isin([0,1,'0','1'])
+        df[target].notna()
     ]
     if secondary_target:
         secondary_indices = df.index[
-            df[secondary_target].notna() & df[secondary_target].isin([0,1,'0','1'])
+            df[secondary_target].notna()
         ]  # TODO: review this and check possible column values
         target_indices = target_indices.intersection(secondary_indices)
         
@@ -60,6 +63,7 @@ class SlidesManager(MetadataBase):
         desired_mpp: float,
         metadata_at_magnification: int,
         metadata_file_path: Path,
+        target: str,
         row_predicate: Callable = default_predicate,  # [[pandas.DataFrame, ...], pandas.Index] somehow causes a bug, I have no idea why
         # use_taular_data: bool = False,
         # tabular_transform_pipeline: Callable = None,
@@ -67,6 +71,7 @@ class SlidesManager(MetadataBase):
     ):
         self._desired_mpp = desired_mpp
         self._metadata_file_path = metadata_file_path
+        self.target = target
         self._slides = []
         self._current_slides = []
         # self._tile_to_slide_dict = self._create_tile_to_slide_dict()
@@ -77,17 +82,9 @@ class SlidesManager(MetadataBase):
             metadata_at_magnification=metadata_at_magnification,
             desired_mpp=desired_mpp,
         )
-        if ("target" in predicate_args.keys() and 
-            predicate_args["target"]=="binary_dfs"):
-            self._df[predicate_args["target"]] = \
-                self.binarize_dfs(
-                    years=constants.dfs_binarization_threshold
-                )
-            print(self._df["binary_dfs"].notna().sum())
-        elif ("target" in predicate_args.keys() and 
-            predicate_args["target"]=="er_or_pr"):
-            self._df[predicate_args["target"]] = (1 - ((1 - self._df["er_status"]) * (1 - self._df["pr_status"])))
-        self._df = self._df.iloc[row_predicate(self._df, **predicate_args)]
+        
+        self._df[self.target] = self.make_target_column()
+        self._df = self._df.iloc[row_predicate(self._df, target=target, **predicate_args)].reset_index()
         self._current_slides = self._create_slides()
         self._tiles_df = self._create_tiles_df()
 
@@ -144,6 +141,13 @@ class SlidesManager(MetadataBase):
         bm_ret[(self._df["dfs"] > 365*years)] = 1
         bm_ret[(self._df["dfs"] <= 365*years) & (self._df["typefdfs"] != "death without another event reported")] = 0
         return bm_ret
+    
+    # def multilabel_dfs(self, thresh: List[float]):
+    #     bm_ret = self._df["dfs"].copy()
+    #     bm_ret[:] = pandas.NA
+    #     for t in thresh:
+    #         bm_ret[(self._df["dfs"] > t)] = 1
+    #         bm_ret[(self._df["dfs"] <= t) & (self._df["typefdfs"] != "death without another event reported")] = 0
 
     def get_slide(self, slide_idx: int) -> Slide:
         return self._current_slides[slide_idx]
@@ -181,3 +185,28 @@ class SlidesManager(MetadataBase):
         return [
             self._file_name_to_slide[x] for x in self._df[constants.file_column_name]
         ]
+
+    def binary_label_str_to_int(self) -> pandas.Series:
+        pos_label = self._df[self.target].apply(lambda x: 1 if (x=="Positive" or x=='1' or x==1) else pandas.NA)
+        neg_label = self._df[self.target].apply(lambda x: 0 if (x=="Negative" or x=='0' or x==0) else pandas.NA)
+        return pos_label.combine_first(neg_label)
+
+    def make_target_column(self):
+        if (self.target=="binary_dfs"):
+            return self.binarize_dfs(years=constants.dfs_binarization_threshold)
+        elif (self.target=="multilabel_dfs"):
+            return self.multilabel_dfs(thresh=constants.SURVIVAL_QUANTILES)
+        elif (self.target=="er_or_pr"):
+            return (1 - ((1 - self._df["er_status"]) * (1 - self._df["pr_status"])))
+        elif (self.target=="survival"):
+            return self._df.apply(lambda x: np.array([x["survtime"], x["survstat"], x["survtime"]]), axis=1)
+        elif (self.target=="dfs"):
+            return self._df.apply(lambda x: np.array([x["dfs"], x["dfsind"], x["dfs"]]), axis=1)
+        elif (self.target=="drfi"):
+            return self._df.apply(lambda x: np.array([x["drfi"], x["drfiind"], x["dfs"]]), axis=1)
+        elif (self.target=="rfi"):
+            return self._df.apply(lambda x: np.array([x["rfi"], x["rfiind"], x["dfs"]]), axis=1)
+        elif (self.target=="none"):
+            return pandas.Series([1]*len(self._df))
+        else:
+            return self.binary_label_str_to_int()

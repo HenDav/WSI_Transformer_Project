@@ -101,6 +101,15 @@ fold_column_name_haemek = "test fold idx"
 tumor_type_column_name_haemek = "TumorType"
 disease_free_status_column_name = "dfsind"
 dfs_binarization_threshold = 7
+SURVIVAL_QUANTILES =  {0.1: 772.0,
+ 0.2: 1288.0,
+ 0.3: 1672.4,
+ 0.4: 1926.0,
+ 0.5: 2204.5,
+ 0.6: 2438.6,
+ 0.7: 2643.6,
+ 0.8: 2885.8,
+ 0.9: 3209.2}
 hormonal_label_column_name = "label_HL"
 # hormonal_label_column_names = {"hormonal_label_column_name": "label_HL"}
 # for i in range(1, 21):
