@@ -6,8 +6,6 @@ This project is an implementation of our final project for Transformers - 236004
 
 - [Installation](#installation)
 - [Usage](#usage)
-- [Contributing](#contributing)
-- [License](#license)
 
 ## Installation
 
